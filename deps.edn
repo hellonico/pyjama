@@ -6,7 +6,8 @@
   ;manifold {:mvn/version "0.1.9"}
   cheshire/cheshire {:mvn/version "5.10.0"}
   org.clojure/core.async {:mvn/version "1.5.648"}}
- :aliases {:native-image
+ :aliases {
+           :native-image
            {:main-opts ["-m" "clj.native-image" "pyjama.cli"
                         "--initialize-at-build-time"
                         "--initialize-at-run-time=org.apache.http.impl.auth.NTLMEngineImpl"

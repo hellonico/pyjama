@@ -28,3 +28,9 @@ or, if the ollama server is on a different machine:
 ```bash
 ./pyjama  -p "Why is the sky blue?" -u http://localhost:11435
 ```
+
+# Run the cool tests
+
+```clojure
+clj -X:test :patterns '["morning.query-test"]'
+```
