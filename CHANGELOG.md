@@ -6,5 +6,9 @@ All notable changes to this project will be documented in this file. This change
 
 ## [0.1.1] - 2024-12-20
 ### Changed
-- First Pyjama release
+- Personalities for ollama generate 
+- Embeddings support
+- Clojure CLI scripting sample
 - Documentation
+- First Pyjama release
+

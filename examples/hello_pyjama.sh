@@ -12,11 +12,9 @@ exec clj $OPTS -Sdeps "$DEPS" -M "$0" "$@"
 
 )
 
-(require '[pyjama.core])
-(def url "http://localhost:11434")
+(require '[pyjama.personalities.core])
 
-; simple generate
 (pyjama.core/ollama
-  url
+  (or (System/getenv "OLLAMA_URL") "http://localhost:11434")
   :generate
   {:stream true :prompt "What color is the sky at night and why?"})

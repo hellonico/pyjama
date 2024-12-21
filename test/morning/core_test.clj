@@ -3,7 +3,7 @@
             [pyjama.image]
             [pyjama.core]))
 
-(def URL "http://localhost:11434")
+(def URL (or (System/getenv "OLLAMA_URL") "http://localhost:11434"))
 (def model "llama3.2")
 (def prompt "Why is the sky blue?")
 
