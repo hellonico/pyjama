@@ -119,7 +119,23 @@ A [Clojure](https://clojure.org/) client for [Ollama](https://ollama.com/)
    :stream true
    }
   pyjama.core/print-create-tokens)
+
+; generate embeddings
+(pyjama.core/ollama
+  url
+  :embed
+  {:input "The sky is blue because the smurfs are too."})
+
+; generate embeddings multiple outputs
+(pyjama.core/ollama
+  url
+  :embed
+  {:input [
+           "The sky is blue because the smurfs are too."
+           "The sky is red in the evening because the grand smurf is too."
+           ]})
 ```
+
 
 ## License
 

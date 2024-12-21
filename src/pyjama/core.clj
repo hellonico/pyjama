@@ -77,6 +77,12 @@
     :post
     print-chat-tokens]
 
+   :embed
+   [{:model "all-minilm"}
+   :post
+    :embeddings
+    ]
+
    })
 
 (defn ollama

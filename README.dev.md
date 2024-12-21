@@ -6,7 +6,7 @@
  :deps
  {org.clojure/clojure {:mvn/version "1.11.0"}
  hellonico/pyjama {:git/url "https://github.com/hellonico/pyjama.git"
-                   :sha "990b35deb81dd8ee1c6a2813ee9ea8e4651178c5"}
+                   :sha "9b0647cf72462bcd690ec28a01a97486a1e886ec"}
                          }}
 ```
 

@@ -81,7 +81,7 @@
   (pyjama.core/ollama
     URL
     :pull
-    {:stream true}
+    {:stream true :model "all-minilm"}
     pyjama.core/print-pull-tokens))
 
 (deftest show
@@ -126,3 +126,26 @@
        :stream true
        }
       pyjama.core/print-create-tokens))
+
+(deftest generate-embeddings
+  (->
+    (pyjama.core/ollama
+    URL
+    :embed
+    {:input "The sky is blue because the smurfs are too."})
+    clojure.pprint/pprint
+    ))
+
+(deftest generate-embeddings-multiple-inputs
+  (->
+    (pyjama.core/ollama
+      URL
+      :embed
+      {:input [
+               "The sky is blue because the smurfs are too."
+               "The sky is red in the evening because the grand smurf is too."
+       ]}
+      )
+    count
+    clojure.pprint/pprint
+    ))
