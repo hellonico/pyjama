@@ -14,6 +14,7 @@
        {
         :model  (or (:model config) (System/getenv "PYJAMA_MODEL")  "llama3.2")
         :system (:system config)
+        :stream (:realtime config)
         :prompt
         (format
           (:template config)
