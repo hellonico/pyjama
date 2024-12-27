@@ -1,6 +1,7 @@
 (ns pyjama.core
   (:require [cheshire.core :as json]
             [clj-http.client :as client]
+            [clojure.core.async :as async]
             [clojure.java.io :as io]))
 
 (defn print-tokens [parsed key]
@@ -20,14 +21,23 @@
 (defn print-chat-tokens [parsed]
   (print-tokens parsed [:message :content]))
 
+(defn pipe-tokens[ch json-path parsed]
+  (when-let [resp (get-in parsed json-path)]
+    (async/go (async/>! ch resp))))
+
+(defn pipe-chat-tokens [ch parsed]
+  (pipe-tokens ch [:response] parsed))
+
 (defn stream [_fn body]
   (let [stream (io/reader body)]
-    (reduce (fn [_ line] (_fn (json/parse-string line true)))
+    (reduce (fn [_ line]
+              (_fn (json/parse-string line true)))
             nil
             (line-seq stream))))
 
 (def DEFAULTS
   {
+   ; api function name
    :generate
    [
     {:model      "llama3.2"
@@ -110,4 +120,5 @@
          ]
      (if streaming?
        ((partial stream _fn) body)
-       (_fn body)))))
+       (_fn body)))
+   ))
