@@ -1,6 +1,7 @@
 (ns pyjama.models
   (:require [clj-http.client :as client]
             [hickory.core :as hickory]
+            [clojure.string :as str]
             [hickory.select :as select]))
 
 (defn fetch-and-parse-html [url]
@@ -93,5 +94,23 @@
 (defn fetch-remote-models[]
   (scrape-items "https://ollama.com/library?sort=newest"))
 
-(defn -main[& args]
-  (clojure.pprint/pprint (fetch-remote-models)))
+
+(defn sort-models [models sort-key sort-direction]
+  (let [getter (fn [model] (get model sort-key))]  ;; Getter to extract the sort value
+    (if (= sort-direction :asc)
+      (sort-by getter models)  ;; Use sort-by for ascending order
+      (reverse (sort-by getter models)))))  ;; Use reverse for descending order
+
+(defn filter-models [models query]
+  (if (str/blank? (str query))  ;; Ensure `query` is a string before using `str/blank?`
+    models
+    (filter (fn [model]
+              (some (fn [[_ v]]
+                      (let [value-str (cond
+                                        (string? v) v
+                                        (coll? v) (str/join " " v)
+                                        :else (str v))]  ;; Convert everything to string
+                        (str/includes? (str/lower-case value-str)
+                                       (str/lower-case query))))  ;; Case-insensitive search
+                    model))
+            models)))
