@@ -1,5 +1,6 @@
 (ns morning.core-test
-  (:require [clojure.test :refer :all]
+  (:require [clojure.string :as str]
+            [clojure.test :refer :all]
             [pyjama.image]
             [pyjama.core]))
 
@@ -69,6 +70,15 @@
   (->
     (pyjama.core/ollama URL :tags {} (fn [res] (map :name (res :models))))
     (clojure.pprint/pprint)))
+
+(deftest list-models-names-stripped
+  (->
+    (pyjama.core/ollama
+      URL
+      :tags {}
+      (fn [res] (map #(str/replace (:name %) #":.*" "" ) (res :models))))
+    (clojure.pprint/pprint)))
+
 
 (deftest pull-non-streaming
   (->
