@@ -1,4 +1,4 @@
-(ns models_test
+(ns morning.models_test
   (:require
     [pyjama.models :refer :all]
     [clojure.test :refer :all]))
