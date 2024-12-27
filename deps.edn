@@ -5,6 +5,7 @@
   org.clojure/tools.cli {:mvn/version "1.1.230"}
   ;manifold {:mvn/version "0.1.9"}
   cheshire/cheshire {:mvn/version "5.10.0"}
+  org.clj-commons/hickory {:mvn/version "0.7.5"}
   org.clojure/core.async {:mvn/version "1.5.648"}}
  :aliases {
            :native-image
