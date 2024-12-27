@@ -6,7 +6,9 @@
             [pyjama.core]))
 
 (defn update-state [state path _fn]
-  (swap! state update-in path _fn))
+  (swap! state update-in path
+         (constantly
+           _fn)))
 
 (defn local-models [state]
   (update-state
@@ -21,7 +23,6 @@
 (defn remote-models [state]
   (update-state state [:models]
                 (pyjama.models/fetch-remote-models)))
-
 
 (defn ollama-request [state response-handler]
   (let [ch (async/chan 10)
