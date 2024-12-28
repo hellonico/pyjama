@@ -28,6 +28,9 @@
 (defn pipe-chat-tokens [ch parsed]
   (pipe-tokens ch [:response] parsed))
 
+(defn pipe-pull-tokens [ch parsed]
+  (pipe-tokens ch [:status] parsed))
+
 (defn stream [_fn body]
   (let [stream (io/reader body)]
     (reduce (fn [_ line]

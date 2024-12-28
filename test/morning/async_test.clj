@@ -7,7 +7,7 @@
 (def model "llama3.2")
 (def prompt "Why is the sky blue?")
 
-(deftest streaming-with-channels
+(deftest generate-streaming-with-channels
   (let [ch (async/chan)
         _fn (partial pyjama.core/pipe-chat-tokens ch)
         result-ch (async/go
@@ -19,6 +19,23 @@
         (flush)))
       ; on main thread here.
       (loop []
+      (when-let [val (async/<!! ch)]
+        (print val)
+        (flush)
+        (recur)))))
+
+(deftest pull-streaming-with-channels
+  (let [ch (async/chan)
+        _fn (partial pyjama.core/pipe-pull-tokens ch)
+        result-ch (async/go
+                    (pyjama.core/ollama URL :pull {:stream true :model "llama3.2"} _fn))
+        ]
+    (async/go
+      (let [_ (async/<! result-ch)]
+        (async/close! ch)
+        (flush)))
+    ; on main thread here.
+    (loop []
       (when-let [val (async/<!! ch)]
         (print val)
         (flush)
