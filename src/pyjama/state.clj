@@ -53,3 +53,18 @@
 (defn handle-submit [state]
   (swap! state assoc :response "")
   (ollama-request state (partial update-response state)))
+
+(defn pull-model-stream [state model-name]
+  (let [ch (async/chan)
+        _fn (partial pyjama.core/pipe-pull-tokens ch)
+        result-ch (async/go
+                    (pyjama.core/ollama (:url @state) :pull {:stream true :model model-name} _fn))]
+    (async/go
+      (let [_ (async/<! result-ch)]
+        (async/close! ch)))
+    ; Update UI with values from the channel
+    (future
+      (loop []
+        (when-let [val (async/<!! ch)]
+          (swap! state assoc :pull-status val) ; Update state with the latest value
+          (recur))))))

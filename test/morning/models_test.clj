@@ -23,3 +23,10 @@
     (Thread/sleep 5000)
     (clojure.pprint/pprint @state)
     ))
+
+(deftest pull-model-stream-test
+  (let [state (atom {:url "http://localhost:11434"})]
+    (pull-model-stream state "llama3.2")
+    (Thread/sleep 5000)
+    (clojure.pprint/pprint @state)
+    ))
