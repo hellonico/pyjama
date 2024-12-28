@@ -55,6 +55,7 @@
   (ollama-request state (partial update-response state)))
 
 (defn pull-model-stream [state model-name]
+  (swap! state update-in [:pull :model] (constantly model-name))
   (let [ch (async/chan)
         _fn (partial pyjama.core/pipe-pull-tokens ch)
         result-ch (async/go
@@ -66,5 +67,5 @@
     (future
       (loop []
         (when-let [val (async/<!! ch)]
-          (swap! state assoc :pull-status val) ; Update state with the latest value
+          (swap! state update-in [:pull :status] (constantly val)) ; Update state with the latest value
           (recur))))))
