@@ -1,5 +1,6 @@
 (ns morning.core-test
-  (:require [clojure.string :as str]
+  (:require [cheshire.core :as json]
+            [clojure.string :as str]
             [clojure.test :refer :all]
             [pyjama.image]
             [pyjama.core]))
@@ -17,6 +18,31 @@
   (->
     (pyjama.core/ollama URL :generate {:stream false :model model :prompt prompt} identity)
     (println)))
+
+(deftest structured-output-to-json
+  (let [structure {:type "object"
+                   :required [:age :available]
+                   :properties {:age {:type "integer"} :available {:type "boolean"}}}]
+  (->
+    (pyjama.core/ollama URL :generate
+                        {:stream false :format structure
+                         :model model
+                         :prompt "Pyjama is 22 days old and is busy saving the world."}
+                        :response)
+    (println))))
+
+(deftest structured-output-to-edn
+  (let [structure {:type "object"
+                   :required [:age :available]
+                   :properties {:age {:type "integer"} :available {:type "boolean"}}}]
+    (->
+      (pyjama.core/ollama URL :generate
+                          {:stream false
+                           :format structure
+                           :model model
+                           :prompt "Pyjama is 22 days old and is busy saving the world."}
+                          pyjama.core/structure-to-edn)
+      (println))))
 
 (deftest reproducible-output-by-setting-the-seed
   (->

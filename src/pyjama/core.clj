@@ -38,6 +38,12 @@
             nil
             (line-seq stream))))
 
+(defn keys-to-keywords [m]
+  (into {} (map (fn [[k v]] [(keyword (name k)) v]) m)))
+
+(defn structure-to-edn[body]
+  (-> body :response json/parse-string keys-to-keywords))
+
 (def DEFAULTS
   {
    ; api function name

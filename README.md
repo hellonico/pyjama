@@ -32,7 +32,24 @@ A [Clojure](https://clojure.org/) client for [Ollama](https://ollama.com/)
      :format "json"
      :stream false
      })
-; {"daytime": "blue", "sunset": "orange-red", "dusk": "pink-orange", "night": "dark blue or black"}nil
+; {"daytime": "blue", "sunset": "orange-red", "dusk": "pink-orange", "night": "dark blue or black"}
+
+; structured output in json
+(pyjama.core/ollama URL :generate
+                    {:stream false :format structure
+                     :model model
+                     :prompt "Pyjama is 22 days old and is busy saving the world."}
+                    :response)
+; {"age": 22, "available": true}
+
+; structured output in edn
+(pyjama.core/ollama URL :generate
+                    {:stream false
+                     :format structure
+                     :model model
+                     :prompt "Pyjama is 22 days old and is busy saving the world."}
+                    pyjama.core/structure-to-edn)
+; {:age 22, :available true}
 
 ; What is in the picture?
 (pyjama.core/ollama 
