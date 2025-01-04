@@ -9,6 +9,11 @@
 (def model "llama3.2")
 (def prompt "Why is the sky blue?")
 
+(deftest get-version
+  (->
+    (pyjama.core/ollama URL :version {})
+    (println)))
+
 (deftest non-streaming
   (->
     (pyjama.core/ollama URL :generate {:stream false :model model :prompt prompt} :response)

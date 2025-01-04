@@ -102,6 +102,9 @@
     :embeddings
     ]
 
+   :version
+   [{} :get identity]
+
    })
 
 (defn ollama
