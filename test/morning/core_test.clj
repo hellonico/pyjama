@@ -30,7 +30,8 @@
                    :properties {:age {:type "integer"} :available {:type "boolean"}}}]
   (->
     (pyjama.core/ollama URL :generate
-                        {:stream false :format structure
+                        {:stream false
+                         :format structure
                          :model model
                          :prompt "Pyjama is 22 days old and is busy saving the world."}
                         :response)
@@ -51,8 +52,10 @@
 
 (deftest reproducible-output-by-setting-the-seed
   (->
-    (pyjama.core/ollama URL :generate
-                        {:model "llama3.2" :prompt "Why is the sky blue?" :options {:seed 123}} :response)
+    (pyjama.core/ollama
+      URL
+      :generate
+      {:model "llama3.2" :prompt "Why is the sky blue?" :options {:seed 123}} :response)
     (println)))
 
 (deftest delete-model

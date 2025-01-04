@@ -29,10 +29,17 @@
         _fn (partial pyjama.core/pipe-chat-tokens ch)
         image-data (when (:images @state)
                      (map pyjama.image/image-to-base64 (:images @state)))
+        format-data (when (:format @state)
+                      (:format @state))
         request-params (cond-> {:stream true
                                 :model  (:model @state)
                                 :prompt (:prompt @state)}
-                               image-data (assoc :images image-data))
+                               image-data (assoc :images image-data)
+                               format-data (assoc
+                                             :format format-data
+                                             ;:stream false
+                                             )
+                               )
         result-ch (async/thread
                     (swap! state assoc :processing true)
                     (pyjama.core/ollama (:url @state) :generate request-params _fn)
