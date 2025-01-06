@@ -1,4 +1,4 @@
-(ns morning.models_test
+(ns morning.state_test
   (:require
     [pyjama.models :refer :all]
     [pyjama.state :refer :all]
@@ -8,8 +8,7 @@
   (let [models (fetch-remote-models)]
     (clojure.pprint/pprint (filter-models models "mistral"))
     (clojure.pprint/pprint (sort-models models :name :asc))
-    (clojure.pprint/pprint (sort-models models :pulls :desc))
-    ))
+    (clojure.pprint/pprint (sort-models models :pulls :desc))))
 
 (def url (or (System/getenv "OLLAMA_URL") "http://localhost:11434"))
 

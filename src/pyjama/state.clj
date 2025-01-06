@@ -74,6 +74,10 @@
 ;
 ; CHAT
 (defn ollama-chat [state response-handler]
+  (swap! state assoc :processing true)
+  ; make sure messages key is an array.
+  ; has to be done beforehand
+  ;(swap! state #(assoc % :messages (get % :messages [])))
   (let [ch (async/chan 10)
         _fn (partial pyjama.core/pipe-chat-tokens ch)
         ; TODO: where to handle images
@@ -84,9 +88,9 @@
         request-params (cond-> {:stream true
                                 :model  (:model @state)
                                 :messages (:messages @state)}
-                               format-data (assoc :format format-data))
+                               format-data (assoc :format format-data)
+                               )
         result-ch (async/thread
-                    (swap! state assoc :processing true)
                     (pyjama.core/ollama (:url @state) :chat request-params _fn)
                     (swap! state assoc :processing false)
                     )]

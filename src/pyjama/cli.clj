@@ -3,12 +3,14 @@
   (:require
     [pyjama.core]
     [pyjama.image]
+    [pyjama.state]
     [clojure.tools.cli :as cli]))
 
 (def cli-options
   [["-u" "--url URL" "Base URL for API (e.g. http://localhost:11434)" :default "http://localhost:11434"]
    ["-m" "--model MODEL" "Model to use (e.g. llama3.2)" :default "llama3.2"]
    ["-s" "--stream STREAM" "Streaming or not" :default true :parse-fn read-string]
+   ["-c" "--chat MODE" "Chat mode or not" :default false :parse-fn read-string]
    ["-i" "--images IMAGES" "Image file(s)"
     :id :images
     :parse-fn identity
@@ -25,12 +27,36 @@
       (do (println summary) (System/exit 0))
       options)))
 
+(defn- extra-characters [res1 res2]
+  (let [common-length (count (take-while identity (map #(= %1 %2) res1 res2)))]
+    (subs res1 common-length)))
+
 (defn -main [& args]
-  (let [{:keys [url images model prompt stream]} (parse-cli-options args)]
+  (let [{:keys [url images model prompt stream chat]} (parse-cli-options args)]
+    (if (not chat)
     (pyjama.core/ollama
       url
       :generate
       {:images images :model model :stream stream :prompt prompt})
+    (let [
+          state (atom {:url url :model model :messages [] :stream stream})
+          last-response (atom "")
+          ]
+      (while true
+      (print "\n> ") (flush)
+      (reset! last-response "")
+      (swap! state update :messages conj {:role :user :content (read-line)})
+
+      (pyjama.state/handle-chat state)
+
+      (while (:processing @state)
+        (let [current (:response @state)]
+        (print (extra-characters current @last-response))
+        (flush)
+        (reset! last-response current)))
+
+      )
+      ))
 
     #_
     (->
