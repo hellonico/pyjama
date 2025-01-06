@@ -10,7 +10,11 @@
          (constantly
            _fn)))
 
-(defn local-models [state]
+;
+; LOCAL MODELS
+(defn local-models
+  "This fetches info on local models for the given :url. Models will be stored in :local-models."
+  [state]
   (update-state
     state
     [:local-models]
@@ -20,13 +24,20 @@
       (fn [res]
         (map #(str/replace (:name %) #":.*" "") (:models res))))))
 
-(defn remote-models [state]
+;
+; REMOTE MODELS
+(defn remote-models
+  "This fetches models available on ollama.com and update the state with a :models key"
+  [state]
   (update-state state [:models]
                 (pyjama.models/fetch-remote-models)))
 
-(defn ollama-request [state response-handler]
+
+;
+; GENERATE WITH CHANNELS AND DATA IN THE STATE
+(defn ollama-generate [state response-handler]
   (let [ch (async/chan 10)
-        _fn (partial pyjama.core/pipe-chat-tokens ch)
+        _fn (partial pyjama.core/pipe-generate-tokens ch)
         image-data (when (:images @state)
                      (map pyjama.image/image-to-base64 (:images @state)))
         format-data (when (:format @state)
@@ -36,10 +47,7 @@
                                 :prompt (:prompt @state)}
                                image-data (assoc :images image-data)
                                format-data (assoc
-                                             :format format-data
-                                             ;:stream false
-                                             )
-                               )
+                                             :format format-data))
         result-ch (async/thread
                     (swap! state assoc :processing true)
                     (pyjama.core/ollama (:url @state) :generate request-params _fn)
@@ -60,9 +68,50 @@
   (swap! state update :response str text))
 
 (defn handle-submit [state]
-  (swap! state assoc :response "")
-  (ollama-request state (partial update-response state)))
+  (update-response state "")
+  (ollama-generate state (partial update-response state)))
 
+;
+; CHAT
+(defn ollama-chat [state response-handler]
+  (let [ch (async/chan 10)
+        _fn (partial pyjama.core/pipe-chat-tokens ch)
+        ; TODO: where to handle images
+        ;image-data (when (:images @state)
+        ;             (map pyjama.image/image-to-base64 (:images @state)))
+        format-data (when (:format @state)
+                      (:format @state))
+        request-params (cond-> {:stream true
+                                :model  (:model @state)
+                                :messages (:messages @state)}
+                               format-data (assoc :format format-data))
+        result-ch (async/thread
+                    (swap! state assoc :processing true)
+                    (pyjama.core/ollama (:url @state) :chat request-params _fn)
+                    (swap! state assoc :processing false)
+                    )]
+    (async/go
+      ; close the messaging channel once the function has finished.
+      (let [_ (async/<! result-ch)]
+        (async/close! ch)
+        ; append the message to the list of messages
+        (swap! state update :messages conj {:role :assistant :content (:response @state)})
+        (swap! state assoc :response "")
+        ))
+    (async/go-loop []
+      (if-let [val (async/<! ch)]
+        (if (:processing @state)
+          (do
+            (response-handler val)
+            (recur)))))))
+
+(defn handle-chat [state]
+  (update-response state "")
+  (ollama-chat state (partial update-response state)))
+
+
+;
+; MODEL PULL
 (defn pull-model-stream [state model-name]
   (swap! state update-in [:pull :model] (constantly model-name))
   (let [ch (async/chan)

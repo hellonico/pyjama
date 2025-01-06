@@ -25,8 +25,11 @@
   (when-let [resp (get-in parsed json-path)]
     (async/go (async/>! ch resp))))
 
-(defn pipe-chat-tokens [ch parsed]
+(defn pipe-generate-tokens [ch parsed]
   (pipe-tokens ch [:response] parsed))
+
+(defn pipe-chat-tokens [ch parsed]
+  (pipe-tokens ch [:message :content] parsed))
 
 (defn pipe-pull-tokens [ch parsed]
   (pipe-tokens ch [:status] parsed))

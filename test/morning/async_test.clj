@@ -9,7 +9,7 @@
 
 (deftest generate-streaming-with-channels
   (let [ch (async/chan)
-        _fn (partial pyjama.core/pipe-chat-tokens ch)
+        _fn (partial pyjama.core/pipe-generate-tokens ch)
         result-ch (async/go
                      (pyjama.core/ollama URL :generate {:stream true :model model :prompt prompt} _fn))
         ]
@@ -26,7 +26,7 @@
 
 (deftest generate-streaming-with-channels-then-close
   (let [ch (async/chan)
-        _fn (partial pyjama.core/pipe-chat-tokens ch)
+        _fn (partial pyjama.core/pipe-generate-tokens ch)
         result-ch (async/go
                     (pyjama.core/ollama URL :generate {:stream true :model model :prompt prompt} _fn))
         ]
@@ -60,3 +60,21 @@
         (print val)
         (flush)
         (recur)))))
+
+(deftest chat-streaming-with-channels
+  (let [ch (async/chan)
+        _fn (partial pyjama.core/pipe-chat-tokens ch)
+        result-ch (async/go
+                    (pyjama.core/ollama URL :chat {:messages [{:role :user :content "Who is mario?"}] :stream true :model model } _fn))
+        ]
+    (async/go
+      (let [_ (async/<! result-ch)]
+        (async/close! ch)
+        (flush)))
+    ; on main thread here.
+    (loop []
+      (when-let [val (async/<!! ch)]
+        (print val)
+        (flush)
+        (recur)))
+    ))

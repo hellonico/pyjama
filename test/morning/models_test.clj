@@ -25,6 +25,13 @@
     (Thread/sleep 5000)
     (clojure.pprint/pprint @state)))
 
+(deftest chat
+  (let [state (atom {:response "" :url url :model "llama3.2" :messages [{:role :user :content "Who is mario?"}] })]
+    (handle-chat state)
+    (while (:processing @state)
+      (Thread/sleep 1000))
+    (clojure.pprint/pprint @state)))
+
 (deftest request-and-stop
   (let [state (atom {:response "" :url url :model "llama3.2" :prompt "Why is the sky blue?"})]
     (handle-submit state)
