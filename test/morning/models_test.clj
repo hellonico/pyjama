@@ -11,22 +11,29 @@
     (clojure.pprint/pprint (sort-models models :pulls :desc))
     ))
 
+(def url (or (System/getenv "OLLAMA_URL") "http://localhost:11434"))
+
 (deftest update-state-test
-  (let [ state (atom {:url "http://localhost:11434"})]
+  (let [ state (atom {:url url})]
     (local-models state)
     (remote-models state)
     (clojure.pprint/pprint @state)))
 
 (deftest request
-  (let [state (atom {:response "" :url "http://localhost:11434" :model "llama3.2" :prompt "Why is the sky blue?"})]
+  (let [state (atom {:response "" :url url :model "llama3.2" :prompt "Why is the sky blue?"})]
     (handle-submit state)
     (Thread/sleep 5000)
-    (clojure.pprint/pprint @state)
-    ))
+    (clojure.pprint/pprint @state)))
+
+(deftest request-and-stop
+  (let [state (atom {:response "" :url url :model "llama3.2" :prompt "Why is the sky blue?"})]
+    (handle-submit state)
+    (Thread/sleep 1500)
+    (swap! state assoc :processing false)
+    (clojure.pprint/pprint @state)))
 
 (deftest pull-model-stream-test
-  (let [state (atom {:url "http://localhost:11434"})]
+  (let [state (atom {:url url})]
     (pull-model-stream state "llama3.2")
     (Thread/sleep 5000)
-    (clojure.pprint/pprint @state)
-    ))
+    (clojure.pprint/pprint @state)))

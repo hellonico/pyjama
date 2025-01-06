@@ -1,4 +1,4 @@
-(ns morning.query-test
+(ns morning.personalities-test
   (:require [clojure.test :refer :all]
             [pyjama.personalities.core]))
 

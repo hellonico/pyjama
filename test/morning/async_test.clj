@@ -24,6 +24,26 @@
         (flush)
         (recur)))))
 
+(deftest generate-streaming-with-channels-then-close
+  (let [ch (async/chan)
+        _fn (partial pyjama.core/pipe-chat-tokens ch)
+        result-ch (async/go
+                    (pyjama.core/ollama URL :generate {:stream true :model model :prompt prompt} _fn))
+        ]
+    (async/go
+      (let [_ (async/<! result-ch)]
+        (async/close! ch)
+        (flush)))
+    (async/thread
+      (loop []
+      (when-let [val (async/<!! ch)]
+        (print val)
+        (flush)
+        (recur))))
+    ; on main thread here.
+    (Thread/sleep 1000)
+    (async/close! result-ch)))
+
 (deftest pull-streaming-with-channels
   (let [ch (async/chan)
         _fn (partial pyjama.core/pipe-pull-tokens ch)

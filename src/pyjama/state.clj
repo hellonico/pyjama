@@ -46,13 +46,15 @@
                     (swap! state assoc :processing false)
                     )]
     (async/go
+      ; close the messaging channel once the function has finished.
       (let [_ (async/<! result-ch)]
         (async/close! ch)))
     (async/go-loop []
                    (if-let [val (async/<! ch)]
-                     (do
-                       (response-handler val)
-                       (recur))))))
+                     (if (:processing @state)
+                       (do
+                         (response-handler val)
+                         (recur)))))))
 
 (defn update-response [state text]
   (swap! state update :response str text))

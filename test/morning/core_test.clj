@@ -97,8 +97,7 @@
 (deftest list-models
   (->
     (pyjama.core/ollama URL :tags)
-    (clojure.pprint/pprint))
-  )
+    (clojure.pprint/pprint)))
 
 (deftest list-models-names
   (->
