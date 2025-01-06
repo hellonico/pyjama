@@ -68,7 +68,7 @@
   (swap! state update :response str text))
 
 (defn handle-submit [state]
-  (update-response state "")
+  (swap! state assoc :response "")
   (ollama-generate state (partial update-response state)))
 
 ;
@@ -110,7 +110,7 @@
             (recur)))))))
 
 (defn handle-chat [state]
-  (update-response state "")
+  (swap! state assoc :response "")
   (ollama-chat state (partial update-response state)))
 
 
