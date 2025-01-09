@@ -42,12 +42,15 @@
                      (map pyjama.image/image-to-base64 (:images @state)))
         format-data (when (:format @state)
                       (:format @state))
+        system-data (when (:system @state)
+                      (:system @state))
         request-params (cond-> {:stream true
                                 :model  (:model @state)
+                                :system (:system @state)
                                 :prompt (:prompt @state)}
                                image-data (assoc :images image-data)
-                               format-data (assoc
-                                             :format format-data))
+                               system-data (assoc :system system-data)
+                               format-data (assoc :format format-data))
         result-ch (async/thread
                     (swap! state assoc :processing true)
                     (pyjama.core/ollama (:url @state) :generate request-params _fn)
@@ -85,9 +88,12 @@
         ;             (map pyjama.image/image-to-base64 (:images @state)))
         format-data (when (:format @state)
                       (:format @state))
+        system-data (when (:system @state)
+                      (:system @state))
         request-params (cond-> {:stream true
                                 :model  (:model @state)
                                 :messages (:messages @state)}
+                               system-data (assoc :system system-data)
                                format-data (assoc :format format-data)
                                )
         result-ch (async/thread
