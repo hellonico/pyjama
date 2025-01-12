@@ -1,9 +1,9 @@
 (ns pyjama.state
   (:require [clojure.core.async :as async]
             [clojure.string :as str]
-            [pyjama.models]
+            [pyjama.core]
             [pyjama.image :refer :all]
-            [pyjama.core]))
+            [pyjama.models]))
 
 (defn update-state [state path _fn]
   (swap! state update-in path
@@ -61,11 +61,11 @@
       (let [_ (async/<! result-ch)]
         (async/close! ch)))
     (async/go-loop []
-                   (if-let [val (async/<! ch)]
-                     (if (:processing @state)
-                       (do
-                         (response-handler val)
-                         (recur)))))))
+      (if-let [val (async/<! ch)]
+        (if (:processing @state)
+          (do
+            (response-handler val)
+            (recur)))))))
 
 (defn update-response [state text]
   (swap! state update :response str text))
@@ -90,8 +90,8 @@
                       (:format @state))
         system-data (when (:system @state)
                       (:system @state))
-        request-params (cond-> {:stream true
-                                :model  (:model @state)
+        request-params (cond-> {:stream   true
+                                :model    (:model @state)
                                 :messages (:messages @state)}
                                system-data (assoc :system system-data)
                                format-data (assoc :format format-data)
@@ -126,10 +126,12 @@
   (swap! state update-in [:pull :model] (constantly model-name))
   (let [ch (async/chan)
         _fn (partial pyjama.core/pipe-pull-tokens ch)
+        _ (swap! state assoc :pulling true)
         result-ch (async/go
                     (pyjama.core/ollama (:url @state) :pull {:stream true :model model-name} _fn))]
     (async/go
       (let [_ (async/<! result-ch)]
+        (swap! state assoc :pulling false)
         (async/close! ch)))
     ; Update UI with values from the channel
     (future
