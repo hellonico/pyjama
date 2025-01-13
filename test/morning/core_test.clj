@@ -138,10 +138,22 @@
     (clojure.pprint/pprint)))
 
 (deftest chat
-  (pyjama.core/ollama
+  (->
+    (pyjama.core/ollama
     URL
     :chat
-    {:model "llama3.2" :stream true :message {:role :user :content "Who is mario?"}}))
+    {:model "llama3.2" :stream true :messages [{:role :user :content "Who is mario?"}]})
+    ;println
+    ))
+
+(deftest chat-stream-false
+  (->
+    (pyjama.core/ollama
+      URL
+      :chat
+      {:model "llama3.2" :stream false :messages [{:role :user :content "Who is mario?"}]} #(get-in % [:message :content]))
+    println
+    ))
 
 
 (deftest create
