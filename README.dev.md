@@ -4,10 +4,8 @@
 ```clojure
 {
  :deps
- {org.clojure/clojure {:mvn/version "1.11.0"}
- hellonico/pyjama {:git/url "https://github.com/hellonico/pyjama.git"
-                   :sha "9b0647cf72462bcd690ec28a01a97486a1e886ec"}
-                         }}
+ {hellonico/pyjama {:git/url "https://github.com/hellonico/pyjama.git"
+                   :sha "ec753eebffd422fd2d02eb1c93957a9f8adb0016"}}}
 ```
 
 # Compile a generate client binary
