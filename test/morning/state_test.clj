@@ -12,6 +12,14 @@
 
 (def url (or (System/getenv "OLLAMA_URL") "http://localhost:11434"))
 
+(deftest connection-test
+  (let [ state (atom {:url url})]
+    ;(local-models state)
+    ;(remote-models state)
+    (check-connection state)
+    (Thread/sleep 5000)
+    (clojure.pprint/pprint @state)))
+
 (deftest update-state-test
   (let [ state (atom {:url url})]
     (local-models state)

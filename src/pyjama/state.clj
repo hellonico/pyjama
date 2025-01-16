@@ -119,7 +119,6 @@
   (swap! state assoc :response "")
   (ollama-chat state (partial update-response state)))
 
-
 ;
 ; MODEL PULL
 (defn pull-model-stream [state model-name]
@@ -139,3 +138,19 @@
         (when-let [val (async/<!! ch)]
           (swap! state update-in [:pull :status] (constantly val)) ; Update state with the latest value
           (recur))))))
+
+(defn check-version [state]
+  (let [
+        result-ch (async/go
+                    (try
+                      (swap! state assoc-in
+                             [:ollama]
+                               {:url (:url @state) :connected true :version (pyjama.core/ollama (:url @state) :version {})})
+                      (catch Exception e
+                        (swap! state assoc-in [:ollama]
+                               {:url (:url @state) :connected false, :version ""}))))]
+    (async/go
+      (let [_ (async/<! result-ch)]
+        ; more processsing here.
+))))
+(def check-connection check-version)
