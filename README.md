@@ -156,7 +156,7 @@ A [Clojure](https://clojure.org/) client for [Ollama](https://ollama.com/)
 
 ## License
 
-Copyright © 2024 hellonico
+Copyright © 2024-2025 hellonico
 
 This program and the accompanying materials are made available under the
 terms of the Eclipse Public License 2.0 which is available at
