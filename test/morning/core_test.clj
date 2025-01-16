@@ -1,9 +1,8 @@
 (ns morning.core-test
-  (:require [cheshire.core :as json]
-            [clojure.string :as str]
+  (:require [clojure.string :as str]
             [clojure.test :refer :all]
-            [pyjama.image]
-            [pyjama.core]))
+            [pyjama.core]
+            [pyjama.image]))
 
 (def URL (or (System/getenv "OLLAMA_URL") "http://localhost:11434"))
 (def model "llama3.2")
@@ -25,27 +24,27 @@
     (println)))
 
 (deftest structured-output-to-json
-  (let [structure {:type "object"
-                   :required [:age :available]
-                   :properties {:age {:type "integer"} :available {:type "boolean"}}}]
-  (->
-    (pyjama.core/ollama URL :generate
-                        {:stream false
-                         :format structure
-                         :model model
-                         :prompt "Pyjama is 22 days old and is busy saving the world."}
-                        :response)
-    (println))))
-
-(deftest structured-output-to-edn
-  (let [structure {:type "object"
-                   :required [:age :available]
+  (let [structure {:type       "object"
+                   :required   [:age :available]
                    :properties {:age {:type "integer"} :available {:type "boolean"}}}]
     (->
       (pyjama.core/ollama URL :generate
                           {:stream false
                            :format structure
-                           :model model
+                           :model  model
+                           :prompt "Pyjama is 22 days old and is busy saving the world."}
+                          :response)
+      (println))))
+
+(deftest structured-output-to-edn
+  (let [structure {:type       "object"
+                   :required   [:age :available]
+                   :properties {:age {:type "integer"} :available {:type "boolean"}}}]
+    (->
+      (pyjama.core/ollama URL :generate
+                          {:stream false
+                           :format structure
+                           :model  model
                            :prompt "Pyjama is 22 days old and is busy saving the world."}
                           pyjama.core/structure-to-edn)
       (println))))
@@ -109,7 +108,7 @@
     (pyjama.core/ollama
       URL
       :tags {}
-      (fn [res] (map #(str/replace (:name %) #":.*" "" ) (res :models))))
+      (fn [res] (map #(str/replace (:name %) #":.*" "") (res :models))))
     (clojure.pprint/pprint)))
 
 
@@ -140,9 +139,9 @@
 (deftest chat
   (->
     (pyjama.core/ollama
-    URL
-    :chat
-    {:model "llama3.2" :stream true :messages [{:role :user :content "Who is mario?"}]})
+      URL
+      :chat
+      {:model "llama3.2" :stream true :messages [{:role :user :content "Who is mario?"}]})
     ;println
     ))
 
@@ -155,39 +154,53 @@
     println
     ))
 
+(deftest chat-with-image
+  (->
+    (pyjama.core/ollama
+      URL
+      :chat
+      {:model    "llava"
+       :stream   false
+       :messages [{
+                   :content "what is in this picture?"
+                   :images  [(pyjama.image/image-to-base64 "resources/cute_cat.jpg")]
+                   :role    :user}]} #(get-in % [:message :content]))
+    println
+    ))
+
 
 (deftest create
   (->
-  (pyjama.core/ollama
-    URL
-    :create
-    {
-     :model     "llama3.2:quantized"
-     :modelfile "FROM llama3.1:8b-instruct-fp16"
-     :quantize  "q4_K_M"
-     }
-    identity)
-  (println))
-  )
-
-(deftest create-streaming
     (pyjama.core/ollama
       URL
       :create
       {
        :model     "llama3.2:quantized"
        :modelfile "FROM llama3.1:8b-instruct-fp16"
-       :quantize  "q8_0"
-       :stream true
+       :quantize  "q4_K_M"
        }
-      pyjama.core/print-create-tokens))
+      identity)
+    (println))
+  )
+
+(deftest create-streaming
+  (pyjama.core/ollama
+    URL
+    :create
+    {
+     :model     "llama3.2:quantized"
+     :modelfile "FROM llama3.1:8b-instruct-fp16"
+     :quantize  "q8_0"
+     :stream    true
+     }
+    pyjama.core/print-create-tokens))
 
 (deftest generate-embeddings
   (->
     (pyjama.core/ollama
-    URL
-    :embed
-    {:input "The sky is blue because the smurfs are too."})
+      URL
+      :embed
+      {:input "The sky is blue because the smurfs are too."})
     clojure.pprint/pprint
     ))
 
@@ -199,7 +212,7 @@
       {:input [
                "The sky is blue because the smurfs are too."
                "The sky is red in the evening because the grand smurf is too."
-       ]}
+               ]}
       )
     count
     clojure.pprint/pprint
