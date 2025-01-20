@@ -6,7 +6,10 @@
   ;manifold {:mvn/version "0.1.9"}
   cheshire/cheshire {:mvn/version "5.10.0"}
   org.clj-commons/hickory {:mvn/version "0.7.5"}
-  org.clojure/core.async {:mvn/version "1.5.648"}}
+  org.clojure/core.async {:mvn/version "1.5.648"}
+
+  net.mikera/vectorz-clj {:mvn/version "0.48.0"}}
+  }
  :aliases {
            :native-image
            {:main-opts ["-m" "clj.native-image" "pyjama.cli"
@@ -27,7 +30,11 @@
               :sha "7708e7fd4572459c81f6a6b8e44c96f41cdd92d4"}}}
 
            :test {:extra-paths ["test"]
-                  :extra-deps {io.github.cognitect-labs/test-runner {:git/tag "v0.5.1" :git/sha "dfb30dd"}}
+                  :extra-deps {
+                               io.github.cognitect-labs/test-runner {:git/tag "v0.5.1" :git/sha "dfb30dd"}
+
+
+                               }
                   :main-opts ["-m" "cognitect.test-runner"]
                   :exec-fn cognitect.test-runner.api/test}}
  }

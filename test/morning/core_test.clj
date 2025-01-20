@@ -200,7 +200,9 @@
     (pyjama.core/ollama
       URL
       :embed
-      {:input "The sky is blue because the smurfs are too."})
+      {
+       :model "granite-embedding"
+       :input "The sky is blue because the smurfs are too."})
     clojure.pprint/pprint
     ))
 
@@ -209,7 +211,9 @@
     (pyjama.core/ollama
       URL
       :embed
-      {:input [
+      {
+       :model "granite-embedding"
+       :input [
                "The sky is blue because the smurfs are too."
                "The sky is red in the evening because the grand smurf is too."
                ]}
