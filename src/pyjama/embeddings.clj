@@ -3,14 +3,14 @@
     [mikera.vectorz.core :as vectorz]
     [pyjama.core]))
 
-(defn fetch-embeddings [url model sentences]
+(defn generate-embeddings [url model sentences]
   (pyjama.core/ollama
     url
     :embed
     {:model model :input sentences}))
 
 (defn generate-vectorz-documents [{:keys [url documents embedding-model]}]
-  (let [embeddings (fetch-embeddings url embedding-model documents)]
+  (let [embeddings (generate-embeddings url embedding-model documents)]
     (map-indexed (fn [idx sentence]
                    {:id        (inc idx)
                     :content   sentence
@@ -31,11 +31,11 @@
        (take top-n)))
 
 (defn enhance-prompt [{:keys [base-prompt question documents url top-n] :as input}]
-  (let [
-        input (assoc input :documents [question])
+  (let [input (assoc input :documents [question])
         query-embedding (:embedding (first (generate-vectorz-documents input)))
         top-docs (top-related-documents documents query-embedding top-n)
-        context (->> top-docs
-                     (map :content)
-                     (clojure.string/join "\n"))]
+        context (->>
+                  top-docs
+                  (map :content)
+                  (clojure.string/join "\n"))]
     (str "Context:\n" context "\n\n" base-prompt "\n\n" question)))
