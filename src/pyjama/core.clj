@@ -21,7 +21,7 @@
 (defn print-chat-tokens [parsed]
   (print-tokens parsed [:message :content]))
 
-(defn pipe-tokens[ch json-path parsed]
+(defn pipe-tokens [ch json-path parsed]
   (when-let [resp (get-in parsed json-path)]
     (async/go (async/>! ch resp))))
 
@@ -44,7 +44,7 @@
 (defn keys-to-keywords [m]
   (into {} (map (fn [[k v]] [(keyword (name k)) v]) m)))
 
-(defn structure-to-edn[body]
+(defn structure-to-edn [body]
   (-> body :response json/parse-string keys-to-keywords))
 
 (def DEFAULTS
@@ -55,7 +55,7 @@
     {:model      "llama3.2"
      :keep_alive "5m"
      :stream     false
-     :images []
+     :images     []
      ;:system     "You are a very serious computer assistant. Only give brief answer."
      }
     :post
@@ -79,8 +79,8 @@
 
    :ps
    [{}
-   :get
-   identity
+    :get
+    identity
     ]
 
    :create
@@ -101,7 +101,7 @@
 
    :embed
    [{:model "all-minilm"}
-   :post
+    :post
     :embeddings
     ]
 
@@ -109,6 +109,12 @@
    [{} :get identity]
 
    })
+
+(defn templated-prompt [input]
+  (if (contains? input :template)
+    (let [update {:prompt (format (:template input) (:prompt input))}]
+      (merge (dissoc input :template) update))
+    input))
 
 (defn ollama
   ([url command]
@@ -120,7 +126,8 @@
   ([url command input _fn]
    (let [
          cmd-params (command DEFAULTS)
-         params (merge (nth cmd-params 0) input)
+         params (merge (nth cmd-params 0) (templated-prompt input))
+         ;_ (println params)
          streaming? (:stream params)
          body (json/generate-string params)
          options {:method      (nth cmd-params 1)
@@ -135,5 +142,4 @@
          ]
      (if streaming?
        ((partial stream _fn) body)
-       (_fn body)))
-   ))
+       (_fn body)))))
