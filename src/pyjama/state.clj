@@ -22,7 +22,8 @@
       (@state :url)
       :tags {}
       (fn [res]
-        (map #(str/replace (:name %) #":.*" "") (:models res))))))
+        ;(map #(str/replace (:name %) #":latest" "") (:models res))))))
+        (map :name (:models res))))))
 
 ;
 ; REMOTE MODELS

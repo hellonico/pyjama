@@ -111,9 +111,12 @@
    })
 
 (defn templated-prompt [input]
-  (if (contains? input :template)
-    (let [update {:prompt (format (:template input) (:prompt input))}]
-      (merge (dissoc input :template) update))
+  (if (contains? input :pre)
+    (let [update {:prompt
+                  (if (vector? (:prompt input))
+                    (apply format (:pre input) (:prompt input))
+                    (format (:pre input) (:prompt input))) }]
+      (merge (dissoc input :pre) update))
     input))
 
 (defn ollama
@@ -127,7 +130,8 @@
    (let [
          cmd-params (command DEFAULTS)
          params (merge (nth cmd-params 0) (templated-prompt input))
-         ;_ (println params)
+         _ (clojure.pprint/pprint params)
+         ;params (merge (nth cmd-params 0) input)
          streaming? (:stream params)
          body (json/generate-string params)
          options {:method      (nth cmd-params 1)

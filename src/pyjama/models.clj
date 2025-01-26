@@ -114,3 +114,12 @@
                                        (str/lower-case query))))  ;; Case-insensitive search
                     model))
             models)))
+
+(defn get-sizes [models model]
+  (:sizes (first (filter #(= (:name %) model) models))))
+
+(defn get-installed-sizes [models model-name]
+  (->>
+    models
+    (filter #(and (clojure.string/starts-with? % (str model-name ":"))))
+    (map #(str/replace % (str model-name ":") ""))))
