@@ -130,7 +130,7 @@
    (let [
          cmd-params (command DEFAULTS)
          params (merge (nth cmd-params 0) (templated-prompt input))
-         _ (clojure.pprint/pprint params)
+         ;_ (clojure.pprint/pprint params)
          ;params (merge (nth cmd-params 0) input)
          streaming? (:stream params)
          body (json/generate-string params)
