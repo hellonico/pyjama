@@ -13,8 +13,7 @@
   (println
     (city-generator "city is tokyo"))
   (println
-    (city-generator "random city in Africa"))
-  )
+    (city-generator "random city in Africa")))
 
 (def airport-code-generator
   (pyjama.functions/ollama-fn

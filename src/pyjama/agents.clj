@@ -1,7 +1,7 @@
 (ns pyjama.agents
   (:require [clojure.core.async :as async]
             [pyjama.core]
-            [pyjama.personalities.core :refer [make-personality]]))
+            [pyjama.functions :refer [ollama-fn]]))
 
 (defn create-broker
   []
@@ -18,7 +18,7 @@
 (defn make-ollama-agent
   [id broker config callback]
   (let [input-chan (async/chan)
-        ollama-helper (make-personality config)]
+        ollama-helper (ollama-fn config)]
     (async/go-loop []
                    (let [message (async/<! input-chan)]
                      (when message
