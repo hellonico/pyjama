@@ -6,23 +6,12 @@
    (fn [_config & realtime]
      (let [
            config (if (map? _config) (merge _config pconfig) pconfig)
-           input (if (map? _config) (:input _config) _config)
-           template (or (:template config) "%s")
-           realtime (true? (:realtime config))
+           realtime (true? (:stream config))
            ]
      (pyjama.core/ollama
        (or (:url config) (System/getenv "OLLAMA_URL") "http://localhost:11434")
        :generate
-       {
-        :model  (or (:model config) (System/getenv "PYJAMA_MODEL")  "llama3.2")
-        :system (:system config)
-        ;:template template
-        :stream realtime
-        :prompt
-        (if (vector? input)
-          (apply format template input)
-          (format template input))
-        }
+       (dissoc config :url)
        (if realtime pyjama.core/print-generate-tokens :response)))))
 
 (def japanese-translator
@@ -31,7 +20,7 @@
 
 (def samuraizer
   (make-personality
-    {:system "Summarize each text you are getting, with no explanation and no other text than the summary."}))
+    {:system "Summarize each text you are getting, with no explanation and no other text than the summary, using Samurai language"}))
 
 (def three-points
   (make-personality

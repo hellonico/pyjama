@@ -13,19 +13,18 @@
 
 (deftest samuraizer
   (pyjama.personalities.core/samuraizer
-    {:input
+    {:prompt
      napoleon-text
-     :realtime true}))
+     :stream true}))
 
 (deftest three-points
   (pyjama.personalities.core/three-points
-    {:input
-     napoleon-text
-     :realtime true}))
+    {:prompt napoleon-text
+     :stream true}))
 
 (deftest dad
   (pyjama.personalities.core/dad
-    {:input
+    {:prompt
      [napoleon-text "Who was Napoleon?"]
-     :template "This is your knowledge: %s. Answer the question %s"
-     :realtime true}))
+     :pre "This is your knowledge: %s. Answer the question %s"
+     :stream false}))
