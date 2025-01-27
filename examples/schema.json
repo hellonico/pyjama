@@ -1,0 +1,24 @@
+{
+  "type" : "object",
+  "properties" : {
+    "street_address" : {
+      "type" : "string"
+    },
+    "city" : {
+      "type" : "string"
+    },
+    "state" : {
+      "type" : "string"
+    }
+  },
+  "oneOf" : [{
+    "required" : ["city"]
+  }, {
+    "required" : ["state"]
+  }
+  ],
+  "required" : [
+    "street_address"
+  ],
+  "additionalProperties" : false
+}

@@ -3,12 +3,14 @@
 
 (defn make-personality
   [pconfig]
-  (fn [config_or_prompt & realtime]
+  (fn
+    ([] "")
+    ([config_or_prompt & realtime]
     (let [config
           (merge pconfig
                  (if (map? config_or_prompt)
                    config_or_prompt
-                   {:prompt config_or_prompt}
+                   {:prompt (or config_or_prompt "")}
                    )
                  )
           realtime (true? (:stream config))]
@@ -16,7 +18,7 @@
         (or (:url config) (System/getenv "OLLAMA_URL") "http://localhost:11434")
         :generate
         (dissoc config :url)
-        (if realtime pyjama.core/print-generate-tokens :response)))))
+        (if realtime pyjama.core/print-generate-tokens :response))))))
 
 (def japanese-translator
   (make-personality
