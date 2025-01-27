@@ -13,7 +13,7 @@ exec clj $OPTS -Sdeps "$DEPS" -M "$0" "$@"
 )
 
 (ns generator.example
- (:require [pyjama.personalities.core :as p]))
+ (:require [pyjama.personatlies :as p]))
 
 (def generator
   (p/make-personality

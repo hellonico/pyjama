@@ -1,10 +1,7 @@
-(ns pyjama.personalities.core
+(ns pyjama.personalities
   (:require [clojure.string :as str]
             [pyjama.core]))
 
-
-
-;;;;
 (defn ensure-model
   "Ensures the model in the input-map is available. Pulls the model if it's not in the list."
   [input-map]

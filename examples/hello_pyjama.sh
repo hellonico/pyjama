@@ -12,7 +12,7 @@ exec clj $OPTS -Sdeps "$DEPS" -M "$0" "$@"
 
 )
 
-(require '[pyjama.personalities.core])
+(require '[pyjama.core])
 
 (pyjama.core/ollama
   (or (System/getenv "OLLAMA_URL") "http://localhost:11434")

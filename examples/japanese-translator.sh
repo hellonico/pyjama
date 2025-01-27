@@ -12,7 +12,7 @@ exec clj $OPTS -Sdeps "$DEPS" -M "$0" "$@"
 
 )
 
-(require '[pyjama.personalities.core :as p])
+(require '[pyjama.personatlies :as p])
 
 (p/japanese-translator
 {:prompt (first *command-line-args*) :stream true})

@@ -1,4 +1,4 @@
 (ns pyjama.functions
-  (:require [pyjama.personalities.core]))
+  (:require [pyjama.personalities]))
 
-(def ollama-fn pyjama.personalities.core/make-personality)
+(def ollama-fn pyjama.personalities/make-personality)
