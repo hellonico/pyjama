@@ -25,7 +25,7 @@
      {:type                 "array"
       :items
       {:type                 "object"
-       :required             ["airport"]
+       :required             ["airport" "city"]
        :properties           {:city {:type "string"} :airport {:type "string"}}
        :additionalProperties false}
       :additionalProperties false
@@ -33,5 +33,6 @@
       :maxItems             2}}))
 
 (deftest generate-code-test
-  (println
-    (first (airport-code-generator "Paris and New York"))))
+  (let[res (airport-code-generator "Paris and New York")]
+    (println "Departure city: " (first res))
+    (println "Arrival city: " (second res))))
