@@ -29,6 +29,6 @@ or, if the ollama server is on a different machine:
 
 # Run the cool tests
 
-```clojure
-clj -X:test :patterns '["morning.query-test"]'
+```bash
+clj -X:test :patterns '["morning.*"]'
 ```

@@ -4,8 +4,9 @@
             [pyjama.parallel :refer :all])
   )
 
+(def ollama-url (or (System/getenv "OLLAMA_URL") "http://localhost:11434"))
 (deftest tinyllama-and-blue
-  (let [app-state (atom {:url "http://localhost:11434" :tasks {}})]
+  (let [app-state (atom {:url ollama-url :tasks {}})]
     ;(println "Starting parallel tasks...")
     (parallel-generate
       app-state

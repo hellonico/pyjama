@@ -4,7 +4,7 @@
             [pyjama.core]
             [pyjama.embeddings :refer [enhance-prompt generate-vectorz-documents]]))
 
-(def url "http://localhost:11434")
+(def url (or (System/getenv "OLLAMA_URL") "http://localhost:11434"))
 (def embedding-model "granite-embedding")
 
 (deftest pull-embeddings-model
