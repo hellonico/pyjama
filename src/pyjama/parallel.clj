@@ -31,4 +31,3 @@
         (Thread/sleep 1000)
         (callback-one @f))))
   (callback-all))
-
