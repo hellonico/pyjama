@@ -1,9 +1,9 @@
 (ns morning.ollama-functions-test
   (:require [clojure.test :refer :all]
-            [pyjama.personalities.core]))
+            [pyjama.functions]))
 
 (def city-generator
-  (pyjama.personalities.core/ollama-function
+  (pyjama.functions/ollama-fn
     {
      :system "generate an object according to schema"
      :model  "llama3.2"
@@ -17,7 +17,7 @@
   )
 
 (def airport-code-generator
-  (pyjama.personalities.core/ollama-function
+  (pyjama.functions/ollama-fn
     {
      :system "generate array of object: the original city and the corresponding 3 letters code for the main airport, with no extra text."
      :model  "llama3.2"

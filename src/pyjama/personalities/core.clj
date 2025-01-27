@@ -46,7 +46,7 @@
               pyjama.core/print-generate-tokens
               (contains? config :format) (fn[res] (cheshire.core/parse-string (:response res)))
               :else :response)))))
-(def ollama-function make-personality)
+
 
 (def japanese-translator
   (make-personality
