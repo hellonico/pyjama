@@ -42,7 +42,11 @@
         (or (:url config) (System/getenv "OLLAMA_URL") "http://localhost:11434")
         :generate
         (dissoc config :url)
-        (if realtime pyjama.core/print-generate-tokens :response)))))
+        (cond realtime
+              pyjama.core/print-generate-tokens
+              (contains? config :format) (fn[res] (cheshire.core/parse-string (:response res)))
+              :else :response)))))
+(def ollama-function make-personality)
 
 (def japanese-translator
   (make-personality

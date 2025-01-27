@@ -6,5 +6,4 @@
         data-rows (map (fn [row]
                          (str "| " (clojure.string/join " | " (map #(get row % "") headers)) " |"))
                        rows)]
-
     (clojure.string/join "\n" (concat [header-row separator-row] data-rows))))
