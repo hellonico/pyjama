@@ -108,7 +108,7 @@
     (pyjama.core/ollama
       URL
       :tags {}
-      (fn [res] (map #(str/replace (:name %) #":.*" "") (res :models))))
+      (fn [res] (map #(str/replace (:name %) #":latest" "") (res :models))))
     (clojure.pprint/pprint)))
 
 

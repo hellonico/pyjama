@@ -5,7 +5,7 @@
     :deps
     {org.clojure/clojure {:mvn/version "1.11.0"}
     hellonico/pyjama {:git/url "https://github.com/hellonico/pyjama.git"
-                      :sha "78ddeb31464ce16556a99592ec0193277f2c3c5a"}}}
+                      :sha "afefd1113a5a04a46226c568fd6d8f6b6342ebd3"}}}
    '
 
 exec clj $OPTS -Sdeps "$DEPS" -M "$0" "$@"
@@ -18,6 +18,7 @@ exec clj $OPTS -Sdeps "$DEPS" -M "$0" "$@"
 (def generator
   (p/make-personality
     {
+      :prompt "Generate 3 random objects"
     :format {:type "object"
              :properties {:city {:type "string"}}}}
     ))

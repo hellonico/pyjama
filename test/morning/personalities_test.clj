@@ -24,9 +24,24 @@
 
 (deftest dad
   (->
-  (pyjama.personalities.core/dad
-    {:prompt
-     [napoleon-text "Who was Napoleon?"]
-     :pre "This is your knowledge: %s. Answer the question %s"
-     :stream false})
-  println))
+    (pyjama.personalities.core/dad
+      {:prompt
+       [napoleon-text "Who was Napoleon?"]
+       :pre    "This is your knowledge: %s. Answer the question %s"
+       :stream false})
+    println))
+
+(def city-generator
+  (pyjama.personalities.core/make-personality
+    {
+     :system "generate an object according to schema"
+     :model  "llama3.1"
+     :format {:type "object" :properties {:city {:type "string"}}}}
+    ))
+
+(deftest generate-test
+  (println
+    (city-generator "city is tokyo"))
+  (println
+    (city-generator "random city in Africa"))
+  )
