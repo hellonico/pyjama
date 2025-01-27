@@ -23,8 +23,10 @@
      :stream true}))
 
 (deftest dad
+  (->
   (pyjama.personalities.core/dad
     {:prompt
      [napoleon-text "Who was Napoleon?"]
      :pre "This is your knowledge: %s. Answer the question %s"
-     :stream false}))
+     :stream false})
+  println))

@@ -3,16 +3,20 @@
 
 (defn make-personality
   [pconfig]
-   (fn [_config & realtime]
-     (let [
-           config (if (map? _config) (merge _config pconfig) pconfig)
-           realtime (true? (:stream config))
-           ]
-     (pyjama.core/ollama
-       (or (:url config) (System/getenv "OLLAMA_URL") "http://localhost:11434")
-       :generate
-       (dissoc config :url)
-       (if realtime pyjama.core/print-generate-tokens :response)))))
+  (fn [config_or_prompt & realtime]
+    (let [config
+          (merge pconfig
+                 (if (map? config_or_prompt)
+                   config_or_prompt
+                   {:prompt config_or_prompt}
+                   )
+                 )
+          realtime (true? (:stream config))]
+      (pyjama.core/ollama
+        (or (:url config) (System/getenv "OLLAMA_URL") "http://localhost:11434")
+        :generate
+        (dissoc config :url)
+        (if realtime pyjama.core/print-generate-tokens :response)))))
 
 (def japanese-translator
   (make-personality
@@ -28,4 +32,4 @@
 
 (def dad
   (make-personality
-    {:system "You are a Dad explaning things to your teenager son/daughter. You cannot use difficult words, and you answer with great details and humour the question you are being asked."  }))
+    {:system "You are a Dad explaning things to your teenager son/daughter. You cannot use difficult words, and you answer with great details and humour the question you are being asked."}))
