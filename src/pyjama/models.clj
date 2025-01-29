@@ -132,28 +132,32 @@
     (filter #(and (clojure.string/starts-with? % (str model-name ":"))))
     (map #(str/replace % (str model-name ":") ""))))
 
+;
+; ensure
+;
+
+(defn ensure-model
+  "Ensures the model in the input-map is available. Pulls the model if it's not in the list."
+  [input-map]
+  ;(println input-map)
+  (if (not (empty? (:model input-map)))
+    (let [url (or (:url input-map) (System/getenv "OLLAMA_URL") "http://localhost:11434")]
+      (pyjama.core/ollama
+        url
+        :tags {}
+        (fn [res]
+          (let [available-models (map #(str/replace (:name %) #":latest" "") (res :models))
+                model (:model input-map)]
+            (when-not (some #(= % model) available-models)
+              (println "Pulling model:" model)
+              (pyjama.core/ollama
+                url
+                :pull {:model model}))))))))
 
 ;
 ; query local models
 ;
 ;
-;(defn local-models
-;  ([url query]
-;   (->> (if (vector? query)
-;          (map #(filter-models (local-models url) %) query)
-;          (filter-models (local-models url) query ))
-;        (flatten)))
-;  ([url]
-;   (pyjama.core/ollama url :tags {} (fn [res] (map :name (res :models))))))
-;
-;(defn local-models-strip-latest
-;  ([url query]
-;   (->> (if (vector? query)
-;          (map #(filter-models (local-models-strip-latest url) %) query)
-;          (filter-models (local-models-strip-latest url) query ))
-;        (flatten))) ; Flatten the results
-;  ([url]
-;   (pyjama.core/ollama url :tags {} (fn [res] (map #(str/replace (:name %) #":latest" "") (res :models))))))
 
 (defn fetch-models
   [url strip-latest?]

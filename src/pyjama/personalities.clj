@@ -1,28 +1,11 @@
 (ns pyjama.personalities
   (:require [clojure.string :as str]
+            [pyjama.models :as m]
             [pyjama.core]))
-
-(defn ensure-model
-  "Ensures the model in the input-map is available. Pulls the model if it's not in the list."
-  [input-map]
-  ;(println input-map)
-  (if (not (empty? (:model input-map)))
-  (let [url (or (:url input-map) (System/getenv "OLLAMA_URL") "http://localhost:11434")]
-    (pyjama.core/ollama
-      url
-      :tags {}
-      (fn [res]
-        (let [available-models (map #(str/replace (:name %) #":latest" "") (res :models))
-              model (:model input-map)]
-          (when-not (some #(= % model) available-models)
-            (println "Pulling model:" model)
-            (pyjama.core/ollama
-              url
-              :pull {:model model}))))))))
 
 (defn make-personality
   [pconfig]
-  (ensure-model pconfig)
+  (m/ensure-model pconfig)
   (fn
     [config_or_prompt & realtime]
     (let [config
