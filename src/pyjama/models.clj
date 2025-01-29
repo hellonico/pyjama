@@ -1,6 +1,7 @@
 (ns pyjama.models
   (:require [clj-http.client :as client]
             [clojure.string :as str]
+            [pyjama.core]
             [hickory.core :as hickory]
             [hickory.select :as select]))
 
