@@ -1,6 +1,7 @@
 (ns pyjama.parallel
   (:require [clojure.core.async :as async]
-            [pyjama.core]))
+            [pyjama.core]
+            [pyjama.models :as m]))
 
 (defn process-task [app-state task-id task-params task-atom]
   (swap! task-atom merge task-params)
@@ -30,6 +31,8 @@
 (defn parallel-generate [app-state config callback-one callback-all]
   (clean-state app-state)
   (let [{:keys [models pre prompts]} config
+        url (:url @app-state)
+        models (m/local-models-strip-latest url models)
         tasks (map-indexed (fn [i [model prompt]]
                              {:id i :params (cond-> {:model model :prompt prompt}
                                                     pre (assoc :pre pre))})
