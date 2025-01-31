@@ -3,8 +3,6 @@
             [pyjama.core]
             [pyjama.functions :refer [ollama-fn]]))
 
-
-
 (defn simple-log
   ([id category message]
    (println id "\t " category "\t" (apply str (subs (str message) 0 (min 100 (count (str message)))))))
@@ -13,16 +11,24 @@
 
 (defn create-broker
   []
-  (let [topics (atom {})]
-    (letfn [(subscribe [topic subscriber-chan]
+  (let [topics (atom {}) agents (atom {}) ]
+    (letfn [
+            (register [id agent]
+              (swap! agents assoc id agent))
+
+            (get-agent [id]
+              (get @agents id))
+
+            (subscribe [topic subscriber-chan]
               (swap! topics update topic #(conj (or % #{}) subscriber-chan)))
 
             (unsubscribe [topic subscriber-chan]
               (swap! topics update topic #(disj (or % #{}) subscriber-chan)))
 
             (publish [topic message]
-              (doseq [subscriber (get @topics topic)]
-                (async/put! subscriber message)))
+              (async/go
+                (doseq [subscriber (get @topics topic)]
+                  (async/put! subscriber message))))
 
             (forward [from-topic to-topic]
               (let [forward-chan (async/chan)]
@@ -32,14 +38,15 @@
                     (publish to-topic message))
                   (recur))))]
 
-      {:topics      topics
+      {
+       :get-agent   get-agent
+       :register    register
+
+       :topics      topics
        :subscribe   subscribe
        :unsubscribe unsubscribe
        :publish     publish
        :forward     forward})))
-
-
-
 
 (defn make-agent
   [id broker config callback]
@@ -53,8 +60,9 @@
             (let [out (callback message broker)]
               (if (not (nil? out))
                 (do
+                  (simple-log id :out out)
                   ((:publish broker) output-chan out)
-                  (simple-log id :out out)))
+                  ))
               )
             (catch Exception e
               (.printStackTrace e)
@@ -76,8 +84,8 @@
         (when message
           (try
             (let [out (callback message ollama-helper broker)]
-              ((:publish broker) output-chan out)
-              (simple-log id :out (apply str out)))
+              (simple-log id :out (apply str out))
+              ((:publish broker) output-chan out))
             (catch Exception e
               (println "Error processing Ollama response:" (.getMessage e)))))
         (recur)))
@@ -86,7 +94,7 @@
      :input-chan  input-chan}))
 
 (defn make-logger-agent [id broker config callback]
-  (make-simple-agent id broker config (fn [message _] (println message))))
+  (make-simple-agent id broker config (fn [message _] (println message) true)))
 
 (defn make-echo-agent [id broker config callback]
   (make-simple-agent id broker config (fn [message _] message)))
