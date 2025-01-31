@@ -1,4 +1,4 @@
-(ns morning.agents
+(ns morning.agents_test
   (:require [clojure.test :refer :all]
             [pyjama.agents :as a]))
 
