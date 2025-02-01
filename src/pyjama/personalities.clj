@@ -24,7 +24,8 @@
         (dissoc config :url)
         (cond realtime
               pyjama.core/print-generate-tokens
-              (contains? config :format) (fn[res] (cheshire.core/parse-string (:response res)))
+              (contains? config :format)
+              (fn[res] (cheshire.core/parse-string (:response res) true))
               :else :response)))))
 
 
