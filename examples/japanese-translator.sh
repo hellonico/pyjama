@@ -17,7 +17,9 @@ exec clj $OPTS -Sdeps "$DEPS" -M "$0" "$@"
 (require '[pyjama.personalities  :as p])
 
 (p/japanese-translator
-{:prompt (or (first *command-line-args*) "このビールとっても美味しいです。どこで見つけたですか？私も買ってみたいです") :stream true})
+{
+:model "hellonico/japanese-llama-3-8b-instruct-v2.Q8_0.gguf"
+:prompt (or (first *command-line-args*) "このビールとっても美味しいです。どこで見つけたですか？私も買ってみたいです") :stream true})
 
 ; ./japanese-translator.sh "このビールとっても美味しいです。どこで見つけたですか？私も買ってみたいです"
 ; This beer is delicious! Where did you find it? I also want to buy it.

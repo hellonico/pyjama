@@ -5,7 +5,7 @@
 
 (defn make-personality
   [pconfig]
-  (m/ensure-model pconfig)
+  (m/ensure-model pconfig) ; pull the model on personality creation
   (fn
     [config_or_prompt & realtime]
     (let [config
@@ -22,10 +22,9 @@
         (or (:url config) (System/getenv "OLLAMA_URL") "http://localhost:11434")
         :generate
         (dissoc config :url)
-        (cond realtime
-              pyjama.core/print-generate-tokens
-              (contains? config :format)
-              (fn[res] (cheshire.core/parse-string (:response res) true))
+        (cond
+          realtime pyjama.core/print-generate-tokens
+          (contains? config :format) (fn[res] (cheshire.core/parse-string (:response res) true))
               :else :response)))))
 
 
