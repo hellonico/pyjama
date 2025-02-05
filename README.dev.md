@@ -32,3 +32,9 @@ or, if the ollama server is on a different machine:
 ```bash
 clj -X:test :patterns '["morning.*"]'
 ```
+
+# Command to upload a new modelfile to ollama form a gguf link
+
+```bash
+ clj -M -m pyjama.ollama.cli https://huggingface.co/lm-kit/qwen-2.5-math-7.6b-instruct-gguf/resolve/main/Qwen-2.5-Math-7.6B-Instruct-Q6_K.gguf hellonico 
+```
