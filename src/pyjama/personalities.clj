@@ -5,7 +5,10 @@
 
 (defn make-personality
   [pconfig]
-  (m/ensure-model pconfig) ; pull the model on personality creation
+  ; pull the model on personality creation
+  ; (m/ensure-model pconfig)
+  ; remove because it ends up pulling on the wrong machine
+  ; (when creating the personality vs running it)
   (fn
     [config_or_prompt & realtime]
     (let [config
