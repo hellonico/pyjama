@@ -16,7 +16,7 @@
         identity
         (fn [data]
           (println "====")
-          (clojure.pprint/pprint (result-map data))
+          (clojure.pprint/pprint data)
           (reset! processing false)
           )))
     (while @processing

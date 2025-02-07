@@ -135,24 +135,10 @@
             (swap! app-state assoc :result-times (compute-times results (/ (- (System/nanoTime) start-time) 1e6)))
             (println (:result-times @app-state))
 
-            (callback-all results)                          ;; Trigger callback-all when all are done
+            (callback-all results)
             (async/close! result-chan))))
-      )                                                     ;; Close the channel when done
-    nil))                                                   ;; Return nil since everything is handled asynchronously
-
-
-
-(defn result-map
-  "shitty code"
-  [tasks]
-  (let [;tasks (vals (:tasks data))
-        result-map (reduce (fn [acc {:keys [params result]}]
-                             (let [{:keys [prompt model]} params]
-                               (update-in acc [prompt model] (constantly result))))
-                           {} tasks)
-        ]
-    result-map
-    ))
+      )
+    nil))
 
 
 (defn pgen [config]
