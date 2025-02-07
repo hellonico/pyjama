@@ -93,14 +93,15 @@
 
 (defn parallel-generate [app-state config callback-one callback-all]
   (clean-state app-state)
-  (let [{:keys [models pre prompts system format]} config
+  (let [{:keys [models pre prompts system format options]} config
         start-time (System/nanoTime)
         urls (or
                (and (:url config) (clojure.string/split (:url config) #","))
                (:urls config)
                (:urls @app-state)
                (and (:url @app-state) (clojure.string/split (:url @app-state) #","))
-               (System/getenv "OLLAMA_URL")
+               [(System/getenv "OLLAMA_URL")]
+               (and (System/getenv "OLLAMA_URLS") (clojure.string/split (System/getenv "OLLAMA_URLS") #","))
                ["http://localhost:11434"]
                )
         ;_ (println urls)
@@ -113,6 +114,7 @@
                              {:id     i
                               :params (cond-> {:model model :prompt prompt}
                                               pre (assoc :pre pre)
+                                              options (assoc :options options)
                                               system (assoc :system system)
                                               format (assoc :format format))
                               })
@@ -164,3 +166,4 @@
       (Thread/sleep 500))
     ;TODO: i just broke something somewhere with vals
     (vals (:tasks @app-state))))
+(def generate pgen)
