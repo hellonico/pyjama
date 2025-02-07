@@ -113,8 +113,8 @@
 (defn templated-prompt [input]
   (if (contains? input :pre)
     (let [update {:prompt
-                  (if (vector? (:prompt input))
-                    (apply format (:pre input) (:prompt input))
+                  (if (vector? (:pre input))
+                    (apply format (first (:pre input)) (concat (rest (:pre input)) (:prompt input)))
                     (format (:pre input) (:prompt input))) }]
       (merge (dissoc input :pre) update))
     input))
