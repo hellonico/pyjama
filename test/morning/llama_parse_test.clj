@@ -27,8 +27,7 @@
 
 (deftest get-result-test
   (-> "2a13c81f-62f4-4f20-b387-aef0df998aaa"
-      get-parsing-result
-      :markdown
+      (get-parsing-result :markdown)
       println))
 
 (deftest llama-parser-test
