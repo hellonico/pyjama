@@ -6,9 +6,10 @@
   cheshire/cheshire       {:mvn/version "5.10.0"}
   org.clojure/core.async  {:mvn/version "1.5.648"}
 
+  ; this is used for embeddings
+  net.mikera/vectorz-clj  {:mvn/version "0.48.0"}
   ; not used directly here?
   ; TODO: clean up
-  net.mikera/vectorz-clj  {:mvn/version "0.48.0"}
   org.clj-commons/hickory {:mvn/version "0.7.5"}
   }
  :aliases {

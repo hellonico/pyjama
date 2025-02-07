@@ -95,7 +95,15 @@
   (clean-state app-state)
   (let [{:keys [models pre prompts system format]} config
         start-time (System/nanoTime)
-        urls (clojure.string/split (:url @app-state) #",")  ;; Split URLs from string
+        urls (or
+               (and (:url config) (clojure.string/split (:url config) #","))
+               (:urls config)
+               (:urls @app-state)
+               (and (:url @app-state) (clojure.string/split (:url @app-state) #","))
+               (System/getenv "OLLAMA_URL")
+               ["http://localhost:11434"]
+               )
+        ;_ (println urls)
         _ (swap! app-state assoc :urls urls :url-index 0)   ;; Store URLs in state
         first-url (get-next-url app-state)
         _models (m/local-models-strip-latest first-url models)
@@ -143,3 +151,16 @@
         ]
     result-map
     ))
+
+
+(defn pgen [config]
+  (let [app-state (atom {:processing true :url (:url config) :tasks {}})]
+    (parallel-generate
+      app-state
+      config
+      identity
+      (fn [_] (swap! app-state assoc :processing false)))
+    (while (:processing @app-state)
+      (Thread/sleep 500))
+    ;TODO: i just broke something somewhere with vals
+    (vals (:tasks @app-state))))

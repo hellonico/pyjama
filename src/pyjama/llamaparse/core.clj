@@ -26,18 +26,10 @@
           :content (str v)})
        params))
 
-; TODO: this should not be here (-> IO)
-(defn download-file [url]
-  (let [temp-file (File/createTempFile "llama-parse" ".pdf")]
-    (with-open [in-stream (:body (client/get url {:as :stream}))
-                out-stream (io/output-stream temp-file)]
-      (io/copy in-stream out-stream))
-    temp-file))
-
 (defn parse-file [file-path params]
-  (let [file (if (str/starts-with? file-path "http")
-               (download-file file-path)
-               (io/file file-path))
+  (let [file ;(if (str/starts-with? file-path "http")
+               ;(download-file file-path)
+               (io/file file-path)
         multipart-data (concat [{:name "file" :content file :mime-type "application/pdf"}]
                                (map->multipart params))
         response (client/post
