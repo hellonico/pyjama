@@ -1,7 +1,8 @@
 (ns pyjama.llamaparse.core
   (:require [clj-http.client :as client]
             [clojure.java.io :as io]
-            [clojure.string :as str]))
+            [clojure.string :as str])
+  (:import (java.io File)))
 
 (def base-url "https://api.cloud.llamaindex.ai/api/parsing")
 (def upload-endpoint (str base-url "/upload"))
@@ -25,8 +26,9 @@
           :content (str v)})
        params))
 
+; TODO: this should not be here (-> IO)
 (defn download-file [url]
-  (let [temp-file (java.io.File/createTempFile "llama-parse" ".pdf")]
+  (let [temp-file (File/createTempFile "llama-parse" ".pdf")]
     (with-open [in-stream (:body (client/get url {:as :stream}))
                 out-stream (io/output-stream temp-file)]
       (io/copy in-stream out-stream))
@@ -46,14 +48,16 @@
     (:body response)))
 
 ; https://docs.cloud.llamaindex.ai/llamaparse/output_modes/
-(defn get-parsing-result [job-id]
-  (let [url (str job-endpoint "/" job-id "/result/markdown")]
-    (let [response (client/get
-                     url
-                     {:headers {"Authorization" (str "Bearer " api-key)
-                                "accept"        "application/json"}
-                      :as      :json})]
-      (:markdown (:body response)))))
+(defn get-parsing-result
+  ([job-id] (get-parsing-result job-id :markdown))
+  ([job-id formatter]
+   (let [url (str job-endpoint "/" job-id "/result/" (name formatter))]
+     (let [response (client/get
+                      url
+                      {:headers {"Authorization" (str "Bearer " api-key)
+                                 "accept"        "application/json"}
+                       :as      :json})]
+       (formatter (:body response))))))
 
 (defn get-job-status [job-id]
   (let [url (str job-endpoint "/" job-id)]
@@ -66,21 +70,23 @@
 
 (defn wait-and-download [job-id output-file]
   (loop []
-    (Thread/sleep 3000)
     (let [status-response (get-job-status job-id)]
       (if status-response
         (let [status (:status status-response)]
-          (println "Current Status:" status)
+          (println "Current Status [" job-id "]:" status)
           (if (= status "SUCCESS")
             (let [markdown-content (get-parsing-result job-id)]
               (spit output-file markdown-content)
               (println "Parsing complete! Output saved to:" output-file))
-            ))
-        (recur)))))
+            (do
+              (Thread/sleep 3000)
+              (recur))))))))
 
 (defn llama-parser [file-path params output-folder]
   (let [filename (extract-filename file-path)
-        job-id (parse-file file-path params)
+        _ (println "Uploading file:" file-path)
+        response (parse-file file-path params)
+        job-id (:id response)
         output-dir (or output-folder (.getParent (io/file file-path)))
         output-file (str (io/file output-dir (str filename ".md")))]
     (if job-id
