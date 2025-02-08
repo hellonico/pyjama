@@ -112,11 +112,12 @@
 
 (defn templated-prompt [input]
   (if (contains? input :pre)
-    (let [update {:prompt
-                  (if (vector? (:pre input))
-                    (apply format (first (:pre input)) (concat (rest (:pre input)) (:prompt input)))
-                    (format (:pre input) (:prompt input))) }]
-      (merge (dissoc input :pre) update))
+    (let [pre (:pre input)
+          prompt (:prompt input)
+          template (if (vector? pre) (first pre) pre)
+          args (concat (if (vector? pre) (rest pre) [])
+                       (if (vector? prompt) prompt [prompt]))]
+      (merge (dissoc input :pre) {:prompt (apply format template args)}))
     input))
 
 (defn ollama
