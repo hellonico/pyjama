@@ -3,9 +3,11 @@
     [clojure.test :refer :all]
     [pyjama.functions]))
 
-(deftest llama31-full-size
+; do not try this on a small GPU
+(deftest
+  llama31-full-size
+  "Do not try this"
   ((pyjama.functions/ollama-fn
-     {;:url    "http://localhost:11432"
-      :model  "llama3.1"
+     {:model  "llama3.1"
       :options {:num_ctx 131072}
       :stream true}) "tell me a joke"))

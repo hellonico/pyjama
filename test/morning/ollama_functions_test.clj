@@ -114,3 +114,18 @@
       (let [{:keys [category explanation score]}
             ((pyjama.functions/ollama-fn scorer-config) [question answer])]
         (println (str/join "," [score category explanation]))))))
+
+(def synonyms-config
+  {:model  "llama3.1"
+   :options {:temperature 0.9}
+   :format
+   {:type  "array"
+    :items {:minItems 3
+            :maxItems 5
+            :type     "string"}}
+   :pre    "Provide between 3 and 5 synonyms for this word: %s :"
+   :stream false})
+
+(deftest synonyms
+  (doseq [word ["slow" "fast" "elegant"]]
+    (println ((pyjama.functions/ollama-fn synonyms-config) word))))
