@@ -1,6 +1,7 @@
 (ns pyjama.embeddings
   (:require
-    [clojure.string :as str]
+    [clojure.pprint]
+    [clojure.string]
     [mikera.vectorz.core :as vectorz]
     [pyjama.core]))
 
@@ -48,3 +49,23 @@
                   (map :content)
                   (clojure.string/join "\n"))]
     context))
+
+(defn rag-with-documents [config documents]
+  (let [enhanced-context
+        (pyjama.embeddings/enhanced-context
+          (assoc
+            (select-keys
+              config
+              [:question :url :embedding-model :top-n])
+            :documents documents
+            ))
+        _ (if (:debug config) (println enhanced-context))
+        ]
+    (pyjama.core/ollama
+      (:url config)
+      :generate
+      (assoc
+        (select-keys config [:options :images :stream :model :pre :system])
+        :prompt [enhanced-context (:question config)])
+      (or (:callback config) :response))))
+(def simple-rag rag-with-documents)
