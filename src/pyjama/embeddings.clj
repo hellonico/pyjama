@@ -1,5 +1,6 @@
 (ns pyjama.embeddings
   (:require
+    [clojure.string :as str]
     [mikera.vectorz.core :as vectorz]
     [pyjama.core]))
 
