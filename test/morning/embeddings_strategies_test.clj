@@ -75,6 +75,11 @@
                  :jaccard
                  :pearson])
 
+(deftest strategies-and-one-question
+  (pyjama.io.print/print-table
+    [:strategy :question :document]
+    (generate-results strategies ["Why did the sun rise"])))
+
 (deftest strategy-and-question-test
   (pyjama.io.print/print-table
     [:strategy :question :document]

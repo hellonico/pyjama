@@ -32,7 +32,7 @@
         magnitude (* (vectorz/magnitude v1) (vectorz/magnitude v2))]
     (if (zero? magnitude) 0 (/ dot-product magnitude))))
 
-; NOT SUITE
+; NOT SUITED
 ;(defn euclidean-distance [v1 v2]
 ;  (vectorz/distance v1 v2))
 ;:euclidean #(Math/negateExact (long (euclidean-distance %1 %2))) ;; Sort by smallest distance
@@ -121,8 +121,7 @@
             (select-keys
               config
               [:question :url :embedding-model :top-n])
-            :documents documents
-            ))
+            :documents documents))
         _ (if (:debug config) (println enhanced-context))
         ]
     (pyjama.core/ollama
