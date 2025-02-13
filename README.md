@@ -2,6 +2,8 @@
 
 A [Clojure](https://clojure.org/) client for [Ollama](https://ollama.com/)
 
+Related blog [posts](http://blog.hellonico.info/tags/pyjama/)
+
 ## Usage
 
 ```clojure
