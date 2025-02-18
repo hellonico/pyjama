@@ -1,6 +1,5 @@
 (ns pyjama.state
   (:require [clojure.core.async :as async]
-            [clojure.string :as str]
             [pyjama.core]
             [pyjama.image :refer :all]
             [pyjama.models]))
@@ -69,6 +68,7 @@
             (recur)))))))
 
 (defn update-response [state text]
+  ;(println text)
   (swap! state update :response str text))
 
 (defn handle-submit [state]
@@ -91,11 +91,14 @@
                       (:format @state))
         system-data (when (:system @state)
                       (:system @state))
+        options (when (:options @state)
+                  (:options @state))
         request-params (cond-> {:stream   true
                                 :model    (:model @state)
                                 :messages (:messages @state)}
                                system-data (assoc :system system-data)
                                format-data (assoc :format format-data)
+                               options (assoc :options options)
                                )
         result-ch (async/thread
                     (pyjama.core/ollama (:url @state) :chat request-params _fn)
@@ -105,6 +108,7 @@
       ; close the messaging channel once the function has finished.
       (let [_ (async/<! result-ch)]
         (async/close! ch)
+        ;(println "close")
         ; append the message to the list of messages
         (swap! state update :messages conj {:role :assistant :content (:response @state)})
         (swap! state assoc :response "")
@@ -146,12 +150,12 @@
                     (try
                       (swap! state assoc-in
                              [:ollama]
-                               {:url (:url @state) :connected true :version (pyjama.core/ollama (:url @state) :version {})})
+                             {:url (:url @state) :connected true :version (pyjama.core/ollama (:url @state) :version {})})
                       (catch Exception e
                         (swap! state assoc-in [:ollama]
                                {:url (:url @state) :connected false, :version ""}))))]
     (async/go
       (let [_ (async/<! result-ch)]
         ; more processsing here.
-))))
+        ))))
 (def check-connection check-version)
