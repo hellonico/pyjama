@@ -102,6 +102,7 @@
                                )
         result-ch (async/thread
                     (pyjama.core/ollama (:url @state) :chat request-params _fn)
+                    (println @state) ; TODO figure this one out. human input not showing if this print is not here.
                     (swap! state assoc :processing false)
                     )]
     (async/go
