@@ -6,7 +6,6 @@
 
 (defn print-tokens [parsed key]
   (when-let [resp (get-in parsed key)]
-    (print resp)
     (flush)))
 
 (defn print-create-tokens [parsed]
@@ -50,7 +49,7 @@
 (def DEFAULTS
   {
    ; api function name
-   :generate
+     :generate
    [
     {:model      "llama3.2"
      :keep_alive "5m"
