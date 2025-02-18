@@ -1,5 +1,6 @@
 (ns morning.utils_test
   (:require
+    [clojure.java.io :as io]
     [clojure.test :refer :all]
     [pyjama.core]
     [pyjama.utils]))
@@ -25,3 +26,10 @@
        })
     println
     ))
+
+(deftest lines-of-files
+  (-> "questions.log"
+      io/resource
+      pyjama.utils/load-lines-of-file
+      set
+      clojure.pprint/pprint))
