@@ -105,7 +105,8 @@
         result-ch (async/thread
                     (try
                     (pyjama.core/ollama (:url @state) :chat request-params _fn)
-                    (println @state) ; TODO figure this one out. human input not showing if this print is not here.
+                    (Thread/sleep 500)
+                    ;(println @state) ; TODO figure this one out. human input not showing if this print is not here.
                     (catch Exception e
                       ;(swap! state assoc :processing false)
                       ;(.printStackTrace e)
