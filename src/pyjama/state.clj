@@ -78,7 +78,9 @@
 ;
 ; CHAT
 (defn ollama-chat [state response-handler]
-  (swap! state assoc :processing true)
+  (swap! state assoc
+         :error nil
+         :processing true)
   ; make sure messages key is an array.
   ; has to be done beforehand
   ;(swap! state #(assoc % :messages (get % :messages [])))
@@ -101,8 +103,14 @@
                                options (assoc :options options)
                                )
         result-ch (async/thread
+                    (try
                     (pyjama.core/ollama (:url @state) :chat request-params _fn)
                     (println @state) ; TODO figure this one out. human input not showing if this print is not here.
+                    (catch Exception e
+                      ;(swap! state assoc :processing false)
+                      ;(.printStackTrace e)
+                      (swap! state assoc :error (.getMessage e))
+                      ))
                     (swap! state assoc :processing false)
                     )]
     (async/go
