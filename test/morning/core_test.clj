@@ -4,7 +4,7 @@
             [pyjama.core]
             [pyjama.image]))
 
-(def URL (or (System/getenv "OLLAMA_URL") "http://localhost:11432"))
+(def URL (or (System/getenv "OLLAMA_URL") "http://localhost:11434"))
 (def model "llama3.2")
 (def prompt "Why is the sky blue?")
 
@@ -151,6 +151,15 @@
       URL
       :chat
       {:model "llama3.2" :stream false :messages [{:role :user :content "Who is mario?"}]} #(get-in % [:message :content]))
+    println
+    ))
+
+(deftest chat-stream-false-temperature
+  (->
+    (pyjama.core/ollama
+      URL
+      :chat
+      {:model "tinydolphin" :stream false :options {:temperature 0.7} :messages [{:role :user :content "Who is mario?"}]} #(get-in % [:message :content]))
     println
     ))
 
