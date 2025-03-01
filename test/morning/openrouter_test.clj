@@ -1,5 +1,6 @@
 (ns morning.openrouter-test
   (:require
+    [clojure.java.io :as io]
     [pyjama.openrouter.core :as openrouter]
     [clojure.test :refer :all]))
 
@@ -16,42 +17,76 @@
 
 (deftest mistral-write-fibonacci
   (println
-    (prompt-for-model "Write Fibonacci in Clojure!" "cognitivecomputations/dolphin3.0-mistral-24b:free")))
-
-(ns model-comparator
-  (:require [clojure.data.csv :as csv]
-            [clojure.java.io :as io]))
-
-(defn prompt-for-model [prompt model]
-  (let [response (openrouter/with-config {:prompt prompt :model model})]
-    (-> response :choices first :message :content)))
+    (prompt-for-model
+      "Write Fibonacci in Clojure!"
+      "cognitivecomputations/dolphin3.0-mistral-24b:free")))
 
 (defn get-responses [prompt models]
-  (map (fn [model] [model (prompt-for-model prompt model)]) models))
+  (doall (map (fn [model] [model (prompt-for-model prompt model)]) models)))
 
-(defn score-response [qa-pairs scoring-model]
+(defn score-response [prompt qa-pairs scoring-model]
   (map (fn [[model answer]]
-         (let [score-prompt (str "Score this answer from 1-10, explain the score, and suggest improvements:\n"
+         (let [score-prompt (str "Evaluate the following answer:\n\n"
                                  "Question: " prompt "\n"
-                                 "Answer: " answer)
+                                 "Answer: " answer "\n\n"
+                                 "Provide:\n"
+                                 "- A score from 1 to 10\n"
+                                 "- A brief explanation for the score\n"
+                                 "- Suggestions for improvement")
                response (prompt-for-model score-prompt scoring-model)]
            [model answer response]))
        qa-pairs))
 
-(defn write-to-csv [file data]
+(defn write-to-markdown [file prompt scored-responses]
   (with-open [writer (io/writer file)]
-    (csv/write-csv writer data)))
+    (binding [*out* writer]
+      (println "# AI Model Comparison Report")
+      (println)
+      (println "## Prompt")
+      (println "```clojure")
+      (println prompt)
+      (println "```")
+      (println)
 
-(defn main []
+      (doseq [[model answer evaluation] scored-responses]
+        (println (str "## Model: `" model "`"))
+        (println)
+        (println "**Answer:**")
+        (println "```clojure")
+        (println answer)
+        (println "```")
+        (println)
+        (println "**Evaluation:**")
+        (println evaluation)
+        (println "---"))
+
+      ;; Find the best model and response
+      (let [parsed-scores (map (fn [[model _ evaluation]]
+                                 (let [score (re-find #"\d+" evaluation)]
+                                   [(Integer. (or score "0")) model evaluation]))
+                               scored-responses)
+            best (apply max-key first parsed-scores)]
+
+        (println "# Conclusion")
+        (println)
+        (println "**Best Model:** `" (second best) "`")
+        (println)
+        (println "**Best Answer:**")
+        ;(println "```clojure")
+        (println (nth best 2)) ;; Best answer
+        ;(println "```")
+        (println)
+        (println "## Summary")
+        (println "- `" (second best) "` provided the highest-rated answer.")
+        (println "- Consider using this model for similar tasks in the future.")))))
+
+
+(deftest compare-models
   (let [prompt "Write Fibonacci in Clojure!"
         models ["nousresearch/deephermes-3-llama-3-8b-preview:free"
                 "google/gemini-2.0-flash-lite-001"
                 "perplexity/r1-1776"]
         scoring-model "cognitivecomputations/dolphin3.0-r1-mistral-24b:free"
         responses (get-responses prompt models)
-        scored-responses (score-response responses scoring-model)
-        csv-data (concat [["Model" "Answer" "Score & Explanation"]]
-                         scored-responses)]
-    (write-to-csv "responses.csv" csv-data)))
-
-;(main)
+        scored-responses (score-response prompt responses scoring-model)]
+    (write-to-markdown "results.md" prompt scored-responses)))
