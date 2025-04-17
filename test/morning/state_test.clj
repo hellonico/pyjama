@@ -59,6 +59,18 @@
       (Thread/sleep 1000))
     (clojure.pprint/pprint @state)))
 
+
+(defn play-along [_ text]
+  (println text))
+
+(deftest streaming-chat
+  (let [state (atom {:url url :model "llama3.2" :messages [{:role :user :content "Who is mario?"}]})]
+    (pyjama.state/ollama-chat
+      state
+      (partial play-along state))
+    (while (:processing @state)
+      (Thread/sleep 1000))))
+
 (deftest request-and-stop
   (let [state (atom {:response "" :url url :model "llama3.2" :prompt "Why is the sky blue?"})]
     (pyjama.state/handle-submit state)

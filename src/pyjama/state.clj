@@ -48,7 +48,7 @@
                                 :model  (:model @state)
                                 :system (:system @state)
                                 :prompt (:prompt @state)}
-                               image-data (assoc :images image-data)
+                               ;image-data (assoc :images image-data)
                                system-data (assoc :system system-data)
                                format-data (assoc :format format-data))
         result-ch (async/thread
@@ -69,7 +69,8 @@
 
 (defn update-response [state text]
   ;(println text)
-  (swap! state update :response str text))
+  ;(swap! state update :response str text)
+ )
 
 (defn handle-submit [state]
   (swap! state assoc :response "")
@@ -81,14 +82,15 @@
   (swap! state assoc
          :error nil
          :processing true)
+ (clojure.pprint/pprint @state)
   ; make sure messages key is an array.
   ; has to be done beforehand
   ;(swap! state #(assoc % :messages (get % :messages [])))
-  (let [ch (async/chan 10)
+  (let [ch (async/chan 100)
         _fn (partial pyjama.core/pipe-chat-tokens ch)
         ; TODO: where to handle images
-        ;image-data (when (:images @state)
-        ;             (map pyjama.image/image-to-base64 (:images @state)))
+        image-data (when (:images @state)
+                     (map pyjama.image/image-to-base64 (:images @state)))
         format-data (when (:format @state)
                       (:format @state))
         system-data (when (:system @state)
@@ -98,6 +100,7 @@
         request-params (cond-> {:stream   true
                                 :model    (:model @state)
                                 :messages (:messages @state)}
+                               image-data (assoc :images image-data)
                                system-data (assoc :system system-data)
                                format-data (assoc :format format-data)
                                options (assoc :options options)
@@ -105,6 +108,7 @@
         result-ch (async/thread
                     (try
                     (pyjama.core/ollama (:url @state) :chat request-params _fn)
+
                     (Thread/sleep 500)
                     ;(println @state) ; TODO figure this one out. human input not showing if this print is not here.
                     (catch Exception e
@@ -117,16 +121,19 @@
     (async/go
       ; close the messaging channel once the function has finished.
       (let [_ (async/<! result-ch)]
-        (async/close! ch)
-        ;(println "close")
-        ; append the message to the list of messages
+
         (swap! state update :messages conj {:role :assistant :content (:response @state)})
-        (swap! state assoc :response "")
+        (swap! state dissoc :response)
+
+        ;(println "close2")
+        ;(clojure.pprint/pprint @state)
+        (async/close! ch)
         ))
     (async/go-loop []
       (if-let [val (async/<! ch)]
         (if (:processing @state)
           (do
+            (swap! state update :response str val)
             (response-handler val)
             (recur)))))))
 
