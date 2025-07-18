@@ -28,3 +28,15 @@
           (filter #(not (str/starts-with? (str %) "#")))
           (into [])
           doall))))
+
+
+; moved from core
+(defn templated-prompt [input]
+ (if (contains? input :pre)
+  (let [pre (:pre input)
+        prompt (:prompt input)
+        template (if (vector? pre) (first pre) pre)
+        args (concat (if (vector? pre) (rest pre) [])
+                     (if (vector? prompt) prompt [prompt]))]
+   (merge (dissoc input :pre) {:prompt (apply format template args)}))
+  input))

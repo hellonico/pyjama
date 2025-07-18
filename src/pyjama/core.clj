@@ -7,6 +7,7 @@
            [pyjama.deepseek.core]
            [pyjama.openrouter.core]
            [pyjama.chatgpt.core]
+           [pyjama.utils]
            ))
 
 (defn print-tokens [parsed key]
@@ -114,16 +115,6 @@
 
   })
 
-(defn templated-prompt [input]
- (if (contains? input :pre)
-  (let [pre (:pre input)
-        prompt (:prompt input)
-        template (if (vector? pre) (first pre) pre)
-        args (concat (if (vector? pre) (rest pre) [])
-                     (if (vector? prompt) prompt [prompt]))]
-   (merge (dissoc input :pre) {:prompt (apply format template args)}))
-  input))
-
 (defn ollama
  ([url command]
   (ollama url command {}))
@@ -134,7 +125,7 @@
  ([url command input _fn]
   (let [
         cmd-params (command DEFAULTS)
-        params (merge (nth cmd-params 0) (templated-prompt input))
+        params (merge (nth cmd-params 0) (pyjama.utils/templated-prompt input))
         streaming? (:stream params)
         body (json/generate-string params)
         options {:method      (nth cmd-params 1)

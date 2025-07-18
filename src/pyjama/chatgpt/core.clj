@@ -2,7 +2,7 @@
  (:require [cheshire.core :as json]
            [clj-http.client :as client]
            [clojure.java.io :as io]
-           [pyjama.core]))
+           [pyjama.utils]))
 
 (def api-key
  (System/getenv "OPENAI_API_KEY"))
@@ -13,7 +13,7 @@
 (defn chatgpt [_config]
  (let [
        url (or (:url _config) openai-endpoint)
-       config (pyjama.core/templated-prompt _config)
+       config (pyjama.utils/templated-prompt _config)
        headers {"Authorization" (str "Bearer " api-key)
                 "Content-Type"  "application/json"}
        body (json/generate-string
