@@ -6,7 +6,6 @@
 (def open-router-api-key
   (System/getenv "OPENROUTER_API_KEY"))
 
-
 (defn with-config [config]
   (let [url "https://openrouter.ai/api/v1/chat/completions"
         headers {"Authorization" (str "Bearer " open-router-api-key)
