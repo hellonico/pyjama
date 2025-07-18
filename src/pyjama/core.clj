@@ -154,9 +154,18 @@
 
 ;; 1. Load agent configuration from agent.edn
 (defn load-agents []
- (let [file (io/file "agent.edn")]
-  (when (.exists file)
-   (edn/read-string (slurp file)))))
+ (let [prop-path (System/getProperty "agents.edn")       ;; Check system property
+       prop-file (when prop-path (io/file prop-path))
+       cwd-file  (io/file "agents.edn")]                 ;; Fallback to current dir
+  (cond
+   (and prop-file (.exists prop-file))
+   (edn/read-string (slurp prop-file))
+
+   (.exists cwd-file)
+   (edn/read-string (slurp cwd-file))
+
+   :else
+   {})))
 
 (def agents-registry (delay (or (load-agents) {}))) ;; Lazy load
 
