@@ -2,6 +2,7 @@
  (:require [cheshire.core :as json]
            [clj-http.client :as client]
            [clojure.core.async :as async]
+           [clojure.edn :as edn]
            [clojure.java.io :as io]
 
            [pyjama.deepseek.core]
@@ -142,6 +143,19 @@
     ((partial stream _fn) body)
     (_fn body)))))
 
+;
+; NEW DISPATCH and REGISTRY
+;
+
+
+;; 1. Load agent configuration from agent.edn
+(defn load-agents []
+ (let [file (io/file "agent.edn")]
+  (when (.exists file)
+   (edn/read-string (slurp file)))))
+
+(def agents-registry (delay (or (load-agents) {}))) ;; Lazy load
+
 
 (def URL (or (System/getenv "OLLAMA_URL") "http://localhost:11434"))
 
@@ -176,7 +190,15 @@
        env (System/getenv "PYJAMA_IMPL")]
   (keyword (or prop env "ollama"))))
 
-;; Public entry point
-(defn call [params]
- (pyjama-call (assoc params :impl (current-impl))))
+;; 4. Merge agent defaults
+(defn resolve-params [params]
+ (if-let [agent-id (:id params)]
+  (let [defaults (get @agents-registry agent-id)]
+   (if defaults
+    (merge defaults (dissoc params :id))
+    (throw (ex-info "Unknown agent ID" {:id agent-id}))))
+  (assoc params :impl (or (:impl params) (current-impl)))))
 
+;; 5. Public entry point
+(defn call [params]
+ (pyjama-call (resolve-params params)))
