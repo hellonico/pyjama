@@ -9,7 +9,11 @@
            [pyjama.openrouter.core]
            [pyjama.chatgpt.core]
            [pyjama.utils]
-           ))
+
+
+           )
+ (:import [java.time LocalDateTime]
+          [java.time.format DateTimeFormatter]))
 
 (defn print-tokens [parsed key]
  (when-let [resp (get-in parsed key)]
@@ -199,6 +203,21 @@
     (throw (ex-info "Unknown agent ID" {:id agent-id}))))
   (assoc params :impl (or (:impl params) (current-impl)))))
 
-;; 5. Public entry point
+
+;; 5. Create a simple timestamp
+(defn now-str []
+ (.format (LocalDateTime/now) (DateTimeFormatter/ofPattern "yyyy-MM-dd'T'HH:mm:ss")))
+
+;; 6. Logging
+(defn log-call [params]
+ (let [log-file (io/file (str (System/getProperty "user.home") "/pyjama.edn"))
+       entry {:datetime (now-str)
+              :impl     (:impl params)
+              :model    (:model params)}]
+  (spit log-file (str entry "\n") :append true)))
+
+;; 7. Public entry point
 (defn call [params]
- (pyjama-call (resolve-params params)))
+ (let [resolved (resolve-params params)]
+  (log-call resolved)
+  (pyjama-call resolved)))
