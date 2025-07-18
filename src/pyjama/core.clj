@@ -10,7 +10,6 @@
            [pyjama.chatgpt.core]
            [pyjama.utils]
 
-
            )
  (:import [java.time LocalDateTime]
           [java.time.format DateTimeFormatter]))
@@ -154,9 +153,9 @@
 
 ;; 1. Load agent configuration from agent.edn
 (defn load-agents []
- (let [prop-path (System/getProperty "agents.edn")       ;; Check system property
+ (let [prop-path (System/getProperty "agents.edn")          ;; Check system property
        prop-file (when prop-path (io/file prop-path))
-       cwd-file  (io/file "agents.edn")]                 ;; Fallback to current dir
+       cwd-file (io/file "agents.edn")]                     ;; Fallback to current dir
   (cond
    (and prop-file (.exists prop-file))
    (edn/read-string (slurp prop-file))
@@ -167,7 +166,7 @@
    :else
    {})))
 
-(def agents-registry (delay (or (load-agents) {}))) ;; Lazy load
+(def agents-registry (delay (or (load-agents) {})))         ;; Lazy load
 
 
 (def URL (or (System/getenv "OLLAMA_URL") "http://localhost:11434"))
@@ -182,7 +181,7 @@
 ;; Implementations
 (defmethod pyjama-call :ollama
  [params]
- (ollama (or (:url params) URL) :generate params))
+ (ollama (or (:url params) URL) :generate params :response))
 
 (defmethod pyjama-call :deepseek
  [params]
@@ -222,7 +221,7 @@
 (defn log-call [params]
  (let [log-file (io/file (str (System/getProperty "user.home") "/pyjama.edn"))
        entry {:datetime (now-str)
-              :id       (:id params)      ;; include id if present
+              :id       (:id params)                        ;; include id if present
               :impl     (:impl params)
               :model    (:model params)}]
   (spit log-file (str entry "\n") :append true)))
