@@ -4,8 +4,9 @@
            [clojure.core.async :as async]
            [clojure.java.io :as io]
 
-           [pyjama.chatgpt.deepseek :as deepseek]
-           [pyjama.chatgpt.openrouter :as openrouter]
+           [pyjama.deepseek.core]
+           [pyjama.openrouter.core]
+           [pyjama.chatgpt.core]
            ))
 
 (defn print-tokens [parsed key]
