@@ -199,7 +199,7 @@
  (if-let [agent-id (:id params)]
   (let [defaults (get @agents-registry agent-id)]
    (if defaults
-    (merge defaults (dissoc params :id))
+    (merge defaults params)
     (throw (ex-info "Unknown agent ID" {:id agent-id}))))
   (assoc params :impl (or (:impl params) (current-impl)))))
 
@@ -222,4 +222,4 @@
 (defn call [params]
  (let [resolved (resolve-params params)]
   (log-call resolved)
-  (pyjama-call resolved)))
+  (pyjama-call (dissoc resolved :id))))
