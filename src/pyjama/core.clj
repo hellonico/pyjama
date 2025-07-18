@@ -208,10 +208,12 @@
 (defn now-str []
  (.format (LocalDateTime/now) (DateTimeFormatter/ofPattern "yyyy-MM-dd'T'HH:mm:ss")))
 
-;; 6. Logging
+
+;; 6. Logging with :id
 (defn log-call [params]
  (let [log-file (io/file (str (System/getProperty "user.home") "/pyjama.edn"))
        entry {:datetime (now-str)
+              :id       (:id params)      ;; include id if present
               :impl     (:impl params)
               :model    (:model params)}]
   (spit log-file (str entry "\n") :append true)))
