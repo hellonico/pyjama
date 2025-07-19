@@ -205,11 +205,20 @@
 ;; 4. Merge agent defaults
 (defn resolve-params [params]
  (if-let [agent-id (:id params)]
-  (let [defaults (get @agents-registry agent-id)]
-   (if defaults
-    (merge defaults params)
-    (throw (ex-info "Unknown agent ID" {:id agent-id}))))
-  (assoc params :impl (or (:impl params) (current-impl)))))
+  (let [defaults (get @agents-registry agent-id)
+        default-maps (or (get @agents-registry :default) {})
+        resource-path (str "prompts/" (name agent-id) ".txt")
+        prompt-map (if-let [_ (io/resource resource-path)]
+                    {:pre resource-path}
+                    {})
+        ]
+   (merge {:impl (or (:impl params) (current-impl))}
+          default-maps
+          defaults
+          prompt-map
+          params
+          ))
+  (merge params {:impl (or (:impl params) (current-impl))})))
 
 
 ;; 5. Create a simple timestamp
@@ -217,12 +226,22 @@
  (.format (LocalDateTime/now) (DateTimeFormatter/ofPattern "yyyy-MM-dd'T'HH:mm:ss")))
 
 
+(defn current-app-id []
+ (let [cmd (System/getProperty "sun.java.command")
+       tokens (clojure.string/split cmd #"\s+")
+       idx (.indexOf tokens "-m")]
+  (if (and (pos? idx) (< (inc idx) (count tokens)))
+   (nth tokens (inc idx))
+   (first tokens))))  ;; fallback to first token (main class/jar)
+
 ;; 6. Logging with :id
 (defn log-call [params]
  (let [log-file (io/file (str (System/getProperty "user.home") "/pyjama.edn"))
        entry {:datetime (now-str)
               :id       (:id params)                        ;; include id if present
               :impl     (:impl params)
+              :pre      (:pre params)
+              :app-id   (current-app-id)
               :model    (:model params)}]
   (spit log-file (str entry "\n") :append true)))
 

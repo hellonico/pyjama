@@ -67,7 +67,7 @@
              {:model       "gpt-4o"
               :messages    [{:role "system" :content "You are a helpful assistant."}
                             {:role "user" :content prompt}]
-              :temperature 0.7
+              ;:temperature 0.7
               :stream      true})]
 
   ;; Send request with streaming enabled
