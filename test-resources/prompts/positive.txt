@@ -1,0 +1,1 @@
+Answer with yes no, or I don't know. Is the text a positive thought: %s. \n

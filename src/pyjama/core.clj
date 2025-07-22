@@ -166,7 +166,8 @@
    :else
    {})))
 
-(def agents-registry (delay (or (load-agents) {})))         ;; Lazy load
+(def agents-registry
+ (delay (or (load-agents) {})))         ;; Lazy load
 
 
 (def URL (or (System/getenv "OLLAMA_URL") "http://localhost:11434"))
@@ -246,7 +247,20 @@
   (spit log-file (str entry "\n") :append true)))
 
 ;; 7. Public entry point
-(defn call [params]
- (let [resolved (resolve-params params)]
+(defn call* [params]
+ (let [resolved (resolve-params params)
+       result   (pyjama-call (dissoc resolved :id))]
   (log-call resolved)
-  (pyjama-call (dissoc resolved :id))))
+  (if (:format resolved)
+   (pyjama.utils/parse-json-or-text result)
+   result)))
+
+(defn call [params]
+ (let [entry (get @agents-registry (:id params))]
+  (if (vector? entry)
+   (reduce
+    (fn [prev-output step-id]
+     (call* (merge params  {:prompt prev-output :id step-id} )))
+    params
+    entry)
+   (call* params))))

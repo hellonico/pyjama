@@ -1,5 +1,6 @@
 (ns pyjama.utils
  (:require [clojure.java.io :as io]
+           [cheshire.core :as json]
            [clojure.string :as str]))
 
 (defn to-markdown [{:keys [headers rows]}]
@@ -32,8 +33,9 @@
 (defn load-pre
  [path-or-pre]
  (try
-  (when-let [resource (clojure.java.io/resource path-or-pre) ]
-   (slurp resource))
+  (if-let [resource (clojure.java.io/resource path-or-pre) ]
+   (slurp resource)
+   path-or-pre)
   (catch Exception _
    path-or-pre)))
 
@@ -44,6 +46,14 @@
         prompt (:prompt input)
         template (if (vector? pre) (first pre) (load-pre pre))
         args (concat (if (vector? pre) (rest pre) [])
-                     (if (vector? prompt) prompt [prompt]))]
-   (merge (dissoc input :pre) {:prompt (apply format template args)}))
+                     (if (vector? prompt) prompt [prompt]))
+        prompt (merge (dissoc input :pre) {:prompt (apply format template args)})
+        ]
+   prompt
+   )
   input))
+
+(defn parse-json-or-text [s]
+ (try
+  (json/parse-string s true)  ;; `true` converts keys to keywords
+  (catch Exception _ s)))
