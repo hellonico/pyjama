@@ -20,7 +20,7 @@
          (ollama-fn ~fn-config))))))
 
 
-(defollama-from-edn "functions.edn")
+;(defollama-from-edn "functions.edn")
 
 (defn define-generated-fn
  "Call a code-generator fn at runtime to produce a full `defn` form,

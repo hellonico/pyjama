@@ -12,7 +12,7 @@
 
 ```bash
 # this needs the GRAAL VM to be installed
-clj -A:native-image
+clj -M:native-image
 ```
 
 Then

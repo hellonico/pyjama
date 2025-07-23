@@ -6,7 +6,8 @@
             [pyjama.embeddings :refer [enhanced-context generate-vectorz-documents]]))
 
 (def url (or (System/getenv "OLLAMA_URL")
-             "http://localhost:11432"))
+             "http://localhost:11434"))
+
 (def embedding-model
   "granite-embedding")
 
@@ -40,7 +41,7 @@
                  :strategy :euclidean
                  :top-n 1
 
-                 :model "llama3.1"
+                 :model "llama3.2"
                  :pre pre)
 
         ]

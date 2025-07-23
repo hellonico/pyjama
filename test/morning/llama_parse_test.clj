@@ -1,7 +1,6 @@
 (ns morning.llama-parse-test
   (:require [clojure.test :refer :all]
-            [pyjama.llamaparse.core :refer :all]
-            ))
+            [pyjama.llamaparse.core :refer :all]))
 
 (deftest upload-file-test
   (-> "https://www.toyota.com/content/dam/toyota/brochures/pdf/2025/gr86_ebrochure.pdf"
