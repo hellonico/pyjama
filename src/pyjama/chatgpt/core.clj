@@ -2,28 +2,70 @@
  (:require [cheshire.core :as json]
            [clj-http.client :as client]
            [clojure.java.io :as io]
-           [pyjama.utils]))
+           [pyjama.utils])
+ (:import (java.io PrintWriter)))
 
 (def api-key
  (System/getenv "OPENAI_API_KEY"))
 
-(def openai-endpoint "https://api.openai.com/v1/chat/completions")
+(def openai-endpoint "https://api.openai.com/v1")
 (def url openai-endpoint)
 
+;(defn handle-response [response]
+; (with-open [reader (io/reader (:body response))]
+;  (doseq [line (line-seq reader)]
+;   (println ">> RAW LINE:" line))))
+
+(defn handle-response [response]
+ (binding [*out* (PrintWriter. System/out true)] ; auto-flush to terminal
+  (with-open [reader (io/reader (:body response))]
+   (doseq [line (line-seq reader)]
+    (when (and (seq line) (.startsWith line "data: "))
+     (let [json-str (subs line 6)]
+      (when-not (= json-str "[DONE]")
+       (try
+        (let [parsed (json/parse-string json-str true)]
+         (let [content (get-in parsed [:choices 0 :delta :content])]
+          (print content)
+          (flush)))
+        (catch Exception e
+         (println "\n[Error parsing chunk]:" (.getMessage e)))))))))))
+
 (defn chatgpt [_config]
- (let [
-       url (or (:url _config) openai-endpoint)
-       config (pyjama.utils/templated-prompt _config)
+ (let [url     (str (or (:url _config) openai-endpoint) "/chat/completions")
+       config  (pyjama.utils/templated-prompt _config)
+       stream? (true? (or (:streaming config) (:stream config)))
        headers {"Authorization" (str "Bearer " api-key)
                 "Content-Type"  "application/json"}
-       body (json/generate-string
-             {:stream      (or (:streaming config) false)
-              :model       (or (:model config) "gpt-4o")
-              :messages    [{:role "system" :content (or (:system config) "You are a helpful assistant.")}
-                            {:role "user" :content (:prompt config)}]
-              :temperature (or (:temperature config) 0.7)})
-       response (client/post url {:headers headers :body body :as :json})]
-  (-> response :body :choices first :message :content)))
+       body    (json/generate-string
+                {:stream      stream?
+                 :model       (or (:model config) "gpt-4o")
+                 :messages    [{:role "system" :content (or (:system config) "You are a helpful assistant.")}
+                               {:role "user"   :content (:prompt config)}]
+                 :temperature (or (:temperature config) 0.7)})
+       ;; Use `:as :stream` for SSE
+       response (client/post url {:headers headers :body body :as (if stream? :stream :json)})]
+
+  (if stream?
+   (handle-response response)
+   (-> response :body :choices first :message :content))))
+
+
+
+;(defn chatgpt [_config]
+; (let [
+;       url (str (or (:url _config) openai-endpoint) "/chat/completions")
+;       config (pyjama.utils/templated-prompt _config)
+;       headers {"Authorization" (str "Bearer " api-key)
+;                "Content-Type"  "application/json"}
+;       body (json/generate-string
+;             {:stream      (or (:streaming config) false)
+;              :model       (or (:model config) "gpt-4o")
+;              :messages    [{:role "system" :content (or (:system config) "You are a helpful assistant.")}
+;                            {:role "user" :content (:prompt config)}]
+;              :temperature (or (:temperature config) 0.7)})
+;       response (client/post url {:headers headers :body body :as :json})]
+;  (-> response :body :choices first :message :content)))
 (def call chatgpt)
 ;
 ;(defn handle-response [response]
@@ -43,17 +85,17 @@
 ;                         ;(flush)))))))))))                  ;; Ensure real-time output
 ;;; Ensure real-time display
 
-
-(defn handle-response [response]
- "Reads the streaming response and prints tokens as they arrive."
- (with-open [reader (io/reader (:body response))]
-  (println "ok")
-  (doseq [line (line-seq reader)]
-   (when (seq line)
-    (let [parsed (json/parse-string line true)]
-     (when-let [content (get-in parsed [:choices 0 :delta :content])]
-      (print content)
-      (flush)))))))
+;
+;(defn handle-response [response]
+; "Reads the streaming response and prints tokens as they arrive."
+; (with-open [reader (io/reader (:body response))]
+;  (println "ok")
+;  (doseq [line (line-seq reader)]
+;   (when (seq line)
+;    (let [parsed (json/parse-string line true)]
+;     (when-let [content (get-in parsed [:choices 0 :delta :content])]
+;      (print content)
+;      (flush)))))))
 
 (defn handle-error [ex]
  "Handles errors gracefully."

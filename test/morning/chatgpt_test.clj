@@ -8,6 +8,23 @@
   (println
     (gpt/chatgpt
       {:prompt "give me a command to show number of sata ports linux"})))
+
+(deftest gpt-call-streaming
+  (println
+    (gpt/chatgpt
+      {:streaming true :prompt "give me a command to show number of sata ports linux"})))
+
+(deftest llama-swap
+  (println
+    (gpt/chatgpt
+      {:url "http://localhost:9292/v1" :model "smollm2" :prompt "give me a command to show number of sata ports linux"})))
+
+(deftest llama-swap-streaming
+  (println
+    (gpt/chatgpt
+      {:url "http://localhost:9292/v1" :model "smollm2" :streaming true :prompt "give me a command to show number of sata ports linux"})))
+
+;
 ;
 (deftest gpt-4-5-preview
   (->
@@ -33,14 +50,3 @@
        Analyse your answer, and propose ways you could make it better.
 
        "})))
-
-;(stream-chatgpt-response "Tell me a joke.")
-
-;(println
-;  (get-json-response "Tell me a joke."))
-;(stream-chatgpt-response "Tell me a story about a cat who learns to fly."))
-
-;(Thread/sleep 20000)
-
-;)
-
