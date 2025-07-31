@@ -24,6 +24,14 @@
     (gpt/chatgpt
       {:url "http://localhost:9292/v1" :model "smollm2" :streaming true :prompt "give me a command to show number of sata ports linux"})))
 
+(deftest image-vision-streaming-test
+  (println
+    (gpt/chatgpt
+      {:model "gpt-4o"
+       :streaming true
+       :prompt "What is shown in this image?"
+       :image-path "resources/cute_cat.jpg"})))
+
 ;
 ;
 (deftest gpt-4-5-preview
