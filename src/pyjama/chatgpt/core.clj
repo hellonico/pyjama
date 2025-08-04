@@ -6,7 +6,7 @@
            [pyjama.utils :as utils])
  (:import (java.io PrintWriter)))
 
-(def api-key
+(defn api-key []
  (System/getenv "OPENAI_API_KEY"))
 
 (def openai-endpoint "https://api.openai.com/v1")
@@ -18,10 +18,10 @@
 ;   (println ">> RAW LINE:" line))))
 
 (defn handle-response [response]
- (binding [*out* (PrintWriter. System/out true)] ; auto-flush to terminal
+ (binding [*out* (PrintWriter. System/out true)]            ; auto-flush to terminal
   (with-open [reader (io/reader (:body response))]
    (doseq [line (line-seq reader)]
-    (when (and (seq line) (.startsWith line "data: "))
+    (when (and (seq line) (.startsWith ^String line "data: "))
      (let [json-str (subs line 6)]
       (when-not (= json-str "[DONE]")
        (try
@@ -33,18 +33,18 @@
          (println "\n[Error parsing chunk]:" (.getMessage e)))))))))))
 
 (defn build-vision-message [prompt image-base64]
- [{:role "user"
+ [{:role    "user"
    :content [{:type "text" :text prompt}
-             {:type "image_url"
-              :image_url {:url (str "data:image/jpeg;base64," image-base64)
+             {:type      "image_url"
+              :image_url {:url    (str "data:image/jpeg;base64," image-base64)
                           :detail "auto"}}]}])
 
 
 (defn chatgpt [_config]
- (let [url     "https://api.openai.com/v1/chat/completions"
-       config  (utils/templated-prompt _config)
-       stream? (true? (:streaming config))
-       headers {"Authorization" (str "Bearer " api-key)
+ (let [url (str (get _config :url "https://api.openai.com/v1") "/chat/completions")
+       config (utils/templated-prompt _config)
+       stream? (true? (or (:streaming config) (:stream config)))
+       headers {"Authorization" (str "Bearer " (api-key))
                 "Content-Type"  "application/json"}
        image-path (:image-path config)
        image-base64 (when image-path (pyjama.image/image-to-base64 image-path))
@@ -52,11 +52,11 @@
                  (build-vision-message (:prompt config) image-base64)
                  [{:role "system" :content (or (:system config) "You are a helpful assistant.")}
                   {:role "user" :content (:prompt config)}])
-       body    (json/generate-string
-                {:stream      stream?
-                 :model       (or (:model config) "gpt-4o")
-                 :messages    messages
-                 :temperature (or (:temperature config) 0.7)})
+       body (json/generate-string
+             {:stream      stream?
+              :model       (or (:model config) "gpt-4o")
+              :messages    messages
+              :temperature (or (:temperature config) 0.7)})
        response (client/post url {:headers headers :body body :as (if stream? :stream :json)})]
 
   (if stream?
@@ -121,11 +121,11 @@
                 "Content-Type"  "application/json"}
        ;url (or (:url _config) openai-endpoint)
        body (json/generate-string
-             {:model       "gpt-4o"
-              :messages    [{:role "system" :content "You are a helpful assistant."}
-                            {:role "user" :content prompt}]
+             {:model    "gpt-4o"
+              :messages [{:role "system" :content "You are a helpful assistant."}
+                         {:role "user" :content prompt}]
               ;:temperature 0.7
-              :stream      true})]
+              :stream   true})]
 
   ;; Send request with streaming enabled
   (client/post url

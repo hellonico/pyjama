@@ -3,6 +3,7 @@
            [clj-http.client :as client]
            [clojure.core.async :as async]
            [clojure.edn :as edn]
+           [clojure.string]
            [clojure.java.io :as io]
 
            [pyjama.deepseek.core]
@@ -130,7 +131,7 @@
   (let [
         cmd-params (command DEFAULTS)
         params (merge (nth cmd-params 0) (pyjama.utils/templated-prompt input))
-        streaming? (:stream params)
+        streaming? (or (:stream params) (:streaming params))
         body (json/generate-string params)
         options {:method      (nth cmd-params 1)
                  :url         (str url "/api/" (name command))
@@ -167,7 +168,7 @@
    {})))
 
 (def agents-registry
- (delay (or (load-agents) {})))         ;; Lazy load
+ (delay (or (load-agents) {})))
 
 
 (def URL (or (System/getenv "OLLAMA_URL") "http://localhost:11434"))
@@ -205,51 +206,46 @@
 
 ;; 4. Merge agent defaults
 (defn resolve-params [params]
- (if-let [agent-id (:id params)]
-  (let [defaults (get @agents-registry agent-id)
-        default-maps (or (get @agents-registry :default) {})
-        resource-path (str "prompts/" (name agent-id) ".txt")
-        prompt-map (if-let [_ (io/resource resource-path)]
-                    {:pre resource-path}
-                    {})
-        ]
-   (merge {:impl (or (:impl params) (current-impl))}
-          default-maps
-          defaults
-          prompt-map
-          params
-          ))
-  (merge params {:impl (or (:impl params) (current-impl))})))
-
+ (let [default-maps (or (get @agents-registry :default) {})]
+  (if-let [agent-id (:id params)]
+   (let [
+         defaults (get @agents-registry agent-id)
+         resource-path (str "prompts/" (name agent-id) ".txt")
+         prompt-map (if-let [_ (io/resource resource-path)]
+                     {:pre resource-path}
+                     {})]
+    (merge {:impl (or (:impl params) (current-impl))}
+           default-maps
+           defaults
+           prompt-map
+           params))
+   (merge {:impl (or (:impl params) (current-impl))} default-maps params))))
 
 ;; 5. Create a simple timestamp
 (defn now-str []
  (.format (LocalDateTime/now) (DateTimeFormatter/ofPattern "yyyy-MM-dd'T'HH:mm:ss")))
 
-
 (defn current-app-id []
- (let [cmd (System/getProperty "sun.java.command")
-       tokens (clojure.string/split cmd #"\s+")
-       idx (.indexOf tokens "-m")]
-  (if (and (pos? idx) (< (inc idx) (count tokens)))
-   (nth tokens (inc idx))
-   (first tokens))))  ;; fallback to first token (main class/jar)
+ (if-let [cmd (System/getProperty "sun.java.command")]
+  (let [tokens (clojure.string/split cmd #"\s+")
+        idx (.indexOf tokens "-m")]
+   (if (and (pos? idx) (< (inc idx) (count tokens)))
+    (nth tokens (inc idx))
+    (first tokens)))
+  "unknown"))
+
+;; fallback to first token (main class/jar)
 
 ;; 6. Logging with :id
 (defn log-call [params]
  (let [log-file (io/file (str (System/getProperty "user.home") "/pyjama.edn"))
-       entry {:datetime (now-str)
-              :id       (:id params)                        ;; include id if present
-              :impl     (:impl params)
-              :pre      (:pre params)
-              :app-id   (current-app-id)
-              :model    (:model params)}]
+       entry (merge params {:datetime (now-str) :app-id (current-app-id)})]
   (spit log-file (str entry "\n") :append true)))
 
 ;; 7. Public entry point
 (defn call* [params]
  (let [resolved (resolve-params params)
-       result   (pyjama-call (dissoc resolved :id))]
+       result (pyjama-call (dissoc resolved :id))]
   (log-call resolved)
   (if (:format resolved)
    (pyjama.utils/parse-json-or-text result)
@@ -260,7 +256,7 @@
   (if (vector? entry)
    (reduce
     (fn [prev-output step-id]
-     (call* (merge params  {:prompt prev-output :id step-id} )))
+     (call* (merge params {:prompt prev-output :id step-id})))
     params
     entry)
    (call* params))))

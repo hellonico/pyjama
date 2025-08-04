@@ -14,11 +14,16 @@
   org.clj-commons/hickory {:mvn/version "0.7.5"}
   }
  :aliases {
+           :call
+           {:main-opts ["-m" "pyjama.cli.call"]}
+
            :native-image
-           {:main-opts ["-m" "clj.native-image" "pyjama.cli"
+           {:main-opts ["-m" "clj.native-image" "pyjama.cli.call"
                         "--initialize-at-build-time"
                         "--initialize-at-run-time=org.apache.http.impl.auth.NTLMEngineImpl"
                         "--initialize-at-run-time=sun.java2d.Disposer"
+                        "--enable-url-protocols=https"
+                        "-march=native"
                         "--trace-object-instantiation=java.security.SecureRandom"
                         "--trace-object-instantiation=java.lang.Thread"
                         "--enable-url-protocols=http"

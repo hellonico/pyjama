@@ -1,4 +1,4 @@
-(ns pyjama.cli
+(ns pyjama.cli.ollama
   (:gen-class)
   (:require
     [pyjama.core]
