@@ -181,20 +181,28 @@
 ;; =============================================================================
 
 (defn load-agents
-  "Load agent configuration from agents.edn file"
-  []
-  (let [prop-path (System/getProperty "agents.edn")
-        prop-file (when prop-path (io/file prop-path))
-        cwd-file (io/file "agents.edn")]
-    (cond
-      (and prop-file (.exists prop-file))
-      (edn/read-string (slurp prop-file))
-      
-      (.exists cwd-file)
-      (edn/read-string (slurp cwd-file))
-      
-      :else
-      {})))
+ "Load agent configuration from:
+  1. agents.edn specified in system property
+  2. agents.edn in the current working directory
+  3. agents.edn found in the classpath
+  Returns an EDN map or empty map if not found."
+ []
+ (let [prop-path (System/getProperty "agents.edn")
+       prop-file (when prop-path (io/file prop-path))
+       cwd-file  (io/file "agents.edn")
+       cp-resource (io/resource "agents.edn")]
+  (cond
+   (and prop-file (.exists prop-file))
+   (edn/read-string (slurp prop-file))
+
+   (.exists cwd-file)
+   (edn/read-string (slurp cwd-file))
+
+   cp-resource
+   (edn/read-string (slurp cp-resource))
+
+   :else
+   {})))
 
 (def agents-registry
   "Lazy-loaded agents registry"
