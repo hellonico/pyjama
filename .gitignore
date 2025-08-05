@@ -22,3 +22,5 @@ pom.xml.asc
 /pyjama.iml
 .clj-kondo
 /agents.edn
+/.lsp/.cache/db.transit.json
+/.calva/output-window/output.calva-repl

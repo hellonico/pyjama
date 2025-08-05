@@ -22,4 +22,4 @@
   (let [input  "hello"
         output (reverse-string input)]
    (println "reverse-string of" input "→" output)
-   (is (= "olleh" (apply str output))))))
+   (is (= "olleh]" (apply str output))))))
