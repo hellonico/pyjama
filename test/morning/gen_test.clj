@@ -1,8 +1,9 @@
 (ns morning.gen-test
   (:require [clojure.test :refer :all]
             [pyjama.functions  ;; brings in airport-code-generator etc.
-             :refer :all]
-            ))
+             :refer :all]))
+
+(defollama-from-edn "functions.edn")
 
 (deftest airport-test
 ;; now you can just do:
@@ -21,4 +22,4 @@
   (let [input  "hello"
         output (reverse-string input)]
    (println "reverse-string of" input "→" output)
-   (is (= "olleh" output)))))
+   (is (= "olleh" (apply str output))))))

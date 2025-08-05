@@ -270,7 +270,7 @@
       (merge {:impl (or (:impl params) (current-impl))} default-maps params))))
 
 (defn now-str
-  "Create timestamp string in ISO format"
+  "Create timestamp string in ISO format with date"
   []
   (.format (LocalDateTime/now) (DateTimeFormatter/ofPattern "yyyy-MM-dd'T'HH:mm:ss")))
 
