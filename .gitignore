@@ -24,3 +24,4 @@ pom.xml.asc
 /agents.edn
 /.lsp/.cache/db.transit.json
 /.calva/output-window/output.calva-repl
+/.idea/
