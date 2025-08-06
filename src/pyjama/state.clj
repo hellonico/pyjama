@@ -61,16 +61,15 @@
       (let [_ (async/<! result-ch)]
         (async/close! ch)))
     (async/go-loop []
-      (if-let [val (async/<! ch)]
-        (if (:processing @state)
+      (when-let [val (async/<! ch)]
+        (when (:processing @state)
           (do
             (response-handler val)
             (recur)))))))
 
 (defn update-response [state text]
   ;(println text)
-  ;(swap! state update :response str text)
- )
+  (swap! state update :response str text))
 
 (defn handle-submit [state]
   (swap! state assoc :response "")

@@ -26,7 +26,7 @@
  "Print tokens from parsed response at specified key path"
  [parsed key]
  (when-let [resp (get-in parsed key)]
-  (print resp)
+  ;(print resp)
   (flush)))
 
 (defn print-create-tokens
