@@ -25,3 +25,8 @@
   (pyjama.agent/call {:id     :wiki-summarizer
                       :prompt "Alan Turing early life"})))
 
+(deftest alain-turing-to-file
+ (System/setProperty "agents.edn" "test-resources/wiki-to-file.edn")
+ (testing "alain turing"
+  (pyjama.agent/call {:id     :wiki-summarizer
+                      :prompt "Alan Turing early life"})))

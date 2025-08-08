@@ -1,0 +1,38 @@
+{
+ :default {:impl :ollama :url "http://192.168.100.9:11434/" :model "llama3.1"}
+ :wiki-summarizer
+ {:start     :wiki-search
+  :max-steps 6
+
+  :steps
+  {
+   :rewrite-query {:prompt "Rewrite this into a short Wikipedia search query only:\n\n{{prompt}}"
+                   :next   :wiki-search}
+
+   :wiki-search   {:tool             :wiki-search
+                   :message-template "{{prompt}}"
+                   :next             :summarize}
+
+   :summarize     {:impl   :ollama
+                   :model  "llama3.1"
+                   :prompt "Summarize the following context from Wikipedia clearly and concisely.\n\n{{obs}}\n\nReturn a crisp paragraph."
+                   :next   :write-summary}
+
+   ;; Write the summary (received as :message) to a file, then stop
+   :write-summary {:tool         :write-file
+                   ;; You can hardcode a path, or just set a name & dir.
+                   ;; Here’s a fixed path for your Alan run:
+                   :message-path [:last-obs :text]          ; ensure we use summary text if your runner prefers :text
+                   :args         {:path     "out/alan.txt"  ; or {:dir "out" :name "alan.txt"}
+                                  :append   false
+                                  :encoding "UTF-8"}
+                   :terminal?    true}}
+
+
+  :tools
+  {:wiki-search {:fn   pyjama.tools.wiki/wiki-search
+                 :args {:lang "en" :topk 3}}
+   :write-file  {:fn pyjama.tools.file/write-file}
+   :notify      {:fn   pyjama.tools.notify/notify-user
+                 :args {:channel "stdout"}}}}
+ }
