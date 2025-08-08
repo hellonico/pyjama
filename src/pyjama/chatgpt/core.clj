@@ -53,32 +53,76 @@
 ;; Message Building Functions
 ;; =============================================================================
 
+;; =============================================================================
+;; Helpers
+;; =============================================================================
+
+(defn ^:private image->data-url
+ "Return a data URL for an image file path. Defaults to image/jpeg."
+ [path]
+ (let [b64 (image-to-base64 path)
+       mime (cond
+             (re-find #"\.(?i)png$"  path) "image/png"
+             (re-find #"\.(?i)webp$" path) "image/webp"
+             (re-find #"\.(?i)gif$"  path) "image/gif"
+             :else "image/jpeg")]
+  (str "data:" mime ";base64," b64)))
+
 (defn build-vision-message
-  "Build message for vision model with image support"
-  [prompt image-base64]
-  [{:role    "user"
-    :content [{:type "text" :text prompt}
-              {:type      "image_url"
-               :image_url {:url    (str "data:image/jpeg;base64," image-base64)
-                           :detail "auto"}}]}])
+ "Build message for vision model with 1+ images (data URLs or HTTP URLs).
+  `images` should be a seq of strings: either data: URLs or http(s) URLs.
+  `detail` is \"auto\"|\"low\"|\"high\"."
+ [prompt images detail]
+ (let [image-contents (for [url images]
+                       {:type "image_url"
+                        :image_url {:url url
+                                    :detail (or detail "auto")}})]
+  [{:role "user"
+    :content (into [{:type "text" :text prompt}] image-contents)}]))
 
 ;; =============================================================================
-;; Main API Functions
+;; Main API Function
 ;; =============================================================================
+
 (defn chatgpt
- "Main ChatGPT API function with support for streaming and vision"
+ "Main ChatGPT API function with support for streaming and vision (multi-image)."
  [_config]
  (let [url (str (get _config :url "https://api.openai.com/v1") "/chat/completions")
-       config (utils/templated-prompt _config)
-       stream? (true? (or (:streaming config) (:stream config)))
-       headers {"Authorization" (str "Bearer " (api-key))
-                "Content-Type"  "application/json"}
-       image-path (:image-path config)
-       image-base64 (when image-path (image-to-base64 image-path))
-       messages (if image-base64
-                 (build-vision-message (:prompt config) image-base64)
+       config   (utils/templated-prompt _config)
+       stream?  (true? (or (:streaming config) (:stream config)))
+       headers  {"Authorization" (str "Bearer " (api-key))
+                 "Content-Type"  "application/json"}
+
+       ;; --- Collect images (paths or URLs), staying backward compatible ---
+       ;; Single local file path (legacy):
+       legacy-path (:image-path config)
+       ;; Multiple local file paths:
+       paths       (seq (:image-paths config))
+       ;; Already-hosted HTTP/HTTPS URLs:
+       url-images  (seq (:image-urls config))
+       ;; Optional detail hint for vision:
+       detail      (:detail config) ; "auto" | "low" | "high"
+
+       ;; Normalize everything to a seq of URLs (prefer data: URLs for local files)
+       data-urls
+       (cond
+        (and legacy-path (not paths))
+        [(image->data-url legacy-path)]
+
+        paths
+        (mapv image->data-url paths)
+
+        :else
+        nil)
+
+       images (when (or data-urls url-images)
+               (vec (concat (or data-urls []) (or url-images []))))
+
+       messages (if (seq images)
+                 (build-vision-message (:prompt config) images detail)
                  [{:role "system" :content (or (:system config) "You are a helpful assistant.")}
-                  {:role "user" :content (:prompt config)}])
+                  {:role "user"   :content (:prompt config)}])
+
        ;; Build request body conditionally
        body (json/generate-string
              (cond-> {:stream   stream?
@@ -92,6 +136,7 @@
   (if stream?
    (handle-response response)
    (-> response :body :choices first :message :content))))
+
 
 (def call chatgpt)
 
