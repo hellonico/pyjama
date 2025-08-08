@@ -1,5 +1,5 @@
 {
- :default {:impl :ollama :url "http://192.168.100.9:11434/" :model "llama3.1"}
+ :default {:impl :chatgpt :url "http://192.168.100.9:11434/v1" :model "gpt-oss"}
  :wiki-summarizer
  {:start     :wiki-search
   :max-steps 6
@@ -13,8 +13,8 @@
                    :message-template "{{prompt}}"
                    :next             :summarize}
 
-   :summarize     {:impl   :ollama
-                   :model  "llama3.1"
+   :summarize     {;:impl   :ollama
+                   ;:model  "llama3.1"
                    :prompt "Summarize the following context from Wikipedia clearly and concisely.\n\n{{obs}}\n\nReturn a crisp paragraph."
                    :next   :write-summary}
 

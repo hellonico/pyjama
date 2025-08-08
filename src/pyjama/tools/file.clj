@@ -22,6 +22,12 @@
   (.mkdirs p))
  f)
 
+(defn normalize-spaces [s]
+ ;; Replace narrow no-break space (\u202F) and no-break space (\u00A0) with regular space
+ (-> s
+     (clojure.string/replace #"\u202F" " ")
+     (clojure.string/replace #"\u00A0" " ")))
+
 (defn write-file
  "Tool: write the incoming :message to a file.
 
@@ -45,7 +51,8 @@
                 (str "summary-" (now-ts) ".txt"))
        f (io/file (or path (str dir File/separator name)))]
   (ensure-parent-dirs! f)
-  (spit f (or message "") :append (boolean append) :encoding encoding)
+  (let [clean-message (normalize-spaces (or message ""))]
+   (spit f clean-message :append (boolean append) :encoding encoding))
   {:status  :ok
    :file    (.getAbsolutePath f)
    :append? (boolean append)
