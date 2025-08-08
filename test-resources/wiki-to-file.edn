@@ -23,7 +23,7 @@
                    ;; You can hardcode a path, or just set a name & dir.
                    ;; Here’s a fixed path for your Alan run:
                    :message-path [:last-obs :text]          ; ensure we use summary text if your runner prefers :text
-                   :args         {:path     "out/alan.txt"  ; or {:dir "out" :name "alan.txt"}
+                   :args         {:path     "out/alan.md"  ; or {:dir "out" :name "alan.txt"}
                                   :append   false
                                   :encoding "UTF-8"}
                    :terminal?    true}}

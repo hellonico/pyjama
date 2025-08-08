@@ -47,8 +47,8 @@
        name (or (some-> message (subs 0 (min 40 (count message)))
                         (str/replace #"\s+" "_")
                         sanitize-filename
-                        (str ".txt"))
-                (str "summary-" (now-ts) ".txt"))
+                        (str ".md"))
+                (str "summary-" (now-ts) ".md"))
        f (io/file (or path (str dir File/separator name)))]
   (ensure-parent-dirs! f)
   (let [clean-message (normalize-spaces (or message ""))]
