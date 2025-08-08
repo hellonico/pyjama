@@ -1,32 +1,22 @@
 (ns pyjama.agent
  (:require
-  [clojure.string :as str]
+  [clojure.edn :as edn]
   [pyjama.core]
+  [pyjama.io.template]
   [pyjama.utils :as utils]))
 
 ;; Normalize any step result into a map so downstream logic is stable.
 (defn- as-obs [x]
  (cond
-  (map? x)    x
+  (map? x) x
   (string? x) {:text x}
-  :else       {:value x}))
+  :else {:value x}))
 
-(defn- last-text
- "Prefer :text in the last observation, else stringify the whole thing."
- [ctx]
- (let [o (:last-obs ctx)]
-  (or (:text o)
-      (when (string? o) o)
-      (pr-str o))))
 
-(defn- render-template
- "Very small {{var}} templating over a flat context.
-  Ex: \"Hi {{user}}\" with {:user \"Nico\"} → \"Hi Nico\""
- [tpl m]
- (reduce (fn [s [k v]]
-          (str/replace s (re-pattern (str "\\{\\{" (name k) "\\}\\}"))
-                       (str v)))
-         tpl m))
+(defn- last-text [ctx]
+ (or (:text (:last-obs ctx))
+     (when (string? (:last-obs ctx)) (:last-obs ctx))
+     (pr-str (:last-obs ctx))))
 
 (defn- tool-args
  "Build the args for a tool step:
@@ -38,43 +28,29 @@
        msg (cond
             message message
             message-path (get-in ctx message-path)
-            message-template (render-template message-template
-                                              {:obs    (:last-obs ctx)
-                                               :prompt (:prompt ctx)
-                                               :params params})
+            message-template (pyjama.io.template/render-template
+                              message-template ctx params)
             :else (last-text ctx))]
   (merge base-args {:message msg :ctx ctx :params params})))
 
-;(defn- resolve-fn* [f]
-; (cond
-;  (ifn? f) f
-;  (symbol? f)
-;  (or (try
-;       (requiring-resolve f)           ; returns a Var, which is IFn
-;       (catch Throwable _ nil))
-;      (throw (ex-info "Cannot resolve tool fn" {:fn f})))
-;  :else
-;  (throw (ex-info "Tool :fn must be IFn or symbol" {:fn f}))))
-
-
 (defn resolve-fn*
-  "Return a Var (IFn) for EDN :fn, or throw with context."
-  [f]
-  (cond
-   (var? f) f
-   (symbol? f)
-   (let [v (try
-            (requiring-resolve f)
-            (catch Throwable e
-             (throw (ex-info "Cannot requiring-resolve tool fn"
-                             {:fn f} e))))]
-    (when-not (var? v)
-     (throw (ex-info "Resolved value is not a Var"
-                     {:fn f :resolved v :class (some-> v class str)})))
-    v)
-   (ifn? f) f
-   :else
-   (throw (ex-info "Tool :fn must be a symbol, Var, or IFn" {:fn f}))))
+ "Return a Var (IFn) for EDN :fn, or throw with context."
+ [f]
+ (cond
+  (var? f) f
+  (symbol? f)
+  (let [v (try
+           (requiring-resolve f)
+           (catch Throwable e
+            (throw (ex-info "Cannot requiring-resolve tool fn"
+                            {:fn f} e))))]
+   (when-not (var? v)
+    (throw (ex-info "Resolved value is not a Var"
+                    {:fn f :resolved v :class (some-> v class str)})))
+   v)
+  (ifn? f) f
+  :else
+  (throw (ex-info "Tool :fn must be a symbol, Var, or IFn" {:fn f}))))
 
 (defn explain-tool [agent-spec tool-k]
  (let [{:keys [fn args] :as tool} (get-in agent-spec [:tools tool-k])]
@@ -91,22 +67,54 @@
     (println "   Default args:" args))
    v)))
 
+(defn coerce-formatted
+ "If step declares :format {:type :edn} and obs is a string, parse it."
+ [step obs]
+ (let [{:keys [type]} (:format step)]
+  (cond
+   (and (= type :edn) (string? obs))
+   (try (edn/read-string obs)
+        (catch Exception e
+         (binding [*out* *err*]
+          (println "⚠️  Could not parse EDN:" (pr-str obs) (.getMessage e)))
+         obs))
+
+   :else obs)))
+
+
 (defn- run-step [{:keys [steps tools]} step-id ctx params]
  (let [{:keys [tool] :as step} (get steps step-id)]
   (if tool
    (let [{:keys [fn args] :as tool-spec} (get tools tool)]
+
+    ;(binding [*out* *err*]
+    ; (println "TRACE last two →" (take-last 2 (:trace ctx)))
+    ; (println "NOTIFY TEMPLATE →" (:message-template (get-in @pyjama.core/agents-registry [:news-analyzer :steps :notify-result]))))
+
     (when-not tool-spec
      (throw (ex-info "Unknown tool" {:tool tool :available (keys tools)})))
-    (let [f   (resolve-fn* fn)
+    (let [f (resolve-fn* fn)
           targs (tool-args step ctx params (or args {}))
-          ;; uncomment if you want to see it during tests:
-          ; _ (binding [*out* *err*] (println "→ TOOL" tool "ARGS" (dissoc targs :ctx :params)))
-          obs (f targs)]
-     (assoc ctx :last-obs (as-obs obs))))
+          raw (binding [*out* *err*] (f targs))
+          obs (-> raw                                       ;; parses EDN if declared
+                  as-obs)]                                  ;; {:text "..."} / map
+     (assoc ctx :last-obs obs)))
    (let [prompt (merge step {:prompt (or (:prompt ctx) (:prompt params))
-                             :id step-id})
-         obs    (pyjama.core/call* prompt)]
-    (assoc ctx :last-obs (as-obs obs))))))
+                             :id     step-id})
+         raw (pyjama.core/call* prompt)
+         obs (-> raw
+                 as-obs)
+         ;_ (clojure.pprint/pprint raw)
+         ;_ (prn obs)
+         ;_ (prn (class obs) "+" (class raw))
+         ;_ (prn (:sentiment obs) )
+         ;_ (prn (keys obs) )
+         ]
+    ;(assoc ctx :last-obs (-> raw
+    ;                         (coerce-formatted step)
+    ;                         as-obs))
+    (assoc ctx :last-obs obs)
+    ))))
 
 
 (defn- eval-pred [ctx pred]
@@ -123,7 +131,7 @@
  (let [{:keys [next routes terminal?]} (get steps step-id)]
   (cond
    terminal? :done
-   next      next
+   next next
    (seq routes)
    (or (some (fn [route]
               (cond
@@ -139,8 +147,8 @@
    controller
    ;; Ask controller LLM to pick a next step from allowed (non-terminal) steps
    (let [choices (->> steps (remove (comp :terminal? val)) (map key))
-         {:keys [choice]} (pyjama.core/call* (merge controller {:prompt {:obs (:last-obs ctx)
-                                                             :choices choices}}))]
+         {:keys [choice]} (pyjama.core/call* (merge controller {:prompt {:obs     (:last-obs ctx)
+                                                                         :choices choices}}))]
     (keyword choice))
    :else :done)))
 
@@ -160,14 +168,10 @@
     (loop [ctx {:trace [] :prompt (:prompt params)}
            step-id start
            n 0]
-     ;(prn step-id)
      (if (or (= step-id :done) (>= n (or max-steps 20)))
-      (assoc ctx :status (if (= step-id :done) :ok :max-steps))
-      (let [ctx' (-> (run-step spec step-id ctx params)
-                     (update :trace conj {:step step-id :obs (:last-obs ctx)}))
-            next-id (decide-next spec step-id ctx')]
-       (recur ctx' next-id (inc n)))))))))
-
-(defn -main[]
- (pyjama.agent/call {:id :pp :prompt "what is AI?"})
- )
+      ctx
+      (let [ctx' (run-step spec step-id ctx params)         ;; run the step, update :last-obs
+            ctx'' (update ctx' :trace (fnil conj [])
+                          {:step step-id :obs (:last-obs ctx')}) ;; record new obs
+            next-id (decide-next spec step-id ctx'')]
+       (recur ctx'' next-id (inc n)))))))))
