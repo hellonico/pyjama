@@ -1,4 +1,4 @@
-(ns morning.agentic
+(ns morning.agentic-test
  (:require
   [pyjama.agent]
   [pyjama.core]
@@ -18,3 +18,10 @@
 (deftest run-just-agent-flow
  (testing "hello agents"
   (pyjama.agent/call {:id :pp :prompt "what is AI?"})))
+
+(deftest alain-turing
+ (System/setProperty "agents.edn" "test-resources/wiki.edn")
+ (testing "alain turing"
+  (pyjama.agent/call {:id     :wiki-summarizer
+                      :prompt "Alan Turing early life"})))
+

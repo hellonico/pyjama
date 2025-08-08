@@ -1,0 +1,27 @@
+{
+ :default {:impl :ollama :url "http://192.168.100.9:11434/" :model "llama3.1"}
+ :wiki-summarizer
+ {:start     :wiki-search
+  :max-steps 6
+
+  :steps
+  {
+   :rewrite-query {:prompt "Rewrite this into a short Wikipedia search query only:\n\n{{prompt}}"
+                   :next   :wiki-search}
+
+   :wiki-search   {:tool             :wiki-search
+                   :message-template "{{prompt}}"
+                   :next             :summarize}
+
+   :summarize     {:prompt "Summarize the following context from Wikipedia clearly and concisely.\n\n{{obs}}\n\nReturn a crisp paragraph."
+                   :next   :show-summary}
+
+   :show-summary  {:tool      :notify
+                   :terminal? true}}
+
+  :tools
+  {:wiki-search {:fn   pyjama.tools.wiki/wiki-search
+                 :args {:lang "en" :topk 3}}
+   :notify      {:fn   pyjama.tools.notify/notify-user
+                 :args {:channel "stdout"}}}}
+ }

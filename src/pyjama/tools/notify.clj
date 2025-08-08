@@ -1,4 +1,4 @@
-(ns pyjama.tools)
+(ns pyjama.tools.notify)
 
 (defn notify-user
  "Send a message/data to the user and return an observation."

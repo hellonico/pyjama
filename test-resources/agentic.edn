@@ -17,7 +17,7 @@
                   :message "✅ Pipeline ends."
                   :terminal? true}}
   :tools
-  {:notify {:fn pyjama.tools/notify-user
+  {:notify {:fn pyjama.tools.notify/notify-user
             :args {:channel "stdout"}}}}
 
  :pp
@@ -57,5 +57,5 @@
                :system "You decide the next action from: {{choices}} given observation {{obs}}."}
 
   ;; optional tool registry
-  :tools      {:notify {:fn   pyjama.tools/notify-user
+  :tools      {:notify {:fn   pyjama.tools.notify/notify-user
                         :args {:channel "stdout"}}}}}
