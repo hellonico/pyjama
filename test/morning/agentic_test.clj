@@ -35,3 +35,8 @@
  (System/setProperty "agents.edn" "test-resources/agentic/news.edn")
  (pyjama.agent/call {:id     :news-analyzer
                      :prompt "New advances in solar panel efficiency"}))
+
+(deftest web-search
+ (System/setProperty "agents.edn" "test-resources/agentic/web.edn")
+ (pyjama.agent/call {:id     :search-and-summarize
+                     :prompt "Clojure best features"}))

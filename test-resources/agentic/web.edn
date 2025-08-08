@@ -1,0 +1,25 @@
+{
+ :default {:impl :ollama :model "llama3.2" :url "http://192.168.100.9:11434"}
+
+ :search-and-summarize
+ {:start :search
+  :steps
+  {:search    {:tool             :web-search
+               :message-template "{{obs.query}}"
+               :next             :summarize}
+
+   :summarize {:prompt
+               "Summarize the following web search results:\n\n{{obs.results}}"
+               :next :notify}
+
+   :notify    {:tool             :notify
+               :message-template "SUMMARY OF SEARCH '{{original-prompt}}':\n\n{{obs.text}}"
+               :terminal?        true}}
+
+  :tools
+  {:web-search {:fn   pyjama.tools.web/web-search
+                :args {:topk 3}}
+   :notify     {:fn   pyjama.tools.notify/notify-user
+                :args {:channel "stdout"}}}
+
+  }}
