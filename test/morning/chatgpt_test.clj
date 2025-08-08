@@ -58,3 +58,47 @@
        Analyse your answer, and propose ways you could make it better.
 
        "})))
+
+;
+;
+;
+
+(def models
+  ;; Core GPT-5 family
+  ["gpt-5"
+   "gpt-5-mini"
+   "gpt-5-nano"])
+;
+;(def chat-router
+;  ;; Optional: Chat-tuned router model that maps to GPT-5 under the hood.
+;  ["gpt-5-chat-latest"])
+
+(def cat-img "resources/cute_cat.jpg")
+
+(defn ^:private ask-vision
+  [model]
+  (gpt/chatgpt {:model model
+                ;:streaming true
+                :prompt "What is shown in this image?"
+                :image-path cat-img}))
+
+(defn ^:private cat? [s]
+  (boolean (re-find #"(?i)\b(cat|kitten)\b" (str s))))
+
+(deftest gpt5-vision-streaming-tests
+  (doseq [m models]
+    (testing (str "Vision streaming with " m)
+      (let [out (ask-vision m)]
+        (println "\n[" m "] OUTPUT:\n" out)
+        (is (string? (str out)) (str m " should return stringifiable output"))
+        (is (seq (str out)) (str m " should return non-empty output"))
+        (is (cat? out) (str m " should recognize a cat in the image"))))))
+
+(deftest gpt5-chat-latest-vision-streaming-test
+  (testing "Vision streaming with gpt-5-chat-latest"
+    (let [m "gpt-5-chat-latest"
+          out (ask-vision m)]
+      (println "\n[" m "] OUTPUT:\n" out)
+      (is (string? (str out)) "should return stringifiable output")
+      (is (seq (str out)) "should return non-empty output")
+      (is (cat? out) "should recognize a cat in the image"))))

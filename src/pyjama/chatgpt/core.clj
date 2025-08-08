@@ -65,31 +65,33 @@
 ;; =============================================================================
 ;; Main API Functions
 ;; =============================================================================
-
 (defn chatgpt
-  "Main ChatGPT API function with support for streaming and vision"
-  [_config]
-  (let [url (str (get _config :url "https://api.openai.com/v1") "/chat/completions")
-        config (utils/templated-prompt _config)
-        stream? (true? (or (:streaming config) (:stream config)))
-        headers {"Authorization" (str "Bearer " (api-key))
-                 "Content-Type"  "application/json"}
-        image-path (:image-path config)
-        image-base64 (when image-path (image-to-base64 image-path))
-        messages (if image-base64
-                  (build-vision-message (:prompt config) image-base64)
-                  [{:role "system" :content (or (:system config) "You are a helpful assistant.")}
-                   {:role "user" :content (:prompt config)}])
-        body (json/generate-string
-              {:stream      stream?
-               :model       (or (:model config) "gpt-4o")
-               :messages    messages
-               :temperature (or (:temperature config) 0.7)})
-        response (client/post url {:headers headers :body body :as (if stream? :stream :json)})]
-    
-    (if stream?
-      (handle-response response)
-      (-> response :body :choices first :message :content))))
+ "Main ChatGPT API function with support for streaming and vision"
+ [_config]
+ (let [url (str (get _config :url "https://api.openai.com/v1") "/chat/completions")
+       config (utils/templated-prompt _config)
+       stream? (true? (or (:streaming config) (:stream config)))
+       headers {"Authorization" (str "Bearer " (api-key))
+                "Content-Type"  "application/json"}
+       image-path (:image-path config)
+       image-base64 (when image-path (image-to-base64 image-path))
+       messages (if image-base64
+                 (build-vision-message (:prompt config) image-base64)
+                 [{:role "system" :content (or (:system config) "You are a helpful assistant.")}
+                  {:role "user" :content (:prompt config)}])
+       ;; Build request body conditionally
+       body (json/generate-string
+             (cond-> {:stream   stream?
+                      :model    (or (:model config) "gpt-5-mini")
+                      :messages messages}
+                     (contains? config :temperature)
+                     (assoc :temperature (:temperature config))))
+       response (client/post url {:headers headers
+                                  :body body
+                                  :as (if stream? :stream :json)})]
+  (if stream?
+   (handle-response response)
+   (-> response :body :choices first :message :content))))
 
 (def call chatgpt)
 
