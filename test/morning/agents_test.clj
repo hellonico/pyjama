@@ -1,5 +1,5 @@
-(ns morning.agents_test
-  (:require [clojure.test :refer :all]
+(ns morning.agents-test
+  (:require [clojure.test :refer [deftest]]
             [pyjama.agents :as a]))
 
 (deftest simple-agents-system

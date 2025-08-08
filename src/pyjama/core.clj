@@ -13,6 +13,7 @@
   [pyjama.openrouter.core]
   [pyjama.chatgpt.core]
   [pyjama.claude.core]
+  [pyjama.utils :as utils]
   [pyjama.utils])
 
  (:import [java.time LocalDateTime]
@@ -319,6 +320,6 @@
    (reduce
     (fn [prev-output step-id]
      (call* (merge params {:prompt prev-output :id step-id})))
-    params
+    (:prompt (utils/templated-prompt params))
     entry)
    (call* params))))

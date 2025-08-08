@@ -68,10 +68,6 @@
  ["gpt-5"
   "gpt-5-mini"
   "gpt-5-nano"])
-;
-;(def chat-router
-;  ;; Optional: Chat-tuned router model that maps to GPT-5 under the hood.
-;  ["gpt-5-chat-latest"])
 
 (def cat-img "resources/cute_cat.jpg")
 
@@ -108,11 +104,18 @@
  look-for-differences
  (testing "look for differences")
  (gpt/chatgpt
-  {;:model       "gpt-5"
+  {
+   ;:model       "gpt-5"
    :model "gpt-4o"
-   :prompt      "Find as many differences as you can."
+   :prompt      "Find as many differences as you can. Picture are very similar so be super detailed. Do not lie."
    :image-paths ["test-resources/mr_mrs_01.png"
                  "test-resources/mr_mrs_02.png"]
-   :detail      "high"                                      ;; optional: "auto" | "low" | "high"
-   :streaming   true})                                      ;; optional
+   :detail      "high"
+   :streaming   true})
  )
+
+;
+;(deftest llama-swap-streaming
+; (println
+;  (gpt/chatgpt
+;   {:url "http://localhost:9292/v1" :model "smollm2" :streaming true :prompt "give me a command to show number of sata ports linux"})))

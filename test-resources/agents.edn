@@ -1,10 +1,12 @@
 {
- :default  {:impl :ollama :streaming false :model "tinydolphin"}
+ :default  {:impl :ollama :streaming false :model "llama3.1"}
  :philo    {}
  :positive {:format
             {:type       "object"
              :required   [:answer :why]
-             :properties {:why {:type "string"}
+             :properties {:why    {:type "string"}
                           :answer {:type "string" :enum ["yes" "no" "i don't know"]}}}}
  :pp       [:philo :positive]
+ :gpt-oss  {:impl :chatgpt :model "gpt-oss" :url "http://192.168.100.9:11434/v1"}
+ :gpt-pp   [:gpt-oss :positive]
  }

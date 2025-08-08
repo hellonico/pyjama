@@ -1,7 +1,7 @@
 (ns morning.async-test
   (:require [clojure.core.async :as async]
             [pyjama.core]
-            [clojure.test :refer :all]))
+            [clojure.test :refer [deftest]]))
 
 (def URL (or (System/getenv "OLLAMA_URL") "http://localhost:11434"))
 (def model "llama3.2")
