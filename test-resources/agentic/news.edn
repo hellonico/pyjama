@@ -1,5 +1,5 @@
 {
- :default {:impl :ollama :model "llama3.1" :url "http://192.168.100.9:11434"}
+ :default {:impl :ollama :model "llama3.2" :url "http://192.168.100.9:11434"}
  :news-analyzer
  {:start     :rewrite-query
   :max-steps 8
@@ -28,11 +28,15 @@
                    :prompt "Given the summary:\n\n{{obs}}\n\nClassify it as positive, negative, or neutral and explain why."
                    :next   :notify-result}
 
-   :notify-result {:tool             :notify
+   :notify-result {:tool      :notify
                    ;; We can combine the last obs (sentiment object) and previous summary into one message
                    :message-template
-                   "SUMMARY:\n{{trace[-2].obs.text}}{{trace[-1].obs.text}}\n\nSENTIMENT: {{obs.sentiment}}{{obs.text}}\nWHY: {{obs.why}}"
-                   :terminal?        true}}
+                   "SUMMARY:\n{{trace[-2].obs.text}}{{trace[-1].obs.text}}
+
+ORIGINAL PROMPT: {{original-prompt}}
+SENTIMENT: {{obs.sentiment}}{{obs.text}}
+WHY: {{obs.why}}"
+                   :terminal? true}}
 
   :tools
   {:wiki-search {:fn   pyjama.tools.wiki/wiki-search

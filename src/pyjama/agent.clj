@@ -165,7 +165,7 @@
 
    ;; agent graph
    (let [{:keys [start max-steps] :as spec} agent]
-    (loop [ctx {:trace [] :prompt (:prompt params)}
+    (loop [ctx {:trace [] :prompt (:prompt params) :original-prompt (:prompt params)}
            step-id start
            n 0]
      (if (or (= step-id :done) (>= n (or max-steps 20)))
