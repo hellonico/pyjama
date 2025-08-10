@@ -169,13 +169,15 @@
   (apply eval-cond ctx op args)))
 
 (defn eval-route [ctx route]
- (let [{w :when nxt :next els :else :as r} route            ;; NEVER bind a local named `when`
-       condv w]
-  (cond
-   (contains? r :else) els
-   (vector? condv) (core/when (eval-when-dsl ctx condv) nxt)
-   (ifn? condv) (core/when (true? (condv ctx)) nxt)
-   :else nil)))
+ (let [{w :when nxt :next els :else :as r} route
+       pass? (cond
+              (vector? w) (boolean (#'pyjama.agent/eval-when-dsl ctx w))
+              (ifn?   w) (boolean (w ctx))
+              (nil?   w) true     ;; keep/flip depending on your policy
+              :else        false)]
+  (if pass?
+   nxt
+   (when (contains? r :else) els))))
 
 (defn decide-next [{:keys [steps]} step-id ctx]
  (let [{:keys [routes next]} (get steps step-id)]
