@@ -1,22 +1,19 @@
 (ns pyjama.agent
  (:require
+  [clojure.core :as core]
   [clojure.edn :as edn]
+  [clojure.string :as str]
   [pyjama.core]
   [pyjama.io.template]
   [pyjama.utils :as utils]))
 
 ;; Normalize any step result into a map so downstream logic is stable.
-(defn- as-obs [x]
+(defn as-obs [x]
  (cond
-  (map? x) x
+  (nil? x) {:status :empty}
   (string? x) {:text x}
-  :else {:value x}))
-
-
-(defn- last-text [ctx]
- (or (:text (:last-obs ctx))
-     (when (string? (:last-obs ctx)) (:last-obs ctx))
-     (pr-str (:last-obs ctx))))
+  (map? x) x                                                ;; <- KEEP maps as-is
+  :else {:text (pr-str x)}))
 
 (defn- tool-args
  "Build the args for a tool step:
@@ -24,14 +21,15 @@
   - allow overrides via step keys :message, :message-path, :message-template"
  [step ctx params base-args]
  (let [{:keys [message message-path message-template]} step
-       ;; message candidates by priority
        msg (cond
             message message
             message-path (get-in ctx message-path)
-            message-template (pyjama.io.template/render-template
-                              message-template ctx params)
-            :else (last-text ctx))]
-  (merge base-args {:message msg :ctx ctx :params params})))
+            message-template (pyjama.io.template/render-template message-template ctx params)
+            :else (or (get-in ctx [:last-obs :text])
+                      (when (string? (:last-obs ctx)) (:last-obs ctx))
+                      (pr-str (:last-obs ctx))))
+       rendered-args (pyjama.io.template/render-args-deep (or base-args {}) ctx params)]
+  (merge rendered-args {:message msg :ctx ctx :params params})))
 
 (defn resolve-fn*
  "Return a Var (IFn) for EDN :fn, or throw with context."
@@ -70,87 +68,120 @@
 (defn coerce-formatted
  "If step declares :format {:type :edn} and obs is a string, parse it."
  [step obs]
- (let [{:keys [type]} (:format step)]
-  (cond
-   (and (= type :edn) (string? obs))
-   (try (edn/read-string obs)
-        (catch Exception e
-         (binding [*out* *err*]
-          (println "⚠️  Could not parse EDN:" (pr-str obs) (.getMessage e)))
-         obs))
+ (if-let [fmt (:format step)]
+  (let [{:keys [type]} (:format step)]
+   (cond
+    (and (= type :edn) (string? obs))
+    (try (edn/read-string obs)
+         (catch Exception e
+          (binding [*out* *err*]
+           (println "⚠️  Could not parse EDN:" (pr-str obs) (.getMessage e)))
+          obs))
 
-   :else obs)))
+    :else obs))
+  obs)
+ )
 
+
+(def step-non-llm-keys
+ #{:tool :routes :next :terminal? :message :message-path :message-template})
+
+(defn- render-step-prompt [step ctx params]
+ (if-let [tpl (:prompt step)]
+  ;; render the template in the step if present
+  (pyjama.io.template/render-template tpl ctx params)
+  ;; otherwise inherit the running prompt
+  (or (:prompt ctx) (:prompt params) "")))
 
 (defn- run-step [{:keys [steps tools]} step-id ctx params]
  (let [{:keys [tool] :as step} (get steps step-id)]
   (if tool
-   (let [{:keys [fn args] :as tool-spec} (get tools tool)]
+   (let [{:keys [fn args] :as tool-spec} (get tools tool)
+         step-args (:args step)
+         base-args (merge args step-args)
+         ;; render ALL args deeply (single-token → raw value, multi-token → string)
+         rendered  (pyjama.io.template/render-args-deep base-args ctx params)
 
-    ;(binding [*out* *err*]
-    ; (println "TRACE last two →" (take-last 2 (:trace ctx)))
-    ; (println "NOTIFY TEMPLATE →" (:message-template (get-in @pyjama.core/agents-registry [:news-analyzer :steps :notify-result]))))
+         ;; build message (keep whatever you already had)
+         msg (cond
+              (:message step)             (:message step)
+              (:message-path step)        (get-in ctx (:message-path step))
+              (:message-template step)    (pyjama.io.template/render-template (:message-template step) ctx params)
+              :else (or (get-in ctx [:last-obs :text])
+                        (when (string? (:last-obs ctx)) (:last-obs ctx))
+                        (pr-str (:last-obs ctx))))
 
-    (when-not tool-spec
-     (throw (ex-info "Unknown tool" {:tool tool :available (keys tools)})))
-    (let [f (resolve-fn* fn)
-          targs (tool-args step ctx params (or args {}))
-          raw (binding [*out* *err*] (f targs))
-          obs (-> raw                                       ;; parses EDN if declared
-                  as-obs)]                                  ;; {:text "..."} / map
-     (assoc ctx :last-obs obs)))
-   (let [prompt (merge step {:prompt (or (:prompt ctx) (:prompt params))
-                             :id     step-id})
-         raw (pyjama.core/call* prompt)
-         obs (-> raw
-                 as-obs)
-         ;_ (clojure.pprint/pprint raw)
-         ;_ (prn obs)
-         ;_ (prn (class obs) "+" (class raw))
-         ;_ (prn (:sentiment obs) )
-         ;_ (prn (keys obs) )
-         ]
-    ;(assoc ctx :last-obs (-> raw
-    ;                         (coerce-formatted step)
-    ;                         as-obs))
-    (assoc ctx :last-obs obs)
-    ))))
+         targs (merge rendered {:message msg :ctx ctx :params params})
+         ;_     (binding [*out* *err*] (println "→ TOOL" tool "ARGS" (dissoc targs :ctx :params)))
+
+         raw   ((resolve-fn* fn) targs)
+         ;_     (binding [*out* *err*] (println "   RAW     →" (pr-str raw)))
+
+         ;; NO COERCION HERE — pass through
+         obs   (as-obs raw)
+         ;_     (binding [*out* *err*] (println "   AS-OBS  →" (pr-str obs)))
+
+         ;; record last obs + hoist files (for easy retrieval fallback)
+         ctx'  (assoc ctx :last-obs obs)
+         ctx'' (if-let [fs (:files obs)] (assoc ctx' :project-files fs) ctx')]
+    ctx'')
+   (let [final-prompt (render-step-prompt step ctx params)
+         ;; only pass LLM-relevant keys from step
+         llm-step    (apply dissoc step step-non-llm-keys)
+         ;; step keys override params, but we set :prompt last to avoid clobber
+         llm-input   (-> (merge params llm-step)
+                         (assoc :prompt final-prompt
+                                :id     step-id))
+         raw         (pyjama.core/call* llm-input)
+         obs         (as-obs raw)]
+    (assoc ctx :last-obs obs)))))
 
 
-(defn- eval-pred [ctx pred]
- ;; Tiny DSL: [:= [:obs :answer] "yes"] etc.
- (let [[op l r] pred
-       lv (case l
-           [:obs & ks] (get-in ctx (cons :last-obs (rest l)))
-           l)]
-  (case op
-   := (= lv r)
-   (throw (ex-info "Unknown op" {:pred pred})))))
+(defn- get-path [ctx ks]
+ (cond
+  (nil? ks) nil
+  (and (sequential? ks) (= :obs (first ks)))
+  (get-in ctx (into [:last-obs] (rest ks)))
+  (sequential? ks) (get-in ctx ks)
+  :else (get ctx ks)))
 
-(defn- decide-next [{:keys [steps controller]} step-id ctx]
- (let [{:keys [next routes terminal?]} (get steps step-id)]
+(defmulti eval-cond (fn [_ctx op & _] op))
+
+(defmethod eval-cond := [ctx _ lhs rhs]
+ (= (get-path ctx lhs) rhs))
+
+(defmethod eval-cond :in [ctx _ lhs coll]
+ (contains? (set coll) (get-path ctx lhs)))
+
+(defmethod eval-cond :nonempty [ctx _ lhs]
+ (let [v (get-path ctx lhs)]
   (cond
-   terminal? :done
-   next next
-   (seq routes)
-   (or (some (fn [route]
-              (cond
-               (contains? route :else)
-               (:else route)
+   (string? v) (not (str/blank? v))
+   (sequential? v) (boolean (seq v))
+   (map? v) (boolean (seq v))
+   :else (some? v))))
 
-               :else
-               (let [pred (:when route)]
-                (when (eval-pred ctx pred)
-                 (:next route)))))
-             routes)
-       :done)
-   controller
-   ;; Ask controller LLM to pick a next step from allowed (non-terminal) steps
-   (let [choices (->> steps (remove (comp :terminal? val)) (map key))
-         {:keys [choice]} (pyjama.core/call* (merge controller {:prompt {:obs     (:last-obs ctx)
-                                                                         :choices choices}}))]
-    (keyword choice))
-   :else :done)))
+(defmethod eval-cond :default [_ctx op & _]
+ (throw (ex-info "Unknown routing op" {:op op})))
+
+(defn- eval-when-dsl [ctx v]                                ;; v like [:= [:obs :status] :test]
+ (let [[op & args] v]
+  (apply eval-cond ctx op args)))
+
+(defn eval-route [ctx route]
+ (let [{w :when nxt :next els :else :as r} route            ;; NEVER bind a local named `when`
+       condv w]
+  (cond
+   (contains? r :else) els
+   (vector? condv) (core/when (eval-when-dsl ctx condv) nxt)
+   (ifn? condv) (core/when (true? (condv ctx)) nxt)
+   :else nil)))
+
+(defn decide-next [{:keys [steps]} step-id ctx]
+ (let [{:keys [routes next]} (get steps step-id)]
+  (or (some identity (map #(eval-route ctx %) (or routes [])))
+      next
+      :done)))
 
 (defn call
  "Agentic entry point: supports graphs, tools, and conditional routing."
@@ -168,8 +199,10 @@
     (loop [ctx {:trace [] :prompt (:prompt params) :original-prompt (:prompt params)}
            step-id start
            n 0]
+     (prn id "▶︎" step-id)
+     ;(clojure.pprint/pprint ctx)
      (if (or (= step-id :done) (>= n (or max-steps 20)))
-      ctx
+      (:last-obs ctx)
       (let [ctx' (run-step spec step-id ctx params)         ;; run the step, update :last-obs
             ctx'' (update ctx' :trace (fnil conj [])
                           {:step step-id :obs (:last-obs ctx')}) ;; record new obs

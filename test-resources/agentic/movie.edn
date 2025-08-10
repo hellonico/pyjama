@@ -1,0 +1,43 @@
+{
+ :default {:impl :ollama :model "gpt-oss" :url "http://192.168.100.9:11434"}
+
+ :movie-psych
+ {:start     :rewrite
+  :max-steps 8
+
+  :steps
+  {:rewrite       {:pre  "Looking for a movie title. Return a search web query for: %s. Produce ONLY 3–5 words (title+year if known)."
+                   :next :find}
+
+   :rewrite-short {:prompt "Your last query was too long or noisy. Produce ONLY 3–5 words (title+year if known). No markdown, no quotes.\n\nOriginal: {{trace[-2].obs.query}}"
+                   :next   :find}
+
+   :find          {:tool             :wiki-movie
+                   :message-template "{{obs.text}}"         ;; crucial: pass the tiny string only
+                   :routes           [
+                                      {:when [:= [:obs :status] :ok] :next :analyze}
+                                      {:when [:= [:obs :status] :empty] :next :fallback}
+                                      {:when [:= [:obs :too-long] true] :next :rewrite-short}
+                                      ]}
+
+   :fallback      {:prompt "We couldn't find a film matching:\n\n{{trace[-2].obs.query}}\n\nRewrite the query more specifically (characters, setting, year guesses). Return ONLY the query."
+                   :next   :find}
+
+   :analyze       {:prompt
+                   "You are a film psychologist.\nUsing the following movie info, write a psychological analysis covering protagonist/antagonist motivations, core conflicts, defense mechanisms, attachment patterns, turning points, and resolution. Keep it 6-10 bullet points, no spoilers beyond premise level if possible.\n\nMOVIE:\n{{obs.text}}"
+                   ;:next :report
+                   :terminal? true
+                   }
+
+   :report        {:tool      :notify
+                   :message-template
+                   "MOVIE:\n{{trace[-2].obs.best.title}} ({{trace[-2].obs.best.year}})\n{{trace[-2].obs.best.url}}\n\nORIGINAL PROMPT: {{original-prompt}}\n\nPSYCHOLOGICAL ANALYSIS:\n{{obs.text}}"
+                   :terminal? true}}
+
+  :tools
+  {:wiki-movie {:fn   pyjama.tools.movie/wiki-movie
+                :args {:lang "en" :limit 5}}
+   :notify     {:fn   pyjama.tools.notify/notify-user
+                :args {:channel "stdout"}}
+   }}
+ }

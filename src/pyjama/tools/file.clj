@@ -29,27 +29,19 @@
      (clojure.string/replace #"\u00A0" " ")))
 
 (defn write-file
- "Tool: write the incoming :message to a file.
-
-  Args map (merged from EDN :args + runtime):
-    :message   - string to write (defaults to last LLM text via runner)
-    :path      - full file path (wins if provided)
-    :dir       - directory (default \"out/\")
-    :name      - filename (if omitted, derived from first words or timestamp)
-    :append    - boolean (default false)
-    :encoding  - default \"UTF-8\"
-
-  Returns observation like:
-    {:status :ok :file \"/abs/path\" :bytes 1234 :append? false}"
  [{:keys [message path dir name append encoding] :as _args}]
  (let [encoding (or encoding "UTF-8")
-       dir (or dir "out")
-       name (or (some-> message (subs 0 (min 40 (count message)))
-                        (str/replace #"\s+" "_")
-                        sanitize-filename
-                        (str ".md"))
-                (str "summary-" (now-ts) ".md"))
-       f (io/file (or path (str dir File/separator name)))]
+       dir      (or dir "out")
+       name     (or name
+                    (some-> message
+                            (subs 0 (min 40 (count message)))
+                            (str/replace #"\s+" "_")
+                            sanitize-filename
+                            (str ".md"))
+                    (str "summary-" (now-ts) ".md"))
+       ;; optional: also sanitize provided name
+       name     (sanitize-filename name)
+       f        (io/file (or path (str dir File/separator name)))]
   (ensure-parent-dirs! f)
   (let [clean-message (normalize-spaces (or message ""))]
    (spit f clean-message :append (boolean append) :encoding encoding))
@@ -57,3 +49,10 @@
    :file    (.getAbsolutePath f)
    :append? (boolean append)
    :bytes   (.length f)}))
+
+;
+;(defn write-file [{:keys [message dir name encoding] :or {encoding "UTF-8"}}]
+; (let [f (io/file (or dir ".") name)]
+;  (.mkdirs (.getParentFile (.getAbsoluteFile f)))
+;  (spit f (or message "") :encoding encoding)
+;  {:status :ok :file (.getAbsolutePath f)}))
