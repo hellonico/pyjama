@@ -10,10 +10,10 @@
               :join     {:strategy :all :merge :concat-texts}
               :next     :format}
 
-   :menu     {:prompt "Give me 5 fun finger-food ideas for a casual house party.\nReturn as a short bulleted list."
+   :menu     {:prompt "You're planning **{{prompt}}**.\nGive 5 fun finger-food ideas that match this theme.\nReturn a short bulleted list."
               :next   :done}
 
-   :playlist {:prompt "Make a 10-song upbeat playlist spanning different eras.\nReturn one line per song: Artist — Title."
+   :playlist {:prompt "You're hosting **{{prompt}}**.\nCreate a 10-song upbeat playlist that fits this vibe, spanning different eras.\nReturn one line per song: Artist — Title."
               :next   :done}
 
    ;; Post-join formatter (single LLM step) consuming the merged text

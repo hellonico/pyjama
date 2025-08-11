@@ -76,5 +76,4 @@
 
 (deftest party
  (System/setProperty "agents.edn" "test-resources/agentic/party.edn")
- (pyjama.agent/call {:id :party-pack})
- )
+ (pyjama.agent/call {:id :party-pack :prompt "A jazz party"}))
