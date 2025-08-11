@@ -1,7 +1,7 @@
 {
- :default {:impl :ollama :url "http://192.168.100.9:11434/" :model "llama3.1"}
+ ;:default {:impl :ollama :url "http://192.168.100.9:11434/" :model "llama3.2"}
  :wiki-summarizer
- {:start     :wiki-search
+ {:start     :rewrite-query
   :max-steps 6
 
   :steps

@@ -1,0 +1,31 @@
+{
+ :default {:impl :ollama :model "llama3.2"}
+ :party-pack
+ {:start     :fork
+  :max-steps 10
+
+  :steps
+  {;; Fork two creative branches at once
+   :fork     {:parallel [:menu :playlist]
+              :join     {:strategy :all :merge :concat-texts}
+              :next     :format}
+
+   :menu     {:prompt "Give me 5 fun finger-food ideas for a casual house party.\nReturn as a short bulleted list."
+              :next   :done}
+
+   :playlist {:prompt "Make a 10-song upbeat playlist spanning different eras.\nReturn one line per song: Artist — Title."
+              :next   :done}
+
+   ;; Post-join formatter (single LLM step) consuming the merged text
+   :format   {:prompt "Combine and tidy this party pack into one message:\n\n{{obs.merged.text}}\n\nAdd a cheerful closing line."
+              :next   :notify}
+
+   :notify   {:tool             :notify
+              :message-template "🎉 PARTY PACK 🎉\n\n{{obs.text}}"
+              :terminal?        true}}
+
+  :tools
+  {:notify {:fn   pyjama.tools.notify/notify-user
+            :args {:channel "stdout"}}}
+  }
+ }

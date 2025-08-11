@@ -1,46 +1,42 @@
 {
  :default {:impl :ollama :model "llama3.2" :url "http://192.168.100.9:11434"}
  :news-analyzer
- {:start     :rewrite-query
+ {:start     :wiki-search
   :max-steps 8
 
   :steps
-  {:rewrite-query {;:impl   :ollama
-                   ;:model  "llama3.1"
-                   :prompt "Rewrite this into a short, clear Wikipedia search query:\n\n{{prompt}}"
-                   :next   :wiki-search}
 
-   :wiki-search   {:tool             :wiki-search
-                   :message-template "{{obs}}"              ;; obs = rewritten query
-                   :next             :summarize}
+  :wiki-search {:tool             :wiki-search
+                :message-template "{{prompt}}"              ;; obs = rewritten query
+                :next             :summarize}
 
-   :summarize     {;:impl   :ollama
-                   ;:model  "llama3.1"
-                   :prompt "Summarize in 5 points the following context from Wikipedia clearly and concisely:\n\n{{obs}}"
-                   :next   :sentiment}
+  :summarize {;:impl   :ollama
+              ;:model  "llama3.1"
+              :prompt "Summarize in 5 points the following context from Wikipedia clearly and concisely:\n\n{{obs}}"
+              :next   :sentiment}
 
-   :sentiment     {;:impl   :ollama
-                   ;:model  "llama3.1"
-                   :format {:type       "object"
-                            :required   [:sentiment :why]
-                            :properties {:sentiment {:type "string" :enum ["positive" "negative" "neutral"]}
-                                         :why       {:type "string"}}}
-                   :prompt "Given the summary:\n\n{{obs}}\n\nClassify it as positive, negative, or neutral and explain why."
-                   :next   :notify-result}
+  :sentiment {;:impl   :ollama
+              ;:model  "llama3.1"
+              :format {:type       "object"
+                       :required   [:sentiment :why]
+                       :properties {:sentiment {:type "string" :enum ["positive" "negative" "neutral"]}
+                                    :why       {:type "string"}}}
+              :prompt "Given the summary:\n\n{{obs}}\n\nClassify it as positive, negative, or neutral and explain why."
+              :next   :notify-result}
 
-   :notify-result {:tool      :notify
-                   ;; We can combine the last obs (sentiment object) and previous summary into one message
-                   :message-template
-                   "SUMMARY:\n{{trace[-2].obs.text}}{{trace[-1].obs.text}}
+  :notify-result {:tool      :notify
+                  ;; We can combine the last obs (sentiment object) and previous summary into one message
+                  :message-template
+                  "SUMMARY:\n{{trace[-2].obs.text}}{{trace[-1].obs.text}}
 
 ORIGINAL PROMPT: {{original-prompt}}
 SENTIMENT: {{obs.sentiment}}{{obs.text}}
 WHY: {{obs.why}}"
-                   :terminal? true}}
+                  :terminal? true}}
 
-  :tools
-  {:wiki-search {:fn   pyjama.tools.wiki/wiki-search
-                 :args {:lang "en" :topk 3}}
-   :notify      {:fn   pyjama.tools.notify/notify-user
-                 :args {:channel "stdout"}}}}
- }
+ :tools
+ {:wiki-search {:fn   pyjama.tools.wiki/wiki-search
+                :args {:lang "en" :topk 3}}
+  :notify      {:fn   pyjama.tools.notify/notify-user
+                :args {:channel "stdout"}}}}
+}

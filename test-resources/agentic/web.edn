@@ -1,11 +1,11 @@
 {
- :default {:impl :ollama :model "llama3.2" :url "http://192.168.100.9:11434"}
+ ;:default {:impl :ollama :model "llama3.2" :url "http://192.168.100.9:11434"}
 
  :search-and-summarize
  {:start :search
   :steps
   {:search    {:tool             :web-search
-               :message-template "{{obs.query}}"
+               :message-template "{{original-prompt}}"
                :next             :summarize}
 
    :summarize {:prompt
@@ -17,8 +17,7 @@
                :terminal?        true}}
 
   :tools
-  {:web-search {:fn   pyjama.tools.web/web-search
-                :args {:topk 3}}
+  {:web-search {:fn   pyjama.tools.web/web-search :args {:topk 3}}
    :notify     {:fn   pyjama.tools.notify/notify-user
                 :args {:channel "stdout"}}}
 

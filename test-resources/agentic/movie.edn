@@ -25,8 +25,8 @@
 
    :analyze       {:prompt
                    "You are a film psychologist.\nUsing the following movie info, write a psychological analysis covering protagonist/antagonist motivations, core conflicts, defense mechanisms, attachment patterns, turning points, and resolution. Keep it 6-10 bullet points, no spoilers beyond premise level if possible.\n\nMOVIE:\n{{obs.text}}"
-                   ;:next :report
-                   :terminal? true
+                   :next :report
+                   ;:terminal? true
                    }
 
    :report        {:tool      :notify

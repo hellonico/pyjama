@@ -7,6 +7,13 @@
 
 (defn- enc [s] (URLEncoder/encode (str s) "UTF-8"))
 
+(defn enc-path [s]
+ (-> s
+     (str/replace " " "_")                                  ;; MediaWiki prefers underscores for spaces
+     (URLEncoder/encode "UTF-8")                            ;; percent-encode everything else
+     (str/replace "+" "%20")))                              ;; undo form-encoding of spaces
+
+
 (defn- get-json [url]
  (let [resp (http/get url {:headers          {"User-Agent" "pyjama-agent/0.1 (contact: dev@example.com)"}
                            :throw-exceptions false
@@ -18,14 +25,16 @@
 
 (defn- search-titles [{:keys [q lang limit]}]
  ;; Wikipedia REST search (title)
- (let [url (format "https://%s.wikipedia.org/w/rest.php/v1/search/title?q=%s&limit=%d"
+ (let [url (format "https://%s.wikipedia.org/w/rest.php/v1/search/page?q=%s&limit=%d"
                    (or lang "en") (enc q) (or limit 3))]
   (-> (get-json url) :pages)))
 
 (defn- fetch-summary [{:keys [lang title]}]
- (let [url (format "https://%s.wikipedia.org/api/rest_v1/page/summary/%s"
-                   (or lang "en") (enc title))]
-  (select-keys (get-json url) [:title :extract :thumbnail :content_urls :pageid])))
+ (let [title-path (enc-path title)
+       url (format "https://%s.wikipedia.org/api/rest_v1/page/summary/%s"
+                   (or lang "en") title-path)]
+  (select-keys (get-json url)
+               [:title :extract :thumbnail :content_urls :pageid])))
 
 (defn wiki-search
  "Tool: Search Wikipedia and return text for the LLM to summarize.
@@ -56,7 +65,6 @@
         text (->> results (map (fn [{:keys [title extract]}]
                                 (str "## " title "\n" extract)))
                   (str/join "\n\n"))]
-   ;; Returning :text ensures your agent’s summarizer step gets clean context
    {:status  :ok
     :query   q
     :count   (count results)

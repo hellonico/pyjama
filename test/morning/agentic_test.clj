@@ -43,11 +43,10 @@
 
 (deftest alien-movie
  (System/setProperty "agents.edn" "test-resources/agentic/movie.edn")
- (println
-  (pyjama.agent/call
-   {:id     :movie-psych
-    :prompt "A space horror movie where a crew is hunted by a scary creature on their ship"})
-  ))
+ (is {:status :ok, :notified true}
+     (pyjama.agent/call
+      {:id     :movie-psych
+       :prompt "A space horror movie where a crew is hunted by a scary creature on their ship"})))
 
 (deftest clojure
  (System/setProperty "agents.edn" "test-resources/agentic/code.edn")
@@ -61,3 +60,8 @@
 
    )
   ))
+
+(deftest party
+ (System/setProperty "agents.edn" "test-resources/agentic/party.edn")
+ (pyjama.agent/call {:id :party-pack})
+ )
