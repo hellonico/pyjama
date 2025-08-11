@@ -1,65 +1,65 @@
 {:default {:model "gpt-oss" :url "http://192.168.100.9:11434"}
  :clj-project
- {:start :load
+ {:start     :load
   :max-steps 8
 
   :steps
   {; 1) Read the project
-   :load {:tool :read-code-base
-          :args {:dir "{{ctx.project-dir}}"}   ;; ← this must render to "."
-          :next :retrieve}
+   :load       {:tool :read-code-base
+                :args {:dir "{{ctx.project-dir}}"}          ;; ← this must render to "."
+                :next :retrieve}
 
    ; 2) Pull relevant context for the question
    :retrieve
-   {:tool :pick-snippets
+   {:tool             :pick-snippets
     :message-template "{{prompt}}"
-    :args {:files "{{trace[0].obs.files}}"   ;; <— becomes a VECTOR, not a string
-           :max-files 6
-           :max-chars 8000}
-    :next :classify}
+    :args             {:files     "{{trace[0].obs.files}}"  ;; <— becomes a VECTOR, not a string
+                       :max-files 6
+                       :max-chars 8000}
+    :next             :classify}
 
    ; 3) Decide which job this is
    :classify
-   {:tool :classify
+   {:tool             :classify
     :message-template "{{prompt}}"
-    :routes [
-             {:when [:in [:obs :status] [:test :test-case]] :next :test}
-             {:when [:=  [:obs :status] :document]          :next :doc}
-             {:when [:=  [:obs :status] :reorg]             :next :reorg}
-             {:when [:in [:obs :status] [:feature :new-feature]] :next :feature}
-             {:else :doc}]}
+    :routes           [
+                       {:when [:in [:obs :status] [:test :test-case]] :next :test}
+                       {:when [:= [:obs :status] :document] :next :doc}
+                       {:when [:= [:obs :status] :reorg] :next :reorg}
+                       {:when [:in [:obs :status] [:feature :new-feature]] :next :feature}
+                       {:else :doc}]}
 
    ; 4a) Document specific case -> Markdown
-   :doc {:prompt "You are a Clojure tech writer.\nProject context:\n{{trace[-2].obs.text}}\n\nWrite a focused markdown doc for: {{trace[-1].obs.topic}}.\nInclude runnable code samples referencing the existing code.\nReturn ONLY markdown."
-         :next :write-md}
+   :doc        {:prompt "You are a Clojure tech writer.\nProject context:\n{{trace[-2].obs.text}}\n\nWrite a focused markdown doc for: {{trace[-1].obs.topic}}.\nInclude runnable code samples referencing the existing code.\nReturn ONLY markdown."
+                :next   :write-md}
 
    ; 4b) Implement a test case -> Clojure test file
-   :test {:prompt "You are a Clojure engineer.\nProject context:\n{{trace[-2].obs.text}}\n\nWrite a clojure.test file for: {{trace[-1].obs.topic}}.\nInclude ns requires and a realistic test namespace under `test`.\nReturn ONLY Clojure code."
-          :next :write-test}
+   :test       {:prompt "You are a Clojure engineer.\nProject context:\n{{trace[-2].obs.text}}\n\nWrite a clojure.test file for: {{trace[-1].obs.topic}}.\nInclude ns requires and a realistic test namespace under `test`.\nReturn ONLY Clojure code."
+                :next   :write-test}
 
    ; 4c) Propose reorg -> Markdown
-   :reorg {:prompt "You are a Clojure architect.\nProject context:\n{{trace[-2].obs.text}}\n\nPropose a code reorganization plan (modules, namespaces, package layout, migration steps).\nReturn ONLY markdown."
-           :next :write-md}
+   :reorg      {:prompt "You are a Clojure architect.\nProject context:\n{{trace[-2].obs.text}}\n\nPropose a code reorganization plan (modules, namespaces, package layout, migration steps).\nReturn ONLY markdown."
+                :next   :write-md}
 
    ; 4d) New feature -> Clojure code
-   :feature {:prompt "You are a Clojure engineer.\nProject context:\n{{trace[-2].obs.text}}\n\nImplement the feature: {{trace[-1].obs.topic}}.\nProvide a single Clojure namespace with necessary functions and docstrings.\nReturn ONLY Clojure code."
-             :next :write-src}
+   :feature    {:prompt "You are a Clojure engineer.\nProject context:\n{{trace[-2].obs.text}}\n\nImplement the feature: {{trace[-1].obs.topic}}.\nProvide a single Clojure namespace with necessary functions and docstrings.\nReturn ONLY Clojure code."
+                :next   :write-src}
 
    ; 5) Persist results
-   :write-md   {:tool :write-file
+   :write-md   {:tool             :write-file
                 :message-template "{{obs.text}}"
-                :args {:dir "{{params.project-dir}}/docs" :name "generated.md"}
-                :terminal? true}
+                :args             {:dir "{{params.project-dir}}/docs" :name "generated.md"}
+                :terminal?        true}
 
-   :write-test {:tool :write-file
+   :write-test {:tool             :write-file
                 :message-template "{{obs.text}}"
-                :args {:dir "{{params.project-dir}}/test" :name "generated_test.clj"}
-                :terminal? true}
+                :args             {:dir "{{params.project-dir}}/test" :name "generated_test.clj"}
+                :terminal?        true}
 
-   :write-src  {:tool :write-file
+   :write-src  {:tool             :write-file
                 :message-template "{{obs.text}}"
-                :args {:dir "{{params.project-dir}}/src" :name "generated.clj"}
-                :terminal? true}}
+                :args             {:dir "{{params.project-dir}}/src" :name "generated.clj"}
+                :terminal?        true}}
 
   :tools
   {:read-code-base {:fn pyjama.tools.retrieve/read-code-base}

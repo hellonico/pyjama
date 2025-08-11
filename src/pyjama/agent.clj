@@ -244,13 +244,13 @@
         (run-fork spec step ctx params)
 
         :else
-        (let [_ (prn ">>" step-id ">" step)
-              _ (binding [*out* *err*]
-                 (println "STEP" step-id "→ has-step-prompt?"
-                          (boolean (and (string? (:prompt step)) (seq (:prompt step)))))
-                 (when (and (string? (:prompt step)) (seq (:prompt step)))
-                  (println "STEP" step-id "prompt-preview:"
-                           (:prompt step))))
+        (let [;_ (prn ">>" step-id ">" step)
+              ;_ (binding [*out* *err*]
+              ;   (println "STEP" step-id "→ has-step-prompt?"
+              ;            (boolean (and (string? (:prompt step)) (seq (:prompt step)))))
+              ;   (when (and (string? (:prompt step)) (seq (:prompt step)))
+              ;    (println "STEP" step-id "prompt-preview:"
+              ;             (:prompt step))))
               ;(subs (:prompt step) 0 (min 60 (count (:prompt step)))))))
               final-prompt (render-step-prompt step ctx params)
               ;; only pass LLM-relevant keys from step

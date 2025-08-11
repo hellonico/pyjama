@@ -61,6 +61,19 @@
    )
   ))
 
+(deftest clojure-agents
+ (System/setProperty "agents.edn" "test-resources/agentic/code.edn")
+ (let [prompt "document the agent.clj namespace and related DSL."]
+  (->
+
+   (pyjama.agent/call
+    {:id          :clj-project
+     :project-dir "."
+     :prompt      prompt})
+
+   )
+  ))
+
 (deftest party
  (System/setProperty "agents.edn" "test-resources/agentic/party.edn")
  (pyjama.agent/call {:id :party-pack})
