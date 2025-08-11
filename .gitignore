@@ -25,3 +25,6 @@ pom.xml.asc
 /.lsp/.cache/db.transit.json
 /.calva/output-window/output.calva-repl
 /.idea/
+/docs/generated.md
+secrets.edn
+alan.md

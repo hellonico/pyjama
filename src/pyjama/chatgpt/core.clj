@@ -4,6 +4,7 @@
   [cheshire.core :as json]
   [clj-http.client :as client]
   [clojure.java.io :as io]
+  [secrets.core]
 
   ;; Internal dependencies
   [pyjama.image :refer [image-to-base64]]
@@ -21,7 +22,7 @@
 (defn api-key
  "Get OpenAI API key from environment"
  []
- (System/getenv "OPENAI_API_KEY"))
+ (secrets.core/get-secret :open-ai-key))
 
 ;; =============================================================================
 ;; Response Handling Functions

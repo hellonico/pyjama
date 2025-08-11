@@ -1,7 +1,7 @@
 (ns pyjama.deepseek.core
   (:require [cheshire.core :as json]
+            [secrets.core]
             [clj-http.client :as client]))
-
 
 (defn handle-response
   "Handles the response from the DeepSeek API."
@@ -15,7 +15,7 @@
       (println "Error:" body))))
 
 (def api-key
-  (System/getenv "DEEPSEEK_API_KEY"))
+  (secrets.core/get-secret :deepseek-api-key))
 
 (defn call
   [{:keys [model prompt]}]
