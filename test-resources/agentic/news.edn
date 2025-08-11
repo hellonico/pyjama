@@ -4,7 +4,7 @@
  {:start     :wiki-search
   :max-steps 8
 
-  :steps
+  :steps {
 
   :wiki-search {:tool             :wiki-search
                 :message-template "{{prompt}}"              ;; obs = rewritten query
