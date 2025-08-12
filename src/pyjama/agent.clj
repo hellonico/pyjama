@@ -162,8 +162,8 @@
        ;   (println "fork> launching branches:" branch-ids))
        futs (mapv (fn [bid]
                    [bid (future (let [r (run-subgraph spec bid ctx params)]
-                                 (binding [*out* *err*]
-                                  (println "fork> finished" bid "obs keys" (keys (:obs r))))
+                                 ;(binding [*out* *err*]
+                                 ; (println "fork> finished" bid "obs keys" (keys (:obs r))))
                                  r))])
                   branch-ids)
        strategy (get-in step [:join :strategy] :all)
@@ -201,6 +201,7 @@
 
 
 (defn- run-step [{:keys [steps tools] :as spec} step-id ctx params]
+ (prn "▶︎" step-id)
  (let [{:keys [tool parallel] :as step} (get steps step-id)]
   (cond tool
         (let [{:keys [fn args] :as tool-spec} (get tools tool)
@@ -208,7 +209,7 @@
               base-args (merge args (:args step))
               ;; render ALL args deeply (single-token → raw value, multi-token → string)
               rendered (pyjama.io.template/render-args-deep base-args ctx params)
-              _ (binding [*out* *err*] (println "→ TOOL" tool "RENDERED:" rendered))
+              ;_ (binding [*out* *err*] (println "→ TOOL" tool "RENDERED:" rendered))
               ;_ (binding [*out* *err*]
               ;   (println "→ TOOL" tool
               ;            "MESSAGE=" (pr-str (subs (str message) 0 (min 120 (count (str message))))))
@@ -328,7 +329,6 @@
     (loop [ctx {:trace [] :prompt (:prompt params) :original-prompt (:prompt params)}
            step-id start
            n 0]
-     (prn id "▶︎" step-id)
      ;(clojure.pprint/pprint ctx)
      (if (or (= step-id :done) (>= n (or max-steps 20)))
       (:last-obs ctx)

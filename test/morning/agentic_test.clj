@@ -61,9 +61,18 @@
    )
   ))
 
+(deftest party
+ (System/setProperty "agents.edn" "test-resources/agentic/party.edn")
+ (pyjama.agent/call {:id :party-pack :prompt "A jazz party"}))
+
+(deftest partypdf
+ (System/setProperty "agents.edn" "test-resources/agentic/partypdf.edn")
+ (pyjama.agent/call {:id :party-pack :prompt "A hip hop party"}))
+
+
 (deftest clojure-agents
  (System/setProperty "agents.edn" "test-resources/agentic/code.edn")
- (let [prompt "document the agent.clj namespace and related DSL."]
+ (let [prompt "document the agent.clj namespace and related DSL. The agent example you want to include is the edn code.edn "]
   (->
 
    (pyjama.agent/call
@@ -73,11 +82,3 @@
 
    )
   ))
-
-(deftest party
- (System/setProperty "agents.edn" "test-resources/agentic/party.edn")
- (pyjama.agent/call {:id :party-pack :prompt "A jazz party"}))
-
-(deftest partypdf
- (System/setProperty "agents.edn" "test-resources/agentic/partypdf.edn")
- (pyjama.agent/call {:id :party-pack :prompt "A jazz party"}))

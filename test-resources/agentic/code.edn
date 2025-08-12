@@ -48,17 +48,17 @@
    ; 5) Persist results
    :write-md   {:tool             :write-file
                 :message-template "{{obs.text}}"
-                :args             {:dir "{{params.project-dir}}/docs" :name "generated.md"}
+                :args             {:dir "{{params.project-dir}}/docs" :name "{{ctx.original-prompt | slug | truncate:60}}.md"}
                 :terminal?        true}
 
    :write-test {:tool             :write-file
                 :message-template "{{obs.text}}"
-                :args             {:dir "{{params.project-dir}}/test" :name "generated_test.clj"}
+                :args             {:dir "{{params.project-dir}}/test" :name "{{ctx.original-prompt | slug | truncate:60}}_test.clj"}
                 :terminal?        true}
 
    :write-src  {:tool             :write-file
                 :message-template "{{obs.text}}"
-                :args             {:dir "{{params.project-dir}}/src" :name "generated.clj"}
+                :args             {:dir "{{params.project-dir}}/src" :name "{{ctx.original-prompt | slug | truncate:60}}.clj"}
                 :terminal?        true}}
 
   :tools

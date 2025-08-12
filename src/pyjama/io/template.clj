@@ -88,27 +88,79 @@
 ;; String-mode vs value-mode rendering
 ;; ----------------------------------------------------------------------------
 
+;; --- filters ---------------------------------------------------------------
+
+(defn- parse-filter [s]
+ ;; "truncate:50"     -> ["truncate" ["50"]]
+ ;; "slug"            -> ["slug"      []]
+ ;; "sanitize,lower"  -> ["sanitize"  ["lower"]]   ; (rare, but we support comma args)
+ (let [s       (clojure.string/trim (str s))
+       ;; split on the FIRST ":" only, so arg strings can contain colons
+       parts   (clojure.string/split s #":" 2)
+       name    (clojure.string/trim (first parts))
+       arg-str (second parts)
+       args    (if (seq arg-str)
+                (->> (clojure.string/split arg-str #",")
+                     (map clojure.string/trim)
+                     (remove clojure.string/blank?)
+                     vec)
+                [])]
+  [name args]))
+
+(defn- apply-filter [v [fname args]]
+ (case fname
+  ;; filename-safe-ish slug
+  "slug"     (-> (str v)
+                 (str/lower-case)
+                 (str/replace #"[^\p{Alnum}]+" "-")
+                 (str/replace #"^-+|-+$" "")
+                 (str/replace #"-{2,}" "-"))
+  ;; keep letters, digits, _ and -
+  "sanitize" (-> (str v)
+                 (str/replace #"\s+" "_")
+                 (str/replace #"[^A-Za-z0-9_\-]" ""))
+  "lower"    (some-> v str str/lower-case)
+  "upper"    (some-> v str str/upper-case)
+  "trim"     (some-> v str str/trim)
+  "truncate" (let [n (some-> (first args) Integer/parseInt)
+                   s (str v)]
+              (if (and n (> (count s) n))
+               (subs s 0 n)
+               s))
+  ;; default: unknown filter = no-op
+  v))
+
+(defn- apply-filters [v filters]
+ (reduce apply-filter v filters))
+
+(defn- resolve-with-filters [ctx params token]
+ ;; token looks like: "ctx.original-prompt | slug | truncate:60"
+ (let [parts   (map str/trim (str/split token #"\|"))
+       expr    (first parts)
+       filters (map parse-filter (rest parts))
+       raw     (resolve-token* ctx params expr)]
+  (apply-filters raw filters)))
+
+;; --- rendering -------------------------------------------------------------
+
 (defn render-template
- "Render a STRING by replacing all {{...}} with stringified values.
-  Use this for prompts/messages."
+ "Render a STRING by replacing all {{...}} with stringified values."
  [tpl ctx params]
  (str/replace tpl token-re
               (fn [[_ t]]
-               (let [v (resolve-token* ctx params t)]
+               (let [v (resolve-with-filters ctx params t)]
                 (cond
                  (nil? v)   ""
                  (string? v) v
                  :else      (pr-str v))))))
 
 (defn- render-any
- "If s is exactly one {{token}}, return the RAW VALUE.
-  Otherwise, treat as a templated string and return a STRING."
+ "If s is exactly one {{token}}, return the RAW VALUE (after filters).
+  Otherwise, treat as templated string and return a STRING."
  [s ctx params]
  (if-let [[_ expr] (re-matches single-token-re s)]
-  (resolve-token* ctx params expr)           ;; value (vector/map/number/string/nil)
-  (render-template s ctx params))            ;; string
-
- )
+  (resolve-with-filters ctx params expr)
+  (render-template s ctx params)))
 
 (defn render-value
  "Value-aware renderer: for strings with tokens, return raw value for single-token,
