@@ -236,9 +236,13 @@
               ;_     (binding [*out* *err*] (println "   AS-OBS  →" (pr-str obs)))
 
               ;; record last obs + hoist files (for easy retrieval fallback)
-              ctx' (assoc ctx :last-obs obs)
-              ctx'' (if-let [fs (:files obs)] (assoc ctx' :project-files fs) ctx')]
-         ctx'')
+              ctx' (-> ctx
+                       (assoc :last-obs obs)
+                       ;; merge files hoist, if present
+                       (cond-> (:files obs) (assoc :project-files (:files obs)))
+                       ;; ✅ NEW: merge ctx mutations from tools
+                       (cond-> (:set obs) (merge (:set obs))))]
+         ctx')
 
         ;; NEW: fork/join branch
         (and (vector? parallel) (seq parallel))
@@ -277,7 +281,7 @@
   (and (sequential? ks) (= :trace (first ks)))
   (let [[_ i & more] ks
         tr (:trace ctx)
-        n  (count tr)
+        n (count tr)
         idx (if (number? i) (if (neg? i) (+ n i) i) i)]
    (get-in (nth tr (or idx 0) {}) more))
 
@@ -318,16 +322,16 @@
  (contains? (set coll) (get-path ctx lhs)))
 
 (defmethod eval-cond :< [ctx _ lhs rhs]
- (<  (numify (get-path ctx lhs))
-     (numify (get-path ctx rhs))))
+ (< (numify (get-path ctx lhs))
+    (numify (get-path ctx rhs))))
 
 (defmethod eval-cond :<= [ctx _ lhs rhs]
  (<= (numify (get-path ctx lhs))
      (numify (get-path ctx rhs))))
 
 (defmethod eval-cond :> [ctx _ lhs rhs]
- (>  (numify (get-path ctx lhs))
-     (numify (get-path ctx rhs))))
+ (> (numify (get-path ctx lhs))
+    (numify (get-path ctx rhs))))
 
 (defmethod eval-cond :>= [ctx _ lhs rhs]
  (>= (numify (get-path ctx lhs))
@@ -337,7 +341,7 @@
  (every? (comp truthy* #(get-path ctx %)) xs))
 
 (defmethod eval-cond :or [ctx _ & xs]
- (some    (comp truthy* #(get-path ctx %)) xs))
+ (some (comp truthy* #(get-path ctx %)) xs))
 
 (defmethod eval-cond :not [ctx _ x]
  (not (truthy* (get-path ctx x))))
@@ -347,9 +351,9 @@
  (let [c (get-path ctx coll)
        v (get-path ctx x)]
   (cond
-   (map? c)       (contains? c v)
-   (string? c)    (and (string? v) (clojure.string/includes? c v))
-   (sequential? c)(some #{v} c)
+   (map? c) (contains? c v)
+   (string? c) (and (string? v) (clojure.string/includes? c v))
+   (sequential? c) (some #{v} c)
    :else false)))
 
 (defmethod eval-cond :nonempty [ctx _ lhs]
