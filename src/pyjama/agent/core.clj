@@ -15,21 +15,21 @@
   (map? x) x                                                ;; <- KEEP maps as-is
   :else {:text (pr-str x)}))
 
-(defn- tool-args
- "Build the args for a tool step:
-  - :message: defaults to last LLM text
-  - allow overrides via step keys :message, :message-path, :message-template"
- [step ctx params base-args]
- (let [{:keys [message message-path message-template]} step
-       msg (cond
-            message message
-            message-path (get-in ctx message-path)
-            message-template (pyjama.io.template/render-template message-template ctx params)
-            :else (or (get-in ctx [:last-obs :text])
-                      (when (string? (:last-obs ctx)) (:last-obs ctx))
-                      (pr-str (:last-obs ctx))))
-       rendered-args (pyjama.io.template/render-args-deep (or base-args {}) ctx params)]
-  (merge rendered-args {:message msg :ctx ctx :params params})))
+;(defn- tool-args
+; "Build the args for a tool step:
+;  - :message: defaults to last LLM text
+;  - allow overrides via step keys :message, :message-path, :message-template"
+; [step ctx params base-args]
+; (let [{:keys [message message-path message-template]} step
+;       msg (cond
+;            message message
+;            message-path (get-in ctx message-path)
+;            message-template (pyjama.io.template/render-template message-template ctx params)
+;            :else (or (get-in ctx [:last-obs :text])
+;                      (when (string? (:last-obs ctx)) (:last-obs ctx))
+;                      (pr-str (:last-obs ctx))))
+;       rendered-args (pyjama.io.template/render-args-deep (or base-args {}) ctx params)]
+;  (merge rendered-args {:message msg :ctx ctx :params params})))
 
 (defn resolve-fn*
  "Return a Var (IFn) for EDN :fn, or throw with context."
@@ -40,6 +40,7 @@
   (let [v (try
            (requiring-resolve f)
            (catch Throwable e
+            (.printStackTrace e)
             (throw (ex-info "Cannot requiring-resolve tool fn"
                             {:fn f} e))))]
    (when-not (var? v)
@@ -201,7 +202,7 @@
 
 
 (defn- run-step [{:keys [steps tools] :as spec} step-id ctx params]
- (prn "▶︎" step-id)
+ (println "▶︎" (:id ctx) "▶︎" step-id)
  (let [{:keys [tool parallel] :as step} (get steps step-id)]
   (cond tool
         (let [{:keys [fn args] :as tool-spec} (get tools tool)
@@ -269,9 +270,15 @@
          (assoc ctx :last-obs obs)))))
 
 
+(defn- pathlike? [x]
+ (or (sequential? x) (keyword? x)))
+
+
 (defn- get-path [ctx ks]
  (cond
+
   (nil? ks) nil
+  (number? ks) ks
 
   ;; [:obs ...] → read from last obs
   (and (sequential? ks) (= :obs (first ks)))
@@ -311,6 +318,12 @@
   (map? v) (boolean (seq v))
   :else (boolean v)))
 
+
+(defn- pathlike? [x]
+ (or (sequential? x) (keyword? x)))
+
+(defn- val-or-path [ctx x]
+ (if (pathlike? x) (get-path ctx x) x))
 
 
 (defmulti eval-cond (fn [_ctx op & _] op))
@@ -404,10 +417,9 @@
 
    ;; agent graph
    (let [{:keys [start max-steps] :as spec} agent]
-    (loop [ctx (merge {:trace [] :prompt (:prompt params) :original-prompt (:prompt params)} params)
+    (loop [ctx (merge {:id id :trace [] :prompt (:prompt params) :original-prompt (:prompt params)} params)
            step-id start
            n 0]
-     ;(clojure.pprint/pprint ctx)
      (if (or (= step-id :done) (>= n (or max-steps 20)))
       (:last-obs ctx)
       (let [ctx' (run-step spec step-id ctx params)         ;; run the step, update :last-obs
