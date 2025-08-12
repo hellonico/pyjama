@@ -268,10 +268,46 @@
 (defn- get-path [ctx ks]
  (cond
   (nil? ks) nil
+
+  ;; [:obs ...] → read from last obs
   (and (sequential? ks) (= :obs (first ks)))
   (get-in ctx (into [:last-obs] (rest ks)))
-  (sequential? ks) (get-in ctx ks)
+
+  ;; [:trace idx ...] → read from recorded trace
+  (and (sequential? ks) (= :trace (first ks)))
+  (let [[_ i & more] ks
+        tr (:trace ctx)
+        n  (count tr)
+        idx (if (number? i) (if (neg? i) (+ n i) i) i)]
+   (get-in (nth tr (or idx 0) {}) more))
+
+  ;; [:ctx ...] → explicit ctx path
+  (and (sequential? ks) (= :ctx (first ks)))
+  (get-in ctx (rest ks))
+
+  ;; generic vector path into ctx
+  (sequential? ks)
+  (get-in ctx ks)
+
+  ;; bare keyword on ctx
   :else (get ctx ks)))
+
+(defn- numify [v]
+ (cond
+  (number? v) (double v)
+  (string? v) (try (Double/parseDouble (clojure.string/trim v))
+                   (catch Exception _ ##NaN))
+  :else ##NaN))
+
+(defn- truthy* [v]
+ (cond
+  (nil? v) false
+  (string? v) (not (clojure.string/blank? v))
+  (sequential? v) (boolean (seq v))
+  (map? v) (boolean (seq v))
+  :else (boolean v)))
+
+
 
 (defmulti eval-cond (fn [_ctx op & _] op))
 
@@ -280,6 +316,41 @@
 
 (defmethod eval-cond :in [ctx _ lhs coll]
  (contains? (set coll) (get-path ctx lhs)))
+
+(defmethod eval-cond :< [ctx _ lhs rhs]
+ (<  (numify (get-path ctx lhs))
+     (numify (get-path ctx rhs))))
+
+(defmethod eval-cond :<= [ctx _ lhs rhs]
+ (<= (numify (get-path ctx lhs))
+     (numify (get-path ctx rhs))))
+
+(defmethod eval-cond :> [ctx _ lhs rhs]
+ (>  (numify (get-path ctx lhs))
+     (numify (get-path ctx rhs))))
+
+(defmethod eval-cond :>= [ctx _ lhs rhs]
+ (>= (numify (get-path ctx lhs))
+     (numify (get-path ctx rhs))))
+
+(defmethod eval-cond :and [ctx _ & xs]
+ (every? (comp truthy* #(get-path ctx %)) xs))
+
+(defmethod eval-cond :or [ctx _ & xs]
+ (some    (comp truthy* #(get-path ctx %)) xs))
+
+(defmethod eval-cond :not [ctx _ x]
+ (not (truthy* (get-path ctx x))))
+
+;; Optional, handy sometimes
+(defmethod eval-cond :contains [ctx _ coll x]
+ (let [c (get-path ctx coll)
+       v (get-path ctx x)]
+  (cond
+   (map? c)       (contains? c v)
+   (string? c)    (and (string? v) (clojure.string/includes? c v))
+   (sequential? c)(some #{v} c)
+   :else false)))
 
 (defmethod eval-cond :nonempty [ctx _ lhs]
  (let [v (get-path ctx lhs)]
