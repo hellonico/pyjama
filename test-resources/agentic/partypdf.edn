@@ -1,0 +1,46 @@
+{
+ :default {:impl :ollama :model "llama3.2"}
+
+ :party-pack
+ {:start     :fork
+  :max-steps 12
+
+  :steps
+  {;; Fork two creative branches at once
+   :fork      {:parallel [:menu :playlist]
+               :join     {:strategy :all :merge :concat-texts}
+               :next     :format}
+
+   :menu      {:prompt "You're planning **{{prompt}}**.\nGive 5 fun finger-food ideas that match this theme.\nReturn a short bulleted list."
+               :next   :done}
+
+   :playlist  {:prompt "You're hosting **{{prompt}}**.\nCreate a 10-song upbeat playlist that fits this vibe, spanning different eras.\nReturn one line per song: Artist — Title."
+               :next   :done}
+
+   :format    {:prompt "Combine these into a single 'party pack' for **{{prompt}}**:\n\n{{obs.merged.text}}\n\nFinish with one cheerful closing line."
+               :next   :write-md}
+
+   ;; Write out the Markdown file
+   :write-md  {:tool             :write-file
+               :message-template "{{obs.text}}"
+               :args             {:dir  "./docs"
+                                  :name "{{ctx.original-prompt | slug | truncate:60}}.md"}
+               :next             :md-to-pdf}
+
+   ;; Convert Markdown → PDF
+   :md-to-pdf {:tool :pandoc-md->pdf
+               :args {:input  "./docs/{{ctx.original-prompt | slug | truncate:60}}.md"
+                      :output "./docs/{{ctx.original-prompt | slug | truncate:60}}.pdf"}
+               :next :notify}
+
+   :notify    {:tool             :notify
+               :message-template "🎉 PARTY PACK for {{prompt}} 🎉\n\nPDF generated at: {{obs.pdf}}"
+               :terminal?        true}}
+
+  :tools
+  {:notify         {:fn   pyjama.tools.notify/notify-user
+                    :args {:channel "stdout"}}
+   :write-file     {:fn pyjama.tools.file/write-file}
+   :pandoc-md->pdf {:fn pyjama.tools.pandoc/md->pdf}}
+  }
+ }
