@@ -154,12 +154,12 @@
 
 (defn- run-fork
  [spec {:keys [parallel join] :as step} ctx params]
- (binding [*out* *err*]
-  (println "runfork" "parallel=" parallel "join=" join))
+ ;(binding [*out* *err*]
+ ; (println "runfork" "parallel=" parallel "join=" join))
 
  (let [branch-ids (vec (or parallel []))
-       _ (binding [*out* *err*]
-          (println "fork> launching branches:" branch-ids))
+       ;_ (binding [*out* *err*]
+       ;   (println "fork> launching branches:" branch-ids))
        futs (mapv (fn [bid]
                    [bid (future (let [r (run-subgraph spec bid ctx params)]
                                  (binding [*out* *err*]
@@ -186,14 +186,14 @@
                 ;; default: wait all branches
                 :all (into {} (map (fn [[bid f]] [bid @f]) futs)))]
 
-  (binding [*out* *err*]
-   (println "fork> results keys:" (keys results)))
+  ;(binding [*out* *err*]
+  ; (println "fork> results keys:" (keys results)))
 
   (let [merge-k (get-in step [:join :merge] :concat-texts)
         merged (merge-par ctx params merge-k results)
-        _ (binding [*out* *err*]
-           (println "fork> merged keys:" (keys merged)
-                    "preview:" (some-> (:text merged) (subs 0 (min 120 (count (:text merged)))))))
+        ;_ (binding [*out* *err*]
+        ;   (println "fork> merged keys:" (keys merged)
+        ;            "preview:" (some-> (:text merged) (subs 0 (min 120 (count (:text merged)))))))
         obs {:status   :ok
              :parallel results
              :merged   merged}]
