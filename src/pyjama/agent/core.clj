@@ -372,21 +372,24 @@
   (apply eval-cond ctx op args)))
 
 (defn eval-route [ctx route]
- (let [{w :when nxt :next els :else :as r} route
-       pass? (cond
-              (vector? w) (boolean (#'eval-when-dsl ctx w))
-              (ifn? w) (boolean (w ctx))
-              (nil? w) true                                 ;; keep/flip depending on your policy
-              :else false)]
-  (if pass?
-   nxt
-   (when (contains? r :else) els))))
+ (let [{w :when nxt :next :as r} route]
+  (cond
+   (vector? w) (when (#'eval-when-dsl ctx w) nxt)
+   (ifn? w)    (when (w ctx) nxt)
+   (nil? w)    nxt
+   :else       nil)))
+
 
 (defn decide-next [{:keys [steps]} step-id ctx]
  (let [{:keys [routes next]} (get steps step-id)]
-  (or (some identity (map #(eval-route ctx %) (or routes [])))
-      next
-      :done)))
+  (if (seq routes)
+   (let [candidates (keep #(eval-route ctx %) routes)
+         hit        (first (remove nil? candidates))
+         fallback   (some (fn [r] (when (contains? r :else) (:else r))) (reverse routes))]
+    (or hit fallback next :done))
+   (or next :done)))
+ )
+
 
 (defn call
  "Agentic entry point: supports graphs, tools, and conditional routing."
