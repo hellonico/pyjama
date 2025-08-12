@@ -1,4 +1,4 @@
-(ns pyjama.agent
+(ns pyjama.agent.core
  (:require
   [clojure.core :as core]
   [clojure.edn :as edn]
@@ -299,7 +299,7 @@
 (defn eval-route [ctx route]
  (let [{w :when nxt :next els :else :as r} route
        pass? (cond
-              (vector? w) (boolean (#'pyjama.agent/eval-when-dsl ctx w))
+              (vector? w) (boolean (#'eval-when-dsl ctx w))
               (ifn? w) (boolean (w ctx))
               (nil? w) true                                 ;; keep/flip depending on your policy
               :else false)]

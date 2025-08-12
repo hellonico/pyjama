@@ -43,7 +43,7 @@
   (when itm (get-in itm (mapv kwish ks)))))
 
 ;; ----------------------------------------------------------------------------
-;; Core resolver
+;; Core resolver (paths & shorthands)
 ;; ----------------------------------------------------------------------------
 
 (defn- resolve-token* [ctx params token]
@@ -85,10 +85,8 @@
    :else (get ctx (keyword content)))))
 
 ;; ----------------------------------------------------------------------------
-;; String-mode vs value-mode rendering
+;; Filters
 ;; ----------------------------------------------------------------------------
-
-;; --- filters ---------------------------------------------------------------
 
 (defn- parse-filter [s]
  ;; "truncate:50"     -> ["truncate" ["50"]]
@@ -133,45 +131,155 @@
 (defn- apply-filters [v filters]
  (reduce apply-filter v filters))
 
-(defn- resolve-with-filters [ctx params token]
- ;; token looks like: "ctx.original-prompt | slug | truncate:60"
- (let [parts   (map str/trim (str/split token #"\|"))
-       expr    (first parts)
-       filters (map parse-filter (rest parts))
-       raw     (resolve-token* ctx params expr)]
-  (apply-filters raw filters)))
+;; ----------------------------------------------------------------------------
+;; Tiny expression evaluator (prefix ops like + - * / max min > < >= <= = and or not ? default)
+;; ----------------------------------------------------------------------------
 
-;; --- rendering -------------------------------------------------------------
+;; Split args by whitespace but respect [], "" pairs.
+(defn- tokenize-args [s]
+ (let [n (count s)]
+  (loop [i 0 buf "" depth 0 inq? false out []]
+   (if (>= i n)
+    (cond-> out (pos? (count buf)) (conj buf))
+    (let [ch (.charAt ^String s i)]
+     (cond
+      (= ch \\"") (recur (inc i) (str buf ch) depth (not inq?) out)
+            inq?       (recur (inc i) (str buf ch) depth inq? out)
+            (= ch \[)  (recur (inc i) (str buf ch) (inc depth) inq? out)
+            (= ch \])  (recur (inc i) (str buf ch) (dec depth) inq? out)
+            (and (zero? depth) (Character/isWhitespace ch))
+            (recur (inc i) "" depth inq? (cond-> out (pos? (count buf)) (conj buf)))
+            :else      (recur (inc i) (str buf ch) depth inq? out)))))))
+
+(defn- parse-literal [s]
+  (cond
+    (nil? s) nil
+    (re-matches #"^-?\d+$" s) (Long/parseLong s)
+    (re-matches #"^-?\d+\.\d+$" s) (Double/parseDouble s)
+    (and (>= (count s) 2) (= (first s) \") (= (last s) \")) (subs s 1 (dec (count s))) ;; "string"
+    (str/starts-with? s ":")  (keyword (subs s 1))
+    :else s))
+
+(defn- coerce-num [x]
+  (cond
+    (number? x) (double x)
+    (string? x) (try (Double/parseDouble x) (catch Exception _ ##NaN))
+    :else ##NaN))
+
+(defn- truthy? [v]
+  (cond
+    (nil? v) false
+    (string? v) (not (str/blank? v))
+    (sequential? v) (boolean (seq v))
+    (map? v) (boolean (seq v))
+    :else (boolean v)))
+
+(defn- eval-expr [ctx params expr]
+  ;; expr like: "+ [:ctx.id] 1"  or  "? (> [:obs.final-score] [:ctx.best-score]) \"ok\" \"no\""
+  (let [tokens (tokenize-args expr)
+        [op & args] tokens
+        ;; resolve each arg through resolve-token* if it looks like a path or {{...}}
+        resolve-arg (fn [a]
+                      (let [a (str/trim a)]
+                        (cond
+                          (re-matches #"\{\{.*\}\}" a)
+                          (let [[_ inner] (re-matches #"\{\{(.*)\}\}" a)]
+                            (resolve-token* ctx params (str/trim inner)))
+
+                          (str/starts-with? a "[")      (resolve-token* ctx params a)
+                          (or (re-find #"[.:]" a)
+                              (re-find #"\[" a))        (resolve-token* ctx params a)
+                          :else                          (parse-literal a))))
+        vs (map resolve-arg args)]
+    (case op
+      ;; math
+      "+"   (reduce (fn [acc v] (+ acc (coerce-num v))) 0.0 vs)
+      "*"   (reduce (fn [acc v] (* acc (coerce-num v))) 1.0 vs)
+      "-"   (if (= 1 (count vs))
+              (- (coerce-num (first vs)))
+              (reduce (fn [acc v] (- acc (coerce-num v)))
+                      (coerce-num (first vs)) (rest vs)))
+      "/"   (reduce (fn [acc v] (/ acc (coerce-num v)))
+                    (coerce-num (first vs)) (rest vs))
+      "max" (apply max (map coerce-num vs))
+      "min" (apply min (map coerce-num vs))
+
+      ;; comparisons / logic
+      ">"   (let [[a b] vs] (>  (coerce-num a) (coerce-num b)))
+      "<"   (let [[a b] vs] (<  (coerce-num a) (coerce-num b)))
+      ">="  (let [[a b] vs] (>= (coerce-num a) (coerce-num b)))
+      "<="  (let [[a b] vs] (<= (coerce-num a) (coerce-num b)))
+      "="   (let [[a b] vs] (= a b))
+      "and" (every? truthy? vs)
+      "or"  (some truthy? vs)
+      "not" (not (truthy? (first vs)))
+
+      ;; default: return first arg if present & non-blank, else second
+      "default" (let [[v dflt] vs
+                      v* (if (string? v) (str/trim v) v)]
+                  (if (or (nil? v*) (and (string? v*) (str/blank? v*))) dflt v))
+
+      ;; ternary: ? cond a b
+      "?" (let [[c a b] vs] (if (truthy? c) a b))
+
+      ;; unknown op → return original expr (don’t crash)
+      expr)))
+
+;; ----------------------------------------------------------------------------
+;; Expressions + Filters + Resolution
+;; ----------------------------------------------------------------------------
+;; add near the top
+(def ^:private ops-set
+ #{"+" "-" "*" "/" "max" "min" ">" "<" ">=" "<=" "=" "and" "or" "not" "?" "default"})
+
+;; replace resolve-with-filters with this version
+(defn- resolve-with-filters [ctx params token]
+ (let [parts   (->> (clojure.string/split token #"\|")
+                    (map clojure.string/trim)
+                    (remove clojure.string/blank?))
+       head    (first parts)
+       filters (map parse-filter (rest parts))
+       ;; decide expression vs path by *first token*, not regex
+       head-tokens (tokenize-args head)
+       op         (first head-tokens)
+       v0 (if (and op (ops-set op))
+           (eval-expr ctx params head)           ;; arithmetic/logic/default/? expression
+           (resolve-token* ctx params head))]    ;; normal path (ctx/params/trace/etc.)
+  (apply-filters v0 filters)))
+
+;; ----------------------------------------------------------------------------
+;; Rendering (string-mode vs value-mode)
+;; ----------------------------------------------------------------------------
 
 (defn render-template
- "Render a STRING by replacing all {{...}} with stringified values."
- [tpl ctx params]
- (str/replace tpl token-re
-              (fn [[_ t]]
-               (let [v (resolve-with-filters ctx params t)]
-                (cond
-                 (nil? v)   ""
-                 (string? v) v
-                 :else      (pr-str v))))))
+  "Render a STRING by replacing all {{...}} with stringified values."
+  [tpl ctx params]
+  (str/replace tpl token-re
+               (fn [[_ t]]
+                 (let [v (resolve-with-filters ctx params t)]
+                   (cond
+                     (nil? v)   ""
+                     (string? v) v
+                     :else      (pr-str v))))))
 
 (defn- render-any
- "If s is exactly one {{token}}, return the RAW VALUE (after filters).
-  Otherwise, treat as templated string and return a STRING."
- [s ctx params]
- (if-let [[_ expr] (re-matches single-token-re s)]
-  (resolve-with-filters ctx params expr)
-  (render-template s ctx params)))
+  "If s is exactly one {{token}}, return the RAW VALUE (after filters).
+  Otherwise, treat as a templated string and return a STRING."
+  [s ctx params]
+  (if-let [[_ expr] (re-matches single-token-re s)]
+    (resolve-with-filters ctx params expr)
+    (render-template s ctx params)))
 
 (defn render-value
- "Value-aware renderer: for strings with tokens, return raw value for single-token,
+  "Value-aware renderer: for strings with tokens, return raw value for single-token,
   else a rendered string. Non-strings pass through."
- [v ctx params]
- (if (and (string? v) (re-find token-re v))
-  (render-any v ctx params)
-  v))
+  [v ctx params]
+  (if (and (string? v) (re-find token-re v))
+    (render-any v ctx params)
+    v))
 
 (defn render-args-deep
- "Deeply render a map intended for tool :args. Single-token strings
-  become their resolved raw values; multi-token become strings."
+  "Deeply render a map intended for tool :args. Single-token strings
+become their resolved raw values; multi-token become strings."
  [m ctx params]
  (walk/postwalk (fn [x] (render-value x ctx params)) (or m {})))

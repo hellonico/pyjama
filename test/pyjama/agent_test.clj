@@ -5,7 +5,7 @@
   [pyjama.tools.retrieve]
   [pyjama.tools.file]
   [pyjama.io.template]
-  [pyjama.agent :as agent]))
+  [pyjama.agent.core :as agent]))
 
 ;; --- Test helpers ------------------------------------------------------------
 

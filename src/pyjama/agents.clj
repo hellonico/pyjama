@@ -1,4 +1,5 @@
-(ns pyjama.agents
+(ns ^:deprecated pyjama.agents
+  "This used to be the main agents code, but now has been replaced by pyjama.agent.core"
   (:require [clojure.core.async :as async]
             [pyjama.core]
             [pyjama.functions :refer [ollama-fn]]))

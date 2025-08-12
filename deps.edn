@@ -17,6 +17,10 @@
            :call
            {:main-opts ["-m" "pyjama.cli.call"]}
 
+           ; clj -X:agent :project-dir "." :prompt '"write clojure test cases for namespace pyjama.io.template"' :agents-edn '"test-resources/agentic/code.edn"' :id :clj-project
+           :agent
+           {:exec-fn pyjama.cli.agent/run!}
+
            :native-image
            {:main-opts ["-m" "clj.native-image" "pyjama.cli.call"
                         "--initialize-at-build-time"
