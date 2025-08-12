@@ -1,7 +1,10 @@
 (ns pyjama.cli.agent
  (:require
   [clojure.tools.cli :as cli]
+  ; make sure tools are kept
+  [pyjama.tools.reachability]
   [clojure.java.io :as io]
+  [clojure.string]
   [pyjama.agent.core :as agent])
  (:gen-class))
 
@@ -28,7 +31,7 @@
   (println msg))
  (System/exit status))
 
-(defn run! [{:keys [project-dir prompt agents-edn id]}]
+(defn run-agents [{:keys [project-dir prompt agents-edn id]}]
  ;; honor the library’s expectation on the agents file
  (System/setProperty "agents.edn" agents-edn)
 
@@ -57,7 +60,7 @@
                                  "\n\n" (usage summary)))
    :else
    (try
-    (run! options)
+    (run-agents options)
     (exit! 0 "Done.")
     (catch Throwable t
      (exit! 1 (str "Failure: " (.getMessage t))))))))

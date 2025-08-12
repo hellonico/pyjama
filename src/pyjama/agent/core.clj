@@ -375,17 +375,17 @@
  (let [{w :when nxt :next :as r} route]
   (cond
    (vector? w) (when (#'eval-when-dsl ctx w) nxt)
-   (ifn? w)    (when (w ctx) nxt)
-   (nil? w)    nxt
-   :else       nil)))
+   (ifn? w) (when (w ctx) nxt)
+   (nil? w) nxt
+   :else nil)))
 
 
 (defn decide-next [{:keys [steps]} step-id ctx]
  (let [{:keys [routes next]} (get steps step-id)]
   (if (seq routes)
    (let [candidates (keep #(eval-route ctx %) routes)
-         hit        (first (remove nil? candidates))
-         fallback   (some (fn [r] (when (contains? r :else) (:else r))) (reverse routes))]
+         hit (first (remove nil? candidates))
+         fallback (some (fn [r] (when (contains? r :else) (:else r))) (reverse routes))]
     (or hit fallback next :done))
    (or next :done)))
  )
@@ -404,7 +404,7 @@
 
    ;; agent graph
    (let [{:keys [start max-steps] :as spec} agent]
-    (loop [ctx {:trace [] :prompt (:prompt params) :original-prompt (:prompt params)}
+    (loop [ctx (merge {:trace [] :prompt (:prompt params) :original-prompt (:prompt params)} params)
            step-id start
            n 0]
      ;(clojure.pprint/pprint ctx)

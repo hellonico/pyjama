@@ -9,7 +9,7 @@
 (def upload-endpoint (str base-url "/upload"))
 (def job-endpoint (str base-url "/job"))
 
-(def api-key
+(defn api-key[]
  (secrets.core/get-secret :llama-cloud-api-key))
 
 (defn extract-filename [file-path]
@@ -35,7 +35,7 @@
                               (map->multipart params))
        response (client/post
                  upload-endpoint
-                 {:headers   {"Authorization" (str "Bearer " api-key)}
+                 {:headers   {"Authorization" (str "Bearer " (api-key))}
                   :multipart multipart-data
                   :as        :json})]
   (:body response)))

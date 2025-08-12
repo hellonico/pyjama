@@ -1,6 +1,7 @@
 (ns pyjama.tools.retrieve
  (:require [clojure.java.io :as io]
-           [clojure.string :as str]))
+           [clojure.string :as str])
+ (:import (java.io File)))
 
 ;
 ; scoring
@@ -62,15 +63,16 @@
 ; codebase
 ;
 
-(defn read-code-base [{:keys [dir]}]
+(defn read-code-base [{:keys [dir] :as ctx}]
  (let [root (str/trim (or dir "."))
        f    (io/file root)]
+  (prn ctx)
   (when-not (.exists f)      (throw (ex-info "Project dir not found" {:dir root})))
   (when-not (.isDirectory f) (throw (ex-info "Not a directory" {:dir root})))
   (let [files (->> (file-seq f)
-                   (filter #(and (.isFile %)
-                                 (re-find #"\.(clj|cljc|cljs|edn|md)$" (.getName %))))
-                   (map (fn [f] {:file (.getAbsolutePath f)
+                   (filter #(and (.isFile ^File %)
+                                 (re-find #"\.(clj|cljc|cljs|edn|md)$" (.getName ^File %))))
+                   (map (fn [f] {:file (.getAbsolutePath ^File f)
                                  :content (slurp f)}))
                    vec)]
    {:status :ok :files files})))

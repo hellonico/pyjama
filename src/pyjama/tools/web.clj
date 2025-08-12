@@ -6,7 +6,7 @@
   [clojure.walk :as walk])
  )
 
-(def api-key (secrets.core/get-secret "brave-api-key"))
+(defn api-key[] (secrets.core/get-secret "brave-api-key"))
 (def brave-api-url "https://api.search.brave.com/res/v1/web/search")
 
 (defn brave->abstracts
@@ -38,7 +38,7 @@
 (defn brave-search
  "Search Brave with `query`. Optional params: count, country, search-lang."
  [query & {:keys [count country search-lang]}]
- (let [api-key api-key
+ (let [api-key (api-key)
        params (merge {"q" query}
                      (when count {"count" (str count)})
                      (when country {"country" country})

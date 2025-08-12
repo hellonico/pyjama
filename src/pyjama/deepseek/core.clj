@@ -14,13 +14,13 @@
           (println "Success:" content)))
       (println "Error:" body))))
 
-(def api-key
+(defn api-key[]
   (secrets.core/get-secret :deepseek-api-key))
 
 (defn call
   [{:keys [model prompt]}]
   (let [url "https://api.deepseek.com/chat/completions"     ; Replace with actual endpoint
-        headers {"Authorization" (str "Bearer " api-key)
+        headers {"Authorization" (str "Bearer " (api-key))
                  "Content-Type"  "application/json"}
         body {:prompt      prompt
               :model       model
