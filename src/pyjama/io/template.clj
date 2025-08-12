@@ -270,16 +270,10 @@
     (resolve-with-filters ctx params expr)
     (render-template s ctx params)))
 
-(defn render-value
-  "Value-aware renderer: for strings with tokens, return raw value for single-token,
-  else a rendered string. Non-strings pass through."
-  [v ctx params]
-  (if (and (string? v) (re-find token-re v))
-    (render-any v ctx params)
-    v))
+(defn render-value [v ctx params]
+ (if (and (string? v) (re-find token-re v))
+  (render-any v ctx params)   ;; <— IMPORTANT: use render-any so single-token returns RAW
+  v))
 
-(defn render-args-deep
-  "Deeply render a map intended for tool :args. Single-token strings
-become their resolved raw values; multi-token become strings."
- [m ctx params]
- (walk/postwalk (fn [x] (render-value x ctx params)) (or m {})))
+(defn render-args-deep [m ctx params]
+ (clojure.walk/postwalk (fn [x] (render-value x ctx params)) (or m {})))
