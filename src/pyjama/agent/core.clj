@@ -260,9 +260,12 @@
               ;(subs (:prompt step) 0 (min 60 (count (:prompt step)))))))
               final-prompt (render-step-prompt step ctx params)
               ;; only pass LLM-relevant keys from step
+              ;llm-step (apply dissoc step step-non-llm-keys)
               llm-step (apply dissoc step step-non-llm-keys)
+              ;; NEW: render all templatable fields in the LLM step (impl/model/url/temperature/etc)
+              llm-step-rendered (pyjama.io.template/render-args-deep llm-step ctx params)
               ;; step keys override params, but we set :prompt last to avoid clobber
-              llm-input (-> (merge params llm-step)
+              llm-input (-> (merge params llm-step-rendered)
                             (assoc :prompt final-prompt
                                    :id step-id))
               raw (pyjama.core/call* llm-input)
@@ -317,10 +320,10 @@
   (sequential? v) (boolean (seq v))
   (map? v) (boolean (seq v))
   :else (boolean v)))
-
-
-(defn- pathlike? [x]
- (or (sequential? x) (keyword? x)))
+;
+;
+;(defn- pathlike? [x]
+; (or (sequential? x) (keyword? x)))
 
 (defn- val-or-path [ctx x]
  (if (pathlike? x) (get-path ctx x) x))
