@@ -1,11 +1,13 @@
 {
  :paths   ["src" "resources"]
  :deps
- {org.clojure/clojure     {:mvn/version "1.11.0"}
+ {org.clojure/clojure     {:mvn/version "1.12.1"}
   clj-http/clj-http       {:mvn/version "3.13.1"}
   org.clojure/tools.cli   {:mvn/version "1.1.230"}
   cheshire/cheshire       {:mvn/version "5.10.0"}
   org.clojure/core.async  {:mvn/version "1.5.648"}
+  hellonico/secrets       {:git/url "https://github.com/hellonico/secrets.git"
+                           :git/sha "afc4baecaf2c113897337cb5b84e842a805a6edc"}
 
   ; this is used for embeddings
   net.mikera/vectorz-clj  {:mvn/version "0.48.0"}

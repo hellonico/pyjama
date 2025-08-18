@@ -78,14 +78,14 @@
             :plain    42
             :m        {:k 1}}]
   (testing "nil path"
-   (is (nil? (#'pyjama.agent/get-path ctx nil))))
+   (is (nil? (#'pyjama.agent.core/get-path ctx nil))))
   (testing "[:obs ...] resolves into :last-obs"
-   (is (= :ok (#'pyjama.agent/get-path ctx [:obs :status])))
-   (is (= 7 (#'pyjama.agent/get-path ctx [:obs :payload :n]))))
+   (is (= :ok (#'pyjama.agent.core/get-path ctx [:obs :status])))
+   (is (= 7 (#'pyjama.agent.core/get-path ctx [:obs :payload :n]))))
   (testing "arbitrary seq path"
-   (is (= 1 (#'pyjama.agent/get-path ctx [:m :k]))))
+   (is (= 1 (#'pyjama.agent.core/get-path ctx [:m :k]))))
   (testing "non-seq key"
-   (is (= 42 (#'pyjama.agent/get-path ctx :plain))))))
+   (is (= 42 (#'pyjama.agent.core/get-path ctx :plain))))))
 
 (deftest eval-when-dsl-ops
  (let [ctx {:last-obs {:status :ok}
@@ -111,8 +111,8 @@
 
 (deftest eval-when-dsl-wrapper
  (let [ctx {:last-obs {:status :ok}}]
-  (is (true? (#'pyjama.agent/eval-when-dsl ctx [:= [:obs :status] :ok])))
-  (is (false? (#'pyjama.agent/eval-when-dsl ctx [:= [:obs :status] :nope])))))
+  (is (true? (#'pyjama.agent.core/eval-when-dsl ctx [:= [:obs :status] :ok])))
+  (is (false? (#'pyjama.agent.core/eval-when-dsl ctx [:= [:obs :status] :nope])))))
 
 (deftest eval-route-precedence-fixed
  (let [ctx {:last-obs {:status :ok}}]
