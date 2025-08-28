@@ -34,7 +34,6 @@
                         "--trace-object-instantiation=java.lang.Thread"
                         "--enable-url-protocols=http"
                         ;; optional native image name override
-                        ;"-H:Name=pyjama"
                         "-o pyjamamazing"
                         ]
             ;:jvm-opts  ["-Dclojure.compiler.direct-linking=true"]

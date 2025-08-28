@@ -1,6 +1,8 @@
 (ns pyjama.tools.file
  (:require [clojure.java.io :as io]
-           [clojure.string :as str])
+           [clojure.string :as str]
+           [pyjama.helpers.file :as hf]
+           )
  (:import (java.time ZonedDateTime ZoneId)
           (java.time.format DateTimeFormatter)
           (java.io File)))
@@ -10,17 +12,6 @@
 
 (defn- now-ts []
  (.format (ZonedDateTime/now (ZoneId/systemDefault)) ts-formatter))
-
-(defn- sanitize-filename [s]
- (-> (or s "output")
-     (str/replace #"[^\p{Alnum}\.\-]+" "_")
-     (str/replace #"_{2,}" "_")
-     (str/replace #"^_|_$" "")))
-
-(defn- ensure-parent-dirs! [^File f]
- (when-let [p (.getParentFile f)]
-  (.mkdirs p))
- f)
 
 (defn normalize-spaces [s]
  ;; Replace narrow no-break space (\u202F) and no-break space (\u00A0) with regular space
@@ -36,23 +27,16 @@
                     (some-> message
                             (subs 0 (min 40 (count message)))
                             (str/replace #"\s+" "_")
-                            sanitize-filename
+                            hf/sanitize-filename
                             (str ".md"))
                     (str "summary-" (now-ts) ".md"))
        ;; optional: also sanitize provided name
-       name     (sanitize-filename name)
+       name     (hf/sanitize-filename name)
        f        (io/file (or path (str dir File/separator name)))]
-  (ensure-parent-dirs! f)
+  (hf/ensure-parent-dirs! f)
   (let [clean-message (normalize-spaces (or message ""))]
    (spit f clean-message :append (boolean append) :encoding encoding))
   {:status  :ok
    :file    (.getAbsolutePath f)
    :append? (boolean append)
    :bytes   (.length f)}))
-
-;
-;(defn write-file [{:keys [message dir name encoding] :or {encoding "UTF-8"}}]
-; (let [f (io/file (or dir ".") name)]
-;  (.mkdirs (.getParentFile (.getAbsoluteFile f)))
-;  (spit f (or message "") :encoding encoding)
-;  {:status :ok :file (.getAbsolutePath f)}))

@@ -3,7 +3,9 @@
            [cheshire.core :as json]
            [clojure.string :as str]))
 
-(defn to-markdown [{:keys [headers rows]}]
+(defn to-markdown
+  "Returns a Markdown formatted table from {:headers [...] :rows [...]} map"
+  [{:keys [headers rows]}]
  (let [header-row (str "| " (clojure.string/join " | " (map name headers)) " |")
        separator-row (str "| " (clojure.string/join " | " (repeat (count headers) "---")) " |")
        data-rows (map (fn [row]
