@@ -1,26 +1,84 @@
 (ns pyjama.doc.utils
-  (:require [pyjama.helpers.file :as hf])                       ;; <-- ensure this is required
+  (:require [clojure.string :as str]
+            [clojure.tools.reader :as tr]
+            [clojure.tools.reader.reader-types :as rrt]
+            [pyjama.helpers.file :as hf])                       ;; <-- ensure this is required
   (:import (java.io File)) )  ;; <-- new imports
 
-(def text-exts
-  "Extensions considered 'text' (no code fences). Extend as needed."
-  #{"md" "txt"})
+
+(def text-exts #{"md" "txt"})
+(def code-exts #{"clj" "cljc" "cljs"})
+
+(defn- extract-ns-doc
+  "Given the full source text of a clj/cljs/cljc file, returns the ns docstring if present.
+   Handles both string doc right after the ns name and ^{:doc \"...\"} metadata.
+   Safe for cljc via :read-cond :allow."
+  [source]
+  (let [reader (rrt/indexing-push-back-reader source)
+        eof    ::eof
+        opts   {:read-cond :allow
+                :features  #{:clj :cljs}
+                :eof       eof}]
+    (loop [form (tr/read opts reader)]
+      (cond
+        (= form eof) nil
+        (and (seq? form) (= 'ns (first form)))
+        (let [[_ ns-sym & more] form
+              x1        (first more)
+              ;; ns can be: (ns foo "doc" ...) or (ns ^{:doc "..."} foo ...)
+              has-meta? (map? x1)
+              m         (when has-meta? x1)
+              rest*     (if has-meta? (next more) more)
+              x2        (first rest*)]
+          (or (when (string? x1) x1)
+              (get m :doc)
+              (when (string? x2) x2)))
+        :else (recur (tr/read opts reader))))))
 
 (defn read-file
   "Reads a file and annotates it with:
-   - :kind   (:code or :text)
-   - :ext    (extension without dot, lowercase)
+   - :kind     (:code or :text)
+   - :ext      (extension without dot, lowercase)
    - :metadata (optional, human-friendly string)
-   Arity 1 keeps backward compatibility; arity 2 accepts metadata."
+   If metadata is nil and this is a Clojure source file, tries to pull the ns docstring."
   ([^File f] (read-file f nil))
   ([^File f metadata]
-   (let [ext (hf/file-ext f)
-         kind (if (contains? text-exts ext) :text :code)]
+   (let [ext     (hf/file-ext f)
+         kind    (if (contains? text-exts ext) :text :code)
+         content (slurp f)
+         md      (or metadata
+                     (when (and (= kind :code) (contains? code-exts ext))
+                       (try
+                         (some-> (extract-ns-doc content)
+                                 str/trim
+                                 (not-empty))
+                         (catch Throwable _ nil))))]
      {:filename (.getName f)
       :ext      ext
       :kind     kind
-      :metadata metadata
-      :content  (slurp f)})))
+      :metadata md
+      :content  content})))
+
+;
+;(def text-exts
+;  "Extensions considered 'text' (no code fences). Extend as needed."
+;  #{"md" "txt"})
+;
+;(defn read-file
+;  "Reads a file and annotates it with:
+;   - :kind   (:code or :text)
+;   - :ext    (extension without dot, lowercase)
+;   - :metadata (optional, human-friendly string)
+;   Arity 1 keeps backward compatibility; arity 2 accepts metadata."
+;  ([^File f] (read-file f nil))
+;  ([^File f metadata]
+;   (let [ext (hf/file-ext f)
+;         kind (if (contains? text-exts ext) :text :code)]
+;     {:filename (.getName f)
+;      :ext      ext
+;      :kind     kind
+;      :metadata metadata
+;      :content  (slurp f)})))
 
 ;; --- main flows ---
 
