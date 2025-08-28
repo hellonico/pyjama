@@ -2,8 +2,8 @@
   (:require [clojure.string :as str]
             [clojure.tools.reader :as tr]
             [clojure.tools.reader.reader-types :as rrt]
-            [pyjama.helpers.file :as hf])                       ;; <-- ensure this is required
-  (:import (java.io File)) )  ;; <-- new imports
+            [pyjama.helpers.file :as hf])                   ;; <-- ensure this is required
+  (:import (java.io File)))                                 ;; <-- new imports
 
 
 (def text-exts #{"md" "txt"})
@@ -15,21 +15,21 @@
    Safe for cljc via :read-cond :allow."
   [source]
   (let [reader (rrt/indexing-push-back-reader source)
-        eof    ::eof
-        opts   {:read-cond :allow
-                :features  #{:clj :cljs}
-                :eof       eof}]
+        eof ::eof
+        opts {:read-cond :allow
+              :features  #{:clj :cljs}
+              :eof       eof}]
     (loop [form (tr/read opts reader)]
       (cond
         (= form eof) nil
         (and (seq? form) (= 'ns (first form)))
         (let [[_ ns-sym & more] form
-              x1        (first more)
+              x1 (first more)
               ;; ns can be: (ns foo "doc" ...) or (ns ^{:doc "..."} foo ...)
               has-meta? (map? x1)
-              m         (when has-meta? x1)
-              rest*     (if has-meta? (next more) more)
-              x2        (first rest*)]
+              m (when has-meta? x1)
+              rest* (if has-meta? (next more) more)
+              x2 (first rest*)]
           (or (when (string? x1) x1)
               (get m :doc)
               (when (string? x2) x2)))
@@ -43,16 +43,16 @@
    If metadata is nil and this is a Clojure source file, tries to pull the ns docstring."
   ([^File f] (read-file f nil))
   ([^File f metadata]
-   (let [ext     (hf/file-ext f)
-         kind    (if (contains? text-exts ext) :text :code)
+   (let [ext (hf/file-ext f)
+         kind (if (contains? text-exts ext) :text :code)
          content (slurp f)
-         md      (or metadata
-                     (when (and (= kind :code) (contains? code-exts ext))
-                       (try
-                         (some-> (extract-ns-doc content)
-                                 str/trim
-                                 (not-empty))
-                         (catch Throwable _ nil))))]
+         md (or metadata
+                (when (and (= kind :code) (contains? code-exts ext))
+                  (try
+                    (some-> (extract-ns-doc content)
+                            str/trim
+                            (not-empty))
+                    (catch Throwable _ nil))))]
      {:filename (.getName f)
       :ext      ext
       :kind     kind
@@ -89,7 +89,7 @@
    (read-files-in-dir dir ["*.md"]))
   ([dir patterns]
    (->> (hf/files-matching-patterns dir patterns)
-        (map read-file)))) ;; prevent dupes when patterns overlap
+        (map read-file))))                                  ;; prevent dupes when patterns overlap
 
 
 (defn- normalize-pattern-entries
@@ -155,14 +155,19 @@
 (comment
   ;; 1 CLJ file + 2 MD files in one shot (exact paths)
   (aggregate-md-from-patterns
-    [{:pattern "src/core.clj" :metadata "Code for the logic"}
-     {:pattern "docs/intro.md" :metadata "Output of the code"}
-     "docs/guide.md"])
+      [{:pattern "src/core.clj" :metadata "Code for the logic"}
+      {:pattern "docs/intro.md" :metadata "Output of the code"}
+      "docs/guide.md"])
 
   ;; Using globs with a description, mixed with a single exact file:
   (aggregate-md-from-patterns
-    [{:pattern "src/**/*.clj" :metadata "All Clojure sources"}
+    (seq [{:pattern "src/**/*.clj" :metadata "All Clojure sources"}
      {:pattern "docs/*.md" :metadata "User-facing docs"}
-     "README.md"])
+     "README.md"]))
+
+  (aggregate-md-from-patterns
+    (seq [{:pattern "src/**/*.clj"}
+          {:pattern "docs/*.md"}
+          "README.md"]))
 
   )

@@ -1,5 +1,6 @@
 (ns pyjama.doc.core
-  (:require [pyjama.core :as agent]
+  (:require [clojure.string :as str]
+            [pyjama.core :as agent]
             [pyjama.helpers.config :as hc]
             [pyjama.doc.utils :as u]
             [clojure.pprint :refer [pprint]]
@@ -20,7 +21,7 @@
   "Return the actual File to write to.
    If out-file is a directory or has no extension, use <dir>/<yyyy-MM-dd_HH-mm-ss>.md."
   [out-file]
-  (let [f (io/file out-file)
+  (let [f (io/file (apply str out-file))
         as-dir? (or (.isDirectory f)
                     (not (re-find #"\.[^/\\]+$" (.getName f))))]
     (if as-dir?
@@ -82,11 +83,15 @@
      :summary (when summary (.getPath (summary-file final-file)))
      :pdf     (when pdf (str final-file ".pdf"))}))
 
+(defn arg->config [arg]
+  (if (str/ends-with? arg ".edn")
+    (hc/load-config [arg])
+    {:patterns [{:pattern arg}]}))
 
 (defn -main [& args]
-  (let [config (hc/load-config args)]
-    (if (empty? args)
-      (println "No arguments provided \n")
-      (do
-        (pprint config)
-        (process-review (hc/load-config args))))))
+  (if (empty? args)
+    (println "No arguments provided\n")
+    (let [configs (map arg->config args)
+          merged  (apply merge-with concat configs)]
+      (pprint merged)
+      (process-review merged))))

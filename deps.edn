@@ -11,9 +11,10 @@
 
   ; this is used for embeddings
   net.mikera/vectorz-clj  {:mvn/version "0.48.0"}
-  ; not used directly here?
-  ; TODO: clean up
+
+  ; TODO: clean up: not used directly here?
   org.clj-commons/hickory {:mvn/version "0.7.7"}
+
   }
  :aliases {
            :call
