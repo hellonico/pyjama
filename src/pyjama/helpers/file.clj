@@ -1,8 +1,7 @@
 (ns pyjama.helpers.file
-  (:require [clojure.edn :as edn]
-            [clojure.java.io :as io]
+  (:require [clojure.java.io :as io]
             [clojure.string :as str])
-  (:import (java.io File PushbackReader)
+  (:import (java.io File)
            (java.nio.file FileSystems PathMatcher)))
 
 
