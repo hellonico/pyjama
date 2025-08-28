@@ -15,22 +15,6 @@
   (map? x) x                                                ;; <- KEEP maps as-is
   :else {:text (pr-str x)}))
 
-;(defn- tool-args
-; "Build the args for a tool step:
-;  - :message: defaults to last LLM text
-;  - allow overrides via step keys :message, :message-path, :message-template"
-; [step ctx params base-args]
-; (let [{:keys [message message-path message-template]} step
-;       msg (cond
-;            message message
-;            message-path (get-in ctx message-path)
-;            message-template (pyjama.io.template/render-template message-template ctx params)
-;            :else (or (get-in ctx [:last-obs :text])
-;                      (when (string? (:last-obs ctx)) (:last-obs ctx))
-;                      (pr-str (:last-obs ctx))))
-;       rendered-args (pyjama.io.template/render-args-deep (or base-args {}) ctx params)]
-;  (merge rendered-args {:message msg :ctx ctx :params params})))
-
 (defn resolve-fn*
  "Return a Var (IFn) for EDN :fn, or throw with context."
  [f]

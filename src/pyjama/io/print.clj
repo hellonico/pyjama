@@ -1,20 +1,5 @@
 (ns pyjama.io.print
   (:require [clojure.string :as str]))
-;
-;(defn print-table [m]
-;  (doseq [[k v] m]
-;    (println (format "| %-15s | %-100s |" k v))))
-;
-;(defn print-nested-map [k v]
-;  (println (format "| %-15s | %-100s |" k ""))
-;  (doseq [[sub-k sub-v] v]
-;    (println (format "| %-15s | %-100s |" (str " - " sub-k) sub-v))))
-;
-;(defn pretty-print-map [m]
-;  (doseq [[k v] m]
-;    (if (map? v)
-;      (print-nested-map k v)
-;      (println (format "| %-15s | %-100s |" k v)))))
 
 (def max-length 110)
 

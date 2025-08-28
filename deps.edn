@@ -23,6 +23,25 @@
            :agents
            {:exec-fn pyjama.cli.agent/run-agents}
 
+           :native-cli-doc
+           {:main-opts ["-m" "clj.native-image" "pyjama.doc.core"
+                        "--initialize-at-build-time"
+                        "--initialize-at-run-time=org.apache.http.impl.auth.NTLMEngineImpl"
+                        "--initialize-at-run-time=sun.java2d.Disposer"
+                        "--enable-url-protocols=https"
+                        "-march=native"
+                        "--trace-object-instantiation=java.security.SecureRandom"
+                        "--trace-object-instantiation=java.lang.Thread"
+                        "--enable-url-protocols=http"
+                        ;; optional native image name override
+                        "-o nightnote"
+                        ]
+            ;:jvm-opts  ["-Dclojure.compiler.direct-linking=true"]
+            :extra-deps
+            {clj.native-image/clj.native-image
+             {:git/url "https://github.com/taylorwood/clj.native-image.git"
+              :sha     "7708e7fd4572459c81f6a6b8e44c96f41cdd92d4"}}}
+
            :native-cli-agent
            {:main-opts ["-m" "clj.native-image" "pyjama.cli.agent"
                         "--initialize-at-build-time"

@@ -2,11 +2,13 @@
   (:require [pyjama.core :as agent]
             [pyjama.helpers.config :as hc]
             [pyjama.doc.utils :as u]
+            [clojure.pprint :refer [pprint]]
             [pyjama.tools.pandoc]
             [clojure.java.io :as io])
   (:import (java.io File)
            (java.time LocalDateTime)
-           (java.time.format DateTimeFormatter)))
+           (java.time.format DateTimeFormatter))
+  (:gen-class))
 
 ;; ---------- helpers ----------
 
@@ -38,17 +40,18 @@
 ;; ---------- main ----------
 
 (defn process-review
-  "If :summary true, performs a second LLM call over the first call's output and writes
-   `<previous out-file>_summary.md`."
+  "If :summary true or a string, performs a second LLM call over the first call's output.
+   When true, uses the default summary preamble. When a string, uses it as the preamble.
+   Writes `<previous out-file>_summary.md`."
   [{:keys [patterns model out-file system pre pdf summary]}]
   (let [combined-md (u/aggregate-md-from-patterns patterns)
-        result-1 (agent/call
-                   (merge model
-                          {:system system
-                           :pre    pre
-                           :prompt [combined-md]}))
-        final-file (resolve-output-file out-file)
-        out-1-str (with-out-str (println result-1))]
+        result-1    (agent/call
+                      (merge model
+                             {:system system
+                              :pre    pre
+                              :prompt [combined-md]}))
+        final-file  (resolve-output-file out-file)
+        out-1-str   (with-out-str (println result-1))]
     ;; write main result
     (io/make-parents final-file)
     (spit final-file out-1-str)
@@ -61,7 +64,10 @@
 
     ;; optional summary step
     (when summary
-      (let [sum-pre "Generated a short summary, (with title and points just like a ppt slide)  of %s"
+      (let [default-pre "This is a text: %s\nGenerate a short summary, in two sections:
+      - One with title and points just like a ppt slide.
+      - One with a simple table for an ideas overview of the text.\n"
+            sum-pre (if (string? summary) summary default-pre)
             result-2 (agent/call
                        (merge model
                               {:system system
@@ -72,13 +78,15 @@
         (spit sum-file (with-out-str (println result-2)))))
 
     ;; return the path(s) for convenience
-    {:out     (.getPath final-file)
+    {:out     (.getPath ^File final-file)
      :summary (when summary (.getPath (summary-file final-file)))
      :pdf     (when pdf (str final-file ".pdf"))}))
 
+
 (defn -main [& args]
-  (process-review (hc/load-config args))
-  ;(process-review "resources/reporting/edn_config.edn")
-  ;(process-review "resources/reporting/bad_review.edn")
-  ;(process-review (hf/load-config "resources/reporting/yourown.edn"))
-  )
+  (let [config (hc/load-config args)]
+    (if (empty? args)
+      (println "No arguments provided \n")
+      (do
+        (pprint config)
+        (process-review (hc/load-config args))))))
