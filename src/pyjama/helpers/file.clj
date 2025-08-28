@@ -78,17 +78,17 @@
                    (let [rel (.relativize root (.toPath f))]
                      (some #(.matches ^PathMatcher % rel) matchers))))
          distinct)))
-
 ;
+;;
+;;
+;;
 ;
+;(defn load-config [cfg]
+;  (cond
+;    (string? cfg)
+;    (with-open [r (io/reader cfg)]
+;      (edn/read (PushbackReader. r)))
 ;
-
-(defn load-config [cfg]
-  (cond
-    (string? cfg)
-    (with-open [r (io/reader cfg)]
-      (edn/read (PushbackReader. r)))
-
-    (map? cfg) cfg
-
-    :else (throw (ex-info "Unsupported config type" {:given cfg}))))
+;    (map? cfg) cfg
+;
+;    :else (throw (ex-info "Unsupported config type" {:given cfg}))))

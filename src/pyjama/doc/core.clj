@@ -1,6 +1,6 @@
 (ns pyjama.doc.core
   (:require [pyjama.core :as agent]
-            [pyjama.helpers.file :as hf]
+            [pyjama.helpers.config :as hc]
             [pyjama.doc.utils :as u]
             [pyjama.tools.pandoc]
             [clojure.java.io :as io])
@@ -76,10 +76,9 @@
      :summary (when summary (.getPath (summary-file final-file)))
      :pdf     (when pdf (str final-file ".pdf"))}))
 
-(defn -main [& _]
-
+(defn -main [& args]
+  (process-review (hc/load-config args))
   ;(process-review "resources/reporting/edn_config.edn")
   ;(process-review "resources/reporting/bad_review.edn")
-
-  (process-review (hf/load-config "resources/reporting/yourown.edn"))
+  ;(process-review (hf/load-config "resources/reporting/yourown.edn"))
   )
