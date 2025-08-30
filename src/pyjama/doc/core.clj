@@ -1,4 +1,12 @@
 (ns pyjama.doc.core
+  "Orchestrates LLM-assisted documentation generation and provides the CLI entry point.
+
+   - Aggregates content from files matched by patterns into Markdown (via pyjama.doc.utils).
+   - Calls an LLM (pyjama.core/agent) to produce the main review and writes a .md file.
+     If :out-file is a directory or lacks an extension, a timestamped <yyyy-MM-dd_HH-mm-ss>.md is created.
+   - Optionally renders a PDF (pyjama.tools.pandoc) and runs a second summarization pass,
+     writing <out>_summary.md when :summary is truthy.
+   - Accepts EDN config paths or path/glob arguments on the CLI; see process-review and -main."
   (:require [clojure.string :as str]
             [pyjama.core :as agent]
             [pyjama.helpers.config :as hc]

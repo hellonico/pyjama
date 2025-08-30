@@ -1,0 +1,6 @@
+{
+ :model    {:impl :chatgpt :temperature 1 :model "gpt-5"}
+ :summary  false
+ :out-file "docs/gen/clj"
+ :system   "You are a code documentation engineer. You give code samples for functions."
+ :pre      "For each of the Clojure files below, write a docstring for the namespace. \n %s"}

@@ -1,10 +1,16 @@
 (ns pyjama.doc.utils
+  "Utilities for turning file patterns into aggregated Markdown used by pyjama.doc.core.
+
+   - Expands path/glob patterns (optionally with per-pattern :metadata) to files, de-duplicating overlaps.
+   - Reads each file and annotates it with :kind, :ext, and optional :metadata; for Clojure sources,
+     attempts to extract the namespace docstring safely via clojure.tools.reader with :read-cond :allow.
+   - Produces aggregated Markdown with code fences for code files and an italic metadata preamble.
+   - Main entry points: read-files-by-patterns, aggregate-md, aggregate-md-from-patterns."
   (:require [clojure.string :as str]
             [clojure.tools.reader :as tr]
             [clojure.tools.reader.reader-types :as rrt]
-            [pyjama.helpers.file :as hf])                   ;; <-- ensure this is required
-  (:import (java.io File)))                                 ;; <-- new imports
-
+            [pyjama.helpers.file :as hf])
+  (:import (java.io File)))
 
 (def text-exts #{"md" "txt"})
 (def code-exts #{"clj" "cljc" "cljs"})

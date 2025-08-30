@@ -1,0 +1,6 @@
+{
+ :model    {:impl :chatgpt :temperature 1 :model "gpt-5"}
+ :summary  true
+ :out-file "docs/gen/clj"
+ :system   "You are a technical writer. You describe simply features, and how to use them easily. Output is markdown: Use markdown and markdown tables when needed."
+ :pre      "Given the text below, Write a descriptive README.md \n %s"}
