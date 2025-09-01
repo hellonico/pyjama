@@ -1,0 +1,6 @@
+{
+ :model    {:impl :chatgpt :temperature 1 :model "gpt-5"}
+ :summary  false
+ :out-file "docs/gen/clj"
+ :system   "You are a code reviewer, and strong engineer. You give detailed code samples for functions."
+ :pre      "For each of the Clojure files below, propose refactoring and enhancements to the code. \n %s"}

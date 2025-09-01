@@ -12,168 +12,178 @@
             [pyjama.helpers.file :as hf])
   (:import (java.io File)))
 
-(def text-exts #{"md" "txt"})
-(def code-exts #{"clj" "cljc" "cljs"})
+(ns pyjama.doc.utils
+  "Utilities for turning file patterns into aggregated Markdown used by pyjama.doc.core."
+  (:require [clojure.string :as str]
+            [clojure.tools.reader :as tr]
+            [clojure.tools.reader.reader-types :as rrt]
+            [pyjama.helpers.file :as hf])
+  (:import (java.io File)))
+
+;; Consider expanding these via config if needed.
+(def text-exts #{"md" "txt" "rst" "adoc"})
+;(def code-exts #{"clj" "cljc" "cljs" "edn" "java" "scala" "kt" "py" "rb" "js" "ts" "tsx" "json" "yaml" "yml" "sh" "bash" "zsh" "go" "rs" "c" "h" "cpp" "hpp" "cs" "swift"})
+
+(def ^:private ext->fence
+  {"clj" "clojure" "cljc" "clojure" "cljs" "clojure"
+   "edn" "clojure"
+   "js" "javascript" "ts" "typescript" "tsx" "tsx"
+   "json" "json" "yaml" "yaml" "yml" "yaml"
+   "sh" "bash" "bash" "bash" "zsh" "bash"
+   "rb" "ruby" "py" "python" "java" "java" "kt" "kotlin"
+   "go" "go" "rs" "rust" "c" "c" "h" "c" "cpp" "cpp" "hpp" "cpp"
+   "cs" "csharp" "swift" "swift"})
+
+(defn- fence-lang [ext]
+  (or (ext->fence (str/lower-case (or ext "")))
+      (str/lower-case (or ext ""))))
 
 (defn- extract-ns-doc
-  "Given the full source text of a clj/cljs/cljc file, returns the ns docstring if present.
-   Handles both string doc right after the ns name and ^{:doc \"...\"} metadata.
-   Safe for cljc via :read-cond :allow."
+  "Given source text of a clj/cljs/cljc file, returns the ns docstring if present.
+   Handles both string doc right after ns name and ^{:doc \"...\"}."
   [source]
   (let [reader (rrt/indexing-push-back-reader source)
         eof ::eof
         opts {:read-cond :allow
               :features  #{:clj :cljs}
               :eof       eof}]
-    (loop [form (tr/read opts reader)]
+    (loop [form (try (tr/read opts reader)
+                     (catch Throwable _ eof))]
       (cond
         (= form eof) nil
         (and (seq? form) (= 'ns (first form)))
-        (let [[_ ns-sym & more] form
+        (let [[_ _ns-sym & more] form
               x1 (first more)
-              ;; ns can be: (ns foo "doc" ...) or (ns ^{:doc "..."} foo ...)
               has-meta? (map? x1)
               m (when has-meta? x1)
               rest* (if has-meta? (next more) more)
               x2 (first rest*)]
-          (or (when (string? x1) x1)
-              (get m :doc)
-              (when (string? x2) x2)))
-        :else (recur (tr/read opts reader))))))
+          (some-> (or (when (string? x1) x1)
+                      (get m :doc)
+                      (when (string? x2) x2))
+                  str/trim
+                  not-empty))
+        :else (recur (try (tr/read opts reader)
+                          (catch Throwable _ eof)))))))
 
-(defn read-file
-  "Reads a file and annotates it with:
-   - :kind     (:code or :text)
-   - :ext      (extension without dot, lowercase)
-   - :metadata (optional, human-friendly string)
-   If metadata is nil and this is a Clojure source file, tries to pull the ns docstring."
-  ([^File f] (read-file f nil))
-  ([^File f metadata]
-   (let [ext (hf/file-ext f)
-         kind (if (contains? text-exts ext) :text :code)
-         content (slurp f)
-         md (or metadata
-                (when (and (= kind :code) (contains? code-exts ext))
-                  (try
-                    (some-> (extract-ns-doc content)
-                            str/trim
-                            (not-empty))
-                    (catch Throwable _ nil))))]
-     {:filename (.getName f)
-      :ext      ext
-      :kind     kind
-      :metadata md
-      :content  content})))
+  (defn read-file
+    "Reads a file and annotates it with:
+     - :kind     (:code or :text)
+     - :ext      extension (lowercase, no dot)
+     - :metadata (optional, human-friendly string). If nil and Clojure source, tries ns doc.
+     - :content  file content as UTF-8 string
+     Options:
+     - metadata (string|nil)
+     - :max-bytes (when set, skip reading content if file exceeds this size; adds :skipped? true)"
+    ([^File f] (read-file f nil))
+    ([^File f metadata] (read-file f metadata {:max-bytes nil}))
+    ([^File f metadata {:keys [max-bytes]}]
+     (let [ext (hf/file-ext f)
+           kind (if (contains? text-exts (str/lower-case (or ext ""))) :text :code)
+           size (.length f)]
+       (if (and max-bytes (number? max-bytes) (> size max-bytes))
+         {:filename (.getName f)
+          :ext      ext
+          :kind     kind
+          :metadata metadata
+          :content  (format "[[skipped: file too large (%d bytes)]]" size)
+          :skipped? true}
+         (let [content (slurp f :encoding "UTF-8")
+               md (or metadata
+                      (when (and (= kind :code) (contains? #{"clj" "cljc" "cljs"} ext))
+                        (try
+                          (extract-ns-doc content)
+                          (catch Throwable _ nil))))]
+           {:filename (.getName f)
+            :ext      ext
+            :kind     kind
+            :metadata (some-> md str/trim not-empty)
+            :content  content})))))
 
-;
-;(def text-exts
-;  "Extensions considered 'text' (no code fences). Extend as needed."
-;  #{"md" "txt"})
-;
-;(defn read-file
-;  "Reads a file and annotates it with:
-;   - :kind   (:code or :text)
-;   - :ext    (extension without dot, lowercase)
-;   - :metadata (optional, human-friendly string)
-;   Arity 1 keeps backward compatibility; arity 2 accepts metadata."
-;  ([^File f] (read-file f nil))
-;  ([^File f metadata]
-;   (let [ext (hf/file-ext f)
-;         kind (if (contains? text-exts ext) :text :code)]
-;     {:filename (.getName f)
-;      :ext      ext
-;      :kind     kind
-;      :metadata metadata
-;      :content  (slurp f)})))
+  ;; --- main flows ---
 
-;; --- main flows ---
+  (defn read-files-in-dir
+    "From a folder -> seq of enriched file maps matching patterns (defaults to [\"*.md\"])."
+    ([dir]
+     (read-files-in-dir dir ["*.md"]))
+    ([dir patterns]
+     (->> (hf/files-matching-patterns dir patterns)
+          (map #(read-file ^File % nil))
+          ;; Optional: stable sort
+          (sort-by #(-> ^File (:file %) .getCanonicalPath)))))
 
-(defn read-files-in-dir
-  "Step 1: From a folder -> seq of enriched file maps (up to (map read-file)).
-   Defaults to [\"*.md\"]."
-  ([dir]
-   (read-files-in-dir dir ["*.md"]))
-  ([dir patterns]
-   (->> (hf/files-matching-patterns dir patterns)
-        (map read-file))))                                  ;; prevent dupes when patterns overlap
+  (defn- normalize-pattern-entries
+    "Each entry is either a string pattern or {:pattern <string> :metadata <string|nil>}.
+     Returns seq of {:pattern <string> :metadata <string|nil>}."
+    [entries]
+    (map (fn [e]
+           (cond
+             (string? e) {:pattern e :metadata nil}
+             (and (map? e) (contains? e :pattern)) {:pattern (:pattern e) :metadata (:metadata e)}
+             :else (throw (ex-info "Invalid pattern entry; expected string or {:pattern :metadata}"
+                                   {:entry e}))))
+         entries))
 
+  (defn- expand-pattern-entry->files
+    "For a single normalized pattern entry, returns a seq of {:file <File> :metadata <string|nil>}."
+    [{:keys [pattern metadata]}]
+    (let [matched (hf/files-matching-path-patterns [pattern])]
+      (map (fn [^File f] {:file f :metadata metadata}) matched)))
 
-(defn- normalize-pattern-entries
-  "Takes a seq of entries where each entry is either:
-     - string pattern, or
-     - map {:pattern <string> :metadata <string>}
-   -> returns a seq of {:pattern <string> :metadata <string|nil>}."
-  [entries]
-  (map (fn [e]
-         (cond
-           (string? e) {:pattern e :metadata nil}
-           (and (map? e) (contains? e :pattern)) {:pattern (:pattern e) :metadata (:metadata e)}
-           :else (throw (ex-info "Invalid pattern entry; expected string or {:pattern :metadata}"
-                                 {:entry e}))))
-       entries))
+  (defn read-files-by-patterns
+    "Pattern-first API: entries may be strings or maps {:pattern :metadata}.
+     Returns a stable seq of enriched file maps (dedup by canonical path, keep first metadata)."
+    [entries]
+    (let [norm (normalize-pattern-entries entries)
+          by-path (reduce
+                    (fn [acc {:keys [file metadata]}]
+                      (let [k (.getCanonicalPath ^File file)]
+                        (if (contains? acc k)
+                          acc
+                          (assoc acc k (read-file file metadata)))))
+                    {}
+                    (mapcat expand-pattern-entry->files norm))]
+      ;; stable ordering by canonical path for deterministic output
+      (->> by-path
+           (into [])
+           (sort-by key)
+           (mapv val))))
 
-(defn- expand-pattern-entry->files
-  "For a single normalized pattern entry, returns a seq of {:file <File> :metadata <string|nil>}."
-  [{:keys [pattern metadata]}]
-  (let [matched (hf/files-matching-path-patterns [pattern])]
-    (map (fn [^File f] {:file f :metadata metadata}) matched)))
+  (defn aggregate-md
+    "From seq of file maps -> aggregated Markdown string.
+     Expects {:filename :ext :kind :content [:metadata optional]}.
+     Adds code fences for code files and italic metadata preamble."
+    [file-maps]
+    (->> file-maps
+         (map (fn [{:keys [filename content kind ext metadata]}]
+                (let [meta-block (when (some? metadata)
+                                   (str "_" metadata "_\n\n"))]
+                  (if (= kind :code)
+                    (format "## %s\n\n%s```%s\n%s\n```\n\n"
+                            filename (or meta-block "") (fence-lang ext) content)
+                    (format "## %s\n\n%s%s\n\n"
+                            filename (or meta-block "") content)))))
+         (apply str)))
 
-(defn read-files-by-patterns
-  "Pattern-first API: entries may be strings or maps {:pattern :metadata}.
-   Returns seq of enriched file maps including optional :metadata."
-  [entries]
-  (let [norm (normalize-pattern-entries entries)]
-    (->> norm
-         (mapcat expand-pattern-entry->files)
-         ;; If multiple patterns hit the same file, keep the first metadata found.
-         (reduce (fn [acc {:keys [file metadata]}]
-                   (let [k (.getCanonicalPath ^File file)]
-                     (if (contains? acc k)
-                       acc
-                       (assoc acc k (read-file file metadata)))))
-                 {})
-         vals)))
+  (defn aggregate-md-from-patterns
+    "entries (strings or {:pattern :metadata}) -> aggregated Markdown."
+    [entries]
+    (aggregate-md (read-files-by-patterns entries)))
 
-;; ---------- UPDATED: aggregate-md now renders :metadata if present ----------
-
-(defn aggregate-md
-  "From seq of file maps -> aggregated Markdown string.
-   Expects {:filename :ext :kind :content [:metadata optional]}."
-  [file-maps]
-  (->> file-maps
-       (map (fn [{:keys [filename content kind ext metadata]}]
-              (let [meta-block (when (some? metadata)
-                                 (str "_" metadata "_\n\n"))]
-                (if (= kind :code)
-                  (format "## %s\n\n%s```%s\n%s\n```\n\n"
-                          filename (or meta-block "") (or ext "") content)
-                  (format "## %s\n\n%s%s\n\n"
-                          filename (or meta-block "") content)))))
-       (apply str)))
-
-(defn aggregate-md-from-patterns
-  "Glue: entries (strings or {:pattern :metadata}) -> aggregated Markdown."
-  [entries]
-  (let [before (read-files-by-patterns entries)]
-    (aggregate-md before)))
-
-
-(comment
-  ;; 1 CLJ file + 2 MD files in one shot (exact paths)
-  (aggregate-md-from-patterns
+  (comment
+    ;; Examples
+    (aggregate-md-from-patterns
       [{:pattern "src/core.clj" :metadata "Code for the logic"}
-      {:pattern "docs/intro.md" :metadata "Output of the code"}
-      "docs/guide.md"])
+       {:pattern "docs/intro.md" :metadata "Output of the code"}
+       "docs/guide.md"])
 
-  ;; Using globs with a description, mixed with a single exact file:
-  (aggregate-md-from-patterns
-    (seq [{:pattern "src/**/*.clj" :metadata "All Clojure sources"}
-     {:pattern "docs/*.md" :metadata "User-facing docs"}
-     "README.md"]))
+    (aggregate-md-from-patterns
+      [{:pattern "src/**/*.clj" :metadata "All Clojure sources"}
+       {:pattern "docs/*.md" :metadata "User-facing docs"}
+       "README.md"])
 
-  (aggregate-md-from-patterns
-    (seq [{:pattern "src/**/*.clj"}
-          {:pattern "docs/*.md"}
-          "README.md"]))
-
-  )
+    (aggregate-md-from-patterns
+      [{:pattern "src/**/*.clj"}
+       {:pattern "docs/*.md"}
+       "README.md"])
+    )
