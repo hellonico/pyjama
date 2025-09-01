@@ -45,14 +45,14 @@
   ([folder]
    (files-matching-patterns folder ["*.md"])))
 
-
 (defn file-ext
-  "Returns the lowercase extension without the leading dot, or nil."
+  "Returns the lowercase extension without the leading dot, or nil.
+   Only considers a real dot in the basename (ignores dotfiles like `.env`)."
   [^File f]
-  (some-> (.getName f)
-          (str/lower-case)
-          (str/split #"\.")
-          last))
+  (let [name (.getName f)
+        i    (.lastIndexOf name ".")]
+    (when (pos? i)                         ; i > 0 → there is a dot not at start
+      (-> name (subs (inc i)) str/lower-case))))
 
 
 ;; ---------- PATH PATTERN (glob) SUPPORT ----------

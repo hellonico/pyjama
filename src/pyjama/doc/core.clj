@@ -14,6 +14,7 @@
             [pyjama.doc.utils :as u]
             [pyjama.helpers.config :as hc]
             [pyjama.helpers.file :as hf]
+            [pyjama.doc.spinner :as spinner]
             [pyjama.tools.pandoc])
   (:import (java.io File)
            (java.time ZoneId ZonedDateTime)
@@ -77,33 +78,28 @@
               :else b))]
     (reduce m* {} ms)))
 
-(defn ^:private normalize-config
-  "Ensure config has expected keys and shapes. Returns a map with:
-   - :patterns (vector of entries; strings or {:pattern :metadata})
-   - :model    (map for agent)
-   - :out-file (string or File)
-   - :system   (string|nil)
-   - :pre      (string|nil)
-   - :pdf      (boolean)
-   - :summary  (false|string|true)"
-  [cfg]
+(defn ^:private normalize-config [cfg]
   (let [patterns (vec (:patterns cfg))
-        model (or (:model cfg) {})
+        model    (or (:model cfg) {})
         out-file (:out-file cfg)
-        cfg* (merge {:patterns patterns
-                     :model    model
-                     :out-file out-file
-                     :system   (:system cfg)
-                     :pre      (:pre cfg)
-                     :pdf      (boolean (:pdf cfg))
-                     :summary  (:summary cfg)}
-                    (select-keys cfg [:some-future-keys]))]
-    cfg*))
+        spinner? (if (contains? cfg :spinner?)
+                   (boolean (:spinner? cfg))
+                   (spinner/tty?))] ;; default: show spinner in interactive TTYs
+    (merge {:patterns patterns
+            :model    model
+            :out-file out-file
+            :system   (:system cfg)
+            :pre      (:pre cfg)
+            :pdf      (boolean (:pdf cfg))
+            :summary  (:summary cfg)
+            :spinner? spinner?}
+           (select-keys cfg [:some-future-keys]))))
 
-(defn ^:private call-agent->string [agent-input]
-  (let [res (agent/call agent-input)]
+(defn ^:private call-agent->string
+  "Runs agent/call and ensures string; label is used by the spinner."
+  [spinner? label agent-input]
+  (let [res (spinner/with-spinner spinner? label #(agent/call agent-input))]
     (ensure-str res)))
-
 ;; ---------- main ----------
 
 (def default-summary-pre
@@ -132,7 +128,7 @@ Keep it concise and factual."
                              {:system system
                               :pre    pre
                               :prompt [combined-md]})
-        result-1 (call-agent->string agent-input-1)
+        result-1 (call-agent->string (:spinner? cfg*) "Generating review" agent-input-1)
         final-file (resolve-output-file out-file)]
     (io/make-parents final-file)
     (spit final-file result-1 :encoding "UTF-8")
@@ -153,7 +149,7 @@ Keep it concise and factual."
                                  {:system system
                                   :pre    sum-pre
                                   :prompt [result-1]})
-            result-2 (call-agent->string agent-input-2)
+            result-2 (call-agent->string (:spinner? cfg*) "Summarizing" agent-input-2)
             sum-file (summary-file final-file)]
         (io/make-parents sum-file)
         (spit sum-file result-2 :encoding "UTF-8")))
@@ -183,7 +179,7 @@ Keep it concise and factual."
             merged-cfg (apply deep-merge cfgs)
             final-cfg (normalize-config merged-cfg)]
         (println "Effective config:")
-        (pprint (update final-cfg :model (fn [m] (if (seq m) (keys m) m))))
+        (pprint final-cfg)
         (let [res (process-review final-cfg)]
           (println "Wrote:" (:out res))
           (when-let [s (:summary res)] (println "Wrote summary:" s))

@@ -12,14 +12,6 @@
             [pyjama.helpers.file :as hf])
   (:import (java.io File)))
 
-(ns pyjama.doc.utils
-  "Utilities for turning file patterns into aggregated Markdown used by pyjama.doc.core."
-  (:require [clojure.string :as str]
-            [clojure.tools.reader :as tr]
-            [clojure.tools.reader.reader-types :as rrt]
-            [pyjama.helpers.file :as hf])
-  (:import (java.io File)))
-
 ;; Consider expanding these via config if needed.
 (def text-exts #{"md" "txt" "rst" "adoc"})
 ;(def code-exts #{"clj" "cljc" "cljs" "edn" "java" "scala" "kt" "py" "rb" "js" "ts" "tsx" "json" "yaml" "yml" "sh" "bash" "zsh" "go" "rs" "c" "h" "cpp" "hpp" "cs" "swift"})
