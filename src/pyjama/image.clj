@@ -9,8 +9,10 @@
   more detailed error information, consider using `try-image-to-base64`
   instead."
   (:require [clojure.java.io :as io]
-            [clojure.tools.logging :as log])
-  (:import (java.nio.file Files Path Paths)
+            ;[clojure.tools.logging :as log]
+            )
+  (:import (java.io ByteArrayInputStream)
+           (java.nio.file Files Path Paths)
            (java.util Base64)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -59,7 +61,7 @@
           encoded (.encode (base64-encoder) bytes)]
       (String. encoded "UTF-8"))
     (catch Exception e
-      (log/error e "Failed to convert image to Base64: %s" path)
+      (println e "Failed to convert image to Base64: %s" path)
       nil)))
 
 (defn image-to-base64!
@@ -86,7 +88,7 @@
   (try
     (.decode (Base64/getDecoder) base64-str)
     (catch IllegalArgumentException e
-      (log/error e "Invalid Base64 input")
+      (println e "Invalid Base64 input")
       nil)))
 
 (defn base64-to-image!
@@ -108,7 +110,7 @@
       (throw (ex-info "Base64 decoding failed" {:base64 base64-str})))
     (try
       (io/make-parents out-path)
-      (io/copy (java.io.ByteArrayInputStream. bytes)
+      (io/copy (ByteArrayInputStream. bytes)
                (io/output-stream out-path))
       true
       (catch Exception e
