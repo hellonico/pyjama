@@ -37,23 +37,64 @@
 (defn ^:private has-extension? [^File f]
   (some? (hf/file-ext f)))
 
+
+(defn ^String expand-env
+  "Expand path vars in a string.
+   - Leading ~ -> user.home
+   - ${key} -> system property first, else env
+   - %VAR%  -> env (or system property)
+   - $VAR   -> env (or system property). Won't fire for ${...}.
+   Custom tokens:
+   - ${cwd.name}         -> current directory name (basename of user.dir)
+   - ${cwd.parent.name}  -> parent directory name
+   Unknown vars are left as-is."
+  [^String s]
+  (let [env        (System/getenv)
+        props      (System/getProperties)
+        home       (System/getProperty "user.home")
+        cwd        (System/getProperty "user.dir")
+        cwd-file   (io/file cwd)
+        cwd-name   (.getName cwd-file)
+        parent     (.getParentFile cwd-file)
+        parent-name (when parent (.getName parent))
+        lookup     (fn [k]
+                     (case k
+                       "cwd.name"        cwd-name
+                       "cwd.parent.name" (or parent-name "")
+                       "cwd"             cwd
+                       (or (.get props k) (get env k))))]
+    (-> s
+        ;; ~ at start
+        (str/replace #"^~(?=$|[/\\])" home)
+        ;; ${key} first (system props -> env -> custom tokens)
+        (str/replace #"\$\{([^}]+)\}"
+                     (fn [[_ k]] (or (lookup k) (str "${" k "}"))))
+        ;; %VAR% (Windows style)
+        (str/replace #"%([A-Za-z_][A-Za-z0-9_]*)%"
+                     (fn [[_ k]] (or (lookup k) (str "%" k "%"))))
+        ;; $VAR BUT NOT ${...}
+        (str/replace #"\$(?!\{)([A-Za-z_][A-Za-z0-9_]*)"
+                     (fn [[_ k]] (or (lookup k) (str "$" k)))))))
+
 (defn resolve-output-file
   "Return the actual File to write. If out-file is:
    - nil: write to ./pyjama-doc/<timestamp>.md
    - a directory: <dir>/<timestamp>.md
    - a file with no extension: treat as dir, write <path>/<timestamp>.md
-   - a file with extension: use as-is"
+   - a file with extension: use as-is
+   Supports env/sys-prop expansion in string paths."
   [out-file]
   (let [default-dir (io/file "pyjama-doc")
         f (cond
             (instance? File out-file) out-file
-            (string? out-file) (io/file out-file)
+            (string? out-file) (io/file (expand-env out-file))
             (nil? out-file) default-dir
-            :else (io/file (str out-file)))]
+            :else (io/file (expand-env (str out-file))))]
     (cond
-      (.isDirectory ^File f) (io/file f (str (timestamp-utc) ".md"))
+      (.isDirectory ^File f)         (io/file f (str (timestamp-utc) ".md"))
       (not (has-extension? ^File f)) (io/file f (str (timestamp-utc) ".md"))
-      :else f)))
+      :else                          f)))
+
 
 (defn ^:private summary-file
   "Given the primary output file, return the summary file: <same path> with `_summary.md`."
@@ -157,27 +198,40 @@ Keep it concise and factual."
      :summary (when summary (.getPath (summary-file final-file)))
      :pdf     (when pdf (str final-file ".pdf"))}))
 
-(defn arg->config
-  "Converts a CLI token into a config map.
-   - If it ends with .edn, load it as config via helpers.config.
-   - Otherwise treat it as a single pattern."
-  [arg]
-  (if (and (string? arg) (str/ends-with? (str/lower-case arg) ".edn"))
-    (hc/load-config [arg])
-    {:patterns [{:pattern arg}]}))
+(defn edn-file? [s]
+  (and (string? s)
+       (str/ends-with? (str/lower-case (str/trim s)) ".edn")))
 
 (defn -main [& args]
   (if (empty? args)
     (do
       (println "Usage:")
-      (println "  pyjama.doc.core <pattern|conf.edn> [more ...]")
+      (println "  pyjama.doc.core <conf1.edn[,conf2.edn,...]> [pattern ...]")
       (println "Examples:")
-      (println "  pyjama.doc.core src/**/*.clj README.md")
-      (println "  pyjama.doc.core ./doc.conf.edn"))
+      (println "  pyjama.doc.core ./doc.conf.edn src/**/*.clj README.md")
+      (println "  pyjama.doc.core conf.a.edn,conf.b.edn src/**/*.clj")
+      (println "  pyjama.doc.core src/**/*.clj README.md   ; no config, all patterns"))
     (try
-      (let [cfgs (map arg->config args)
-            merged-cfg (apply deep-merge cfgs)
-            final-cfg (normalize-config merged-cfg)]
+      (let [first-arg   (first args)
+            rest-args   (rest args)
+            ;; Split the first arg on commas and keep only .edn files
+            edn-files   (->> (str/split (or first-arg "") #",")
+                             (map str/trim)
+                             (remove str/blank?)
+                             (filter edn-file?))
+            using-config? (seq edn-files)
+
+            ;; Load config only if we actually found any .edn files
+            base-cfg    (if using-config?
+                          (hc/load-config edn-files)
+                          {})
+
+            ;; Patterns: if we had configs, they start from rest-args; otherwise all args are patterns
+            patterns    (if using-config? rest-args args)
+            merged-cfg  (deep-merge
+                          base-cfg
+                          {:patterns (->> patterns (map (fn [p] {:pattern p})) vec)})
+            final-cfg   (normalize-config merged-cfg)]
         (println "Effective config:")
         (pprint final-cfg)
         (let [res (process-review final-cfg)]
