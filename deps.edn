@@ -20,6 +20,9 @@
            :call
            {:main-opts ["-m" "pyjama.cli.call"]}
 
+           :doc
+           {:main-opts ["-m" "pyjama.doc.core"]}
+
            ; clj -X:agent :project-dir "." :prompt '"write clojure test cases for namespace pyjama.io.template"' :agents-edn '"test-resources/agentic/code.edn"' :id :clj-project
            :agents
            {:exec-fn pyjama.cli.agent/run-agents}

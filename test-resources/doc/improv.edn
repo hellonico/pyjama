@@ -1,6 +1,13 @@
 {
  :model    {:impl :chatgpt :temperature 1 :model "gpt-5"}
- :summary  false
+ :summary  true
+; :summary  "Generate a short summary, in two sections based on the text that follows:
+;- One section with a slide-like title and bullet points.
+;- One section with a simple 2-column table capturing key ideas and notes.
+;Keep it concise and factual. Output language should be in simple Japanese. \n
+;
+; %s"
  :out-file "docs/gen/clj"
  :system   "You are a code reviewer, and strong engineer. You give detailed code samples for functions."
- :pre      "For each of the Clojure files below, propose refactoring and enhancements to the code. \n %s"}
+ :pre      "For each of the Clojure files below, propose refactoring and enhancements to the code. \n %s"
+ }

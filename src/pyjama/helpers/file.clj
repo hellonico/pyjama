@@ -2,7 +2,7 @@
   (:require [clojure.java.io :as io]
             [clojure.string :as str])
   (:import (java.io File)
-           (java.nio.file FileSystems PathMatcher Paths)))
+           (java.nio.file FileSystems Path PathMatcher Paths)))
 
 (defn sanitize-filename [s]
   (-> (or s "output")
@@ -130,7 +130,7 @@
                  :matcher (matcher-for-rel rel)})]
     (->> specs
          (mapcat
-           (fn [{:keys [^java.nio.file.Path root ^PathMatcher matcher]}]
+           (fn [{:keys [^Path root ^PathMatcher matcher]}]
              (let [root-file (.toFile root)]
                (when (.exists root-file)
                  (for [^File f (file-seq root-file)

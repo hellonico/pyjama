@@ -10,7 +10,9 @@
             [clojure.tools.reader :as tr]
             [clojure.tools.reader.reader-types :as rrt]
             [pyjama.helpers.file :as hf])
-  (:import (java.io File)))
+  (:import (java.io File)
+           (java.nio.charset StandardCharsets)
+           (java.nio.file Files OpenOption Path StandardOpenOption)))
 
 ;; Consider expanding these via config if needed.
 (def text-exts #{"md" "txt" "rst" "adoc"})
@@ -121,25 +123,96 @@
     [{:keys [pattern metadata]}]
     (let [matched (hf/files-matching-path-patterns [pattern])]
       (map (fn [^File f] {:file f :metadata metadata}) matched)))
+  ;
+  ;(defn read-files-by-patterns
+  ;  "Pattern-first API: entries may be strings or maps {:pattern :metadata}.
+  ;   Returns a stable seq of enriched file maps (dedup by canonical path, keep first metadata)."
+  ;  [entries]
+  ;  (let [norm (normalize-pattern-entries entries)
+  ;        by-path (reduce
+  ;                  (fn [acc {:keys [file metadata]}]
+  ;                    (let [k (.getCanonicalPath ^File file)]
+  ;                      (if (contains? acc k)
+  ;                        acc
+  ;                        (assoc acc k (read-file file metadata)))))
+  ;                  {}
+  ;                  (mapcat expand-pattern-entry->files norm))]
+  ;    ;; stable ordering by canonical path for deterministic output
+  ;    (->> by-path
+  ;         (into [])
+  ;         (sort-by key)
+  ;         (mapv val))))
 
-  (defn read-files-by-patterns
-    "Pattern-first API: entries may be strings or maps {:pattern :metadata}.
-     Returns a stable seq of enriched file maps (dedup by canonical path, keep first metadata)."
-    [entries]
-    (let [norm (normalize-pattern-entries entries)
-          by-path (reduce
-                    (fn [acc {:keys [file metadata]}]
-                      (let [k (.getCanonicalPath ^File file)]
-                        (if (contains? acc k)
-                          acc
-                          (assoc acc k (read-file file metadata)))))
-                    {}
-                    (mapcat expand-pattern-entry->files norm))]
-      ;; stable ordering by canonical path for deterministic output
-      (->> by-path
-           (into [])
-           (sort-by key)
-           (mapv val))))
+;; --- helpers ---------------------------------------------------------------
+
+(def ^:private glob-chars #{"*" "?" "[" "]" "{" "}"})
+(defn- glob-pattern? [s]
+  (some #(str/includes? s %) glob-chars))
+
+(defn- existing-file? [s]
+  (try
+    (let [f (File. s)]
+      (and (.exists f) (.isFile f)))
+    (catch Exception _ false)))
+
+(defn- ensure-md-temp-file! [text]
+  ;; Create a temp .md file with the inline markdown content and return its absolute path.
+  (let [p (Files/createTempFile "inline-" ".md" (make-array java.nio.file.attribute.FileAttribute 0))
+        bytes (.getBytes (str text \newline) StandardCharsets/UTF_8)]
+    (^[Path byte/1 OpenOption/1] Files/write p bytes
+                                             (into-array StandardOpenOption
+                                                         [StandardOpenOption/WRITE
+                              StandardOpenOption/TRUNCATE_EXISTING]))
+    (-> p .toAbsolutePath str)))
+
+
+(defn- maybe-inline->temp [s]
+  ;; If s is not an existing file path and not a glob, treat it as inline markdown.
+  (if (or (existing-file? s) (glob-pattern? s))
+    s
+    (ensure-md-temp-file! s)))
+
+(defn- preprocess-inline-markdown
+  "Walks entries; if an entry is a string (or a map's :pattern) that is not a file path
+   and not a glob, writes it to a temp .md file and substitutes the temp path in place."
+  [entries]
+  (mapv
+    (fn [e]
+      (cond
+        (string? e)
+        (maybe-inline->temp e)
+
+        (map? e)
+        (let [p (:pattern e)]
+          (if (string? p)
+            (assoc e :pattern (maybe-inline->temp p))
+            e))
+
+        :else e))
+    entries))
+
+;; --- your existing function with the pre-processing added ------------------
+
+(defn read-files-by-patterns
+  "Pattern-first API: entries may be strings or maps {:pattern :metadata}.
+   Returns a stable seq of enriched file maps (dedup by canonical path, keep first metadata).
+   Pre-processing: inline markdown strings are written to temp .md files and used as patterns."
+  [entries]
+  (let [entries* (preprocess-inline-markdown entries)
+        norm (normalize-pattern-entries entries*)
+        by-path (reduce
+                  (fn [acc {:keys [file metadata]}]
+                    (let [k (.getCanonicalPath ^File file)]
+                      (if (contains? acc k)
+                        acc
+                        (assoc acc k (read-file file metadata)))))
+                  {}
+                  (mapcat expand-pattern-entry->files norm))]
+    ;; stable ordering by canonical path for deterministic output
+    (->> by-path
+         (into [])
+         (sort-by key)
+         (mapv val))))
 
   (defn aggregate-md
     "From seq of file maps -> aggregated Markdown string.
