@@ -148,12 +148,12 @@
 (def ^:private glob-chars #{"*" "?" "[" "]" "{" "}"})
 (defn- glob-pattern? [s]
   (some #(str/includes? s %) glob-chars))
-
-(defn- existing-file? [s]
-  (try
-    (let [f (File. s)]
-      (and (.exists f) (.isFile f)))
-    (catch Exception _ false)))
+;
+;(defn- existing-file? [s]
+;  (try
+;    (let [f (File. s)]
+;      (and (.exists f) (.isFile f)))
+;    (catch Exception _ false)))
 
 (defn- ensure-md-temp-file! [text]
   ;; Create a temp .md file with the inline markdown content and return its absolute path.
@@ -166,11 +166,31 @@
     (-> p .toAbsolutePath str)))
 
 
+
+;; Heuristic: signal "this is markdown text", not a path.
+(def ^:private markdown-signal-regexes
+  [#"(?m)^\s{0,3}#\s"          ;; headings
+   #"(?m)^\s{0,3}(```|~~~)"    ;; code fences
+   #"(?m)^\s{0,3}(\*|-|\+)\s"  ;; bullet lists
+   #"(?m)^\s{0,3}\d+\.\s"      ;; ordered lists
+   #"(?m)^\s{0,3}>\s"          ;; blockquotes
+   #"\[[^\]]+\]\([^)]+\)"      ;; links [text](url)
+   #"(?m)^---\s*$"             ;; hr/frontmatter fence
+   #"\|\s*[^|\n]+\s*\|"        ;; table row
+   ])
+
+(defn- looks-like-markdown? ^Boolean [^String s]
+  (or (str/includes? s "\n")
+      (some #(re-find % s) markdown-signal-regexes)
+      (and (<= 40 (count s) 4096)     ;; short paths rarely have many spaces; texts do
+           (re-find #"\s" s))))
+
 (defn- maybe-inline->temp [s]
-  ;; If s is not an existing file path and not a glob, treat it as inline markdown.
-  (if (or (existing-file? s) (glob-pattern? s))
-    s
-    (ensure-md-temp-file! s)))
+  ;; NEW: only inline when the content looks like markdown; otherwise leave it alone.
+  (if (looks-like-markdown? s)
+    (ensure-md-temp-file! s)
+    s))
+
 
 (defn- preprocess-inline-markdown
   "Walks entries; if an entry is a string (or a map's :pattern) that is not a file path
@@ -214,21 +234,64 @@
          (sort-by key)
          (mapv val))))
 
-  (defn aggregate-md
-    "From seq of file maps -> aggregated Markdown string.
-     Expects {:filename :ext :kind :content [:metadata optional]}.
-     Adds code fences for code files and italic metadata preamble."
-    [file-maps]
-    (->> file-maps
-         (map (fn [{:keys [filename content kind ext metadata]}]
-                (let [meta-block (when (some? metadata)
-                                   (str "_" metadata "_\n\n"))]
-                  (if (= kind :code)
-                    (format "## %s\n\n%s```%s\n%s\n```\n\n"
-                            filename (or meta-block "") (fence-lang ext) content)
-                    (format "## %s\n\n%s%s\n\n"
-                            filename (or meta-block "") content)))))
-         (apply str)))
+  ;(defn aggregate-md
+  ;  "From seq of file maps -> aggregated Markdown string.
+  ;   Expects {:filename :ext :kind :content [:metadata optional]}.
+  ;   Adds code fences for code files and italic metadata preamble."
+  ;  [file-maps]
+  ;  (->> file-maps
+  ;       (map (fn [{:keys [filename content kind ext metadata]}]
+  ;              (let [meta-block (when (some? metadata)
+  ;                                 (str "_" metadata "_\n\n"))]
+  ;                (if (= kind :code)
+  ;                  (format "## %s\n\n%s```%s\n%s\n```\n\n"
+  ;                          filename (or meta-block "") (fence-lang ext) content)
+  ;                  (format "## %s\n\n%s%s\n\n"
+  ;                          filename (or meta-block "") content)))))
+  ;       (apply str)))
+(def ^:private comment-prefix
+  {"clj" ";;" "cljs" ";;" "cljc" ";;"
+   "edn" ";;"
+   "py"  "#"
+   "rb"  "#"
+   "js"  "//" "ts" "//"
+   "java" "//"
+   "go" "//"
+   "c"   "//" "h" "//"
+   "cpp" "//" "hpp" "//"
+   "sh"  "#" "bash" "#"
+   "yaml" "#" "yml" "#" "toml" "#" "ini" "#"
+   "html" "<!--" "css" "/*" "sql" "--"})
+
+(defn- file-comment-line [ext filename]
+  (let [pfx (get comment-prefix ext "#")
+        sfx (cond
+              (= pfx "/*") " */"
+              (= pfx "<!--") " -->"
+              :else "")]
+    (format "%s file:%s%s" pfx filename sfx)))
+
+(defn aggregate-md
+  "From seq of file maps -> aggregated Markdown string.
+   Expects {:filename :ext :kind :content [:metadata optional]}.
+   Adds code fences for code files and italic metadata preamble.
+   For code files, embeds filename as a comment at the top."
+  [file-maps]
+  (->> file-maps
+       (map (fn [{:keys [filename content kind ext metadata]}]
+              (let [meta-block (when (some? metadata)
+                                 (str "_" metadata "_\n\n"))]
+                (if (= kind :code)
+                  (format "%s```%s\n%s\n%s\n```\n\n"
+                          (or meta-block "")
+                          (fence-lang ext)
+                          (file-comment-line ext filename)
+                          content)
+                  (format "## %s\n\n%s%s\n\n"
+                          filename (or meta-block "") content)))))
+       (apply str)))
+
+
 
   (defn aggregate-md-from-patterns
     "entries (strings or {:pattern :metadata}) -> aggregated Markdown."

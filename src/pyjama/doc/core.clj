@@ -149,9 +149,8 @@
   "Generate a short summary, in two sections based on the text that follows:
 - One section with a slide-like title and bullet points.
 - One section with a simple 2-column table capturing key ideas and notes.
-Keep it concise and factual.\n"
-
-  "%s")
+Keep it concise and factual.\n
+  %s")
 
 (defn process-review
   "Runs the main LLM call on aggregated Markdown from :patterns.
@@ -168,6 +167,7 @@ Keep it concise and factual.\n"
   [{:keys [patterns model out-file system pre pdf summary] :as cfg}]
   (let [cfg* (normalize-config cfg)
         combined-md (u/aggregate-md-from-patterns (:patterns cfg*))
+        _ (println "--- MD --- \n" combined-md "--- MD --- \n")
         agent-input-1 (merge (:model cfg*)
                              {:system system
                               :pre    pre
