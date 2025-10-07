@@ -61,7 +61,9 @@
                :stream     false
                :images     []}
               :post
-              print-generate-tokens]
+              ;print-generate-tokens
+              :response
+              ]
 
    :tags     [{} :get identity]
 
@@ -160,8 +162,16 @@
            (str "Invalid command: " command))
    (ollama url command input
            (if (or (:streaming input) (:stream input))
-             (-> command DEFAULTS last)
-             :response)))
+             ; TODO: move to DEFAULTS
+             (case command
+               :generate print-generate-tokens
+               :chat print-chat-tokens
+               :create print-create-tokens
+               :pull print-pull-tokens
+               :response)
+             (-> command DEFAULTS last))
+           ;(if (= command :generate) :response identity)
+           ))
 
   ([url command input _fn]
    (let [cmd-params (command DEFAULTS)
@@ -309,6 +319,7 @@
   "Internal call function with parameter resolution and logging"
   [params]
   (let [resolved (resolve-params params)
+        ;_ (println resolved)
         result (pyjama-call (dissoc resolved :id))]
     (log-call resolved)
     (if (:format resolved)

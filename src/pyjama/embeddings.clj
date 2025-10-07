@@ -146,7 +146,7 @@
 ;; RAG Implementation Functions
 ;; =============================================================================
 
-(defn rag-with-documents
+(defn ^{:deprecated "0.1"} rag-with-documents-ollama
   "Implement RAG (Retrieval-Augmented Generation) with documents"
   [config documents]
   (let [enhanced-context
@@ -163,8 +163,22 @@
       :prompt [enhanced-context (:question config)])
      (or (:callback config) :response))))
 
+(defn rag-with-documents-call
+  "Implement RAG (Retrieval-Augmented Generation) with documents"
+  [config documents]
+  (let [enhanced-context
+        (enhanced-context
+          (assoc
+            (select-keys config [:question :url :embedding-model :top-n])
+            :documents documents))
+        _ (when (:debug config) (println enhanced-context))]
+    (pyjama.core/call
+      (assoc
+        (select-keys config [:options :images :streaming :stream :model :pre :system])
+        :prompt [enhanced-context (:question config)]))))
+
 ;; =============================================================================
 ;; Public API
 ;; =============================================================================
 
-(def simple-rag rag-with-documents)
+(def simple-rag rag-with-documents-call)
