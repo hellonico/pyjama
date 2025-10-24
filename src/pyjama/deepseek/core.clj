@@ -1,5 +1,6 @@
 (ns pyjama.deepseek.core
   (:require [cheshire.core :as json]
+            [pyjama.utils :as utils]
             [secrets.core]
             [clj-http.client :as client]))
 
@@ -11,22 +12,26 @@
     (if (= status 200)
       (let [parsed-body (json/parse-string body true)]
         (when-let [content (get-in parsed-body [:choices 0 :message :content])]
-          (println "Success:" content)))
+          ;(println "Success:" content)
+          content
+          ))
       (println "Error:" body))))
 
 (defn api-key[]
   (secrets.core/get-secret :deepseek-api-key))
 
 (defn call
-  [{:keys [model prompt]}]
+  [_config]
   (let [url "https://api.deepseek.com/chat/completions"     ; Replace with actual endpoint
         headers {"Authorization" (str "Bearer " (api-key))
                  "Content-Type"  "application/json"}
-        body {:prompt      prompt
+        config (utils/templated-prompt _config)
+        {:keys [model prompt stream system]} config
+        body {;:prompt      prompt
               :model       model
-              :messages    [{:role "system" :content "You are a helpful assistant."},
+              :messages    [{:role "system" :content (or system "You are a helpful assistant.")},
                             {:role :user :content prompt}]
-              :stream      false
+              :stream      stream
               :temperature 0.7
               }]
     (handle-response
