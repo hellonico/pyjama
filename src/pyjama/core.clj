@@ -1,20 +1,20 @@
 (ns pyjama.core
   (:require
-    ;; External dependencies
-    [cheshire.core :as json]
-    [clj-http.client :as client]
-    [clojure.core.async :as async]
-    [clojure.edn :as edn]
-    [clojure.string :as str]
-    [clojure.java.io :as io]
+   ;; External dependencies
+   [cheshire.core :as json]
+   [clj-http.client :as client]
+   [clojure.core.async :as async]
+   [clojure.edn :as edn]
+   [clojure.string :as str]
+   [clojure.java.io :as io]
 
-    ;; Internal dependencies
-    [pyjama.deepseek.core]
-    [pyjama.openrouter.core]
-    [pyjama.chatgpt.core]
-    [pyjama.claude.core]
-    [pyjama.utils :as utils]
-    [pyjama.utils])
+   ;; Internal dependencies
+   [pyjama.deepseek.core]
+   [pyjama.openrouter.core]
+   [pyjama.chatgpt.core]
+   [pyjama.claude.core]
+   [pyjama.utils :as utils])
+
 
   (:import [java.time LocalDateTime]
            [java.time.format DateTimeFormatter]))
@@ -62,8 +62,7 @@
                :images     []}
               :post
               ;print-generate-tokens
-              :response
-              ]
+              :response]
 
    :tags     [{} :get identity]
 
@@ -188,8 +187,7 @@
          response (try (client/request options)
                        (catch Exception e
                          (println "Error while calling:" url " and model:" (:model params))
-                         (throw e)
-                         ))
+                         (throw e)))
          body (:body response)]
      (if streaming?
        ((partial stream _fn) body)
@@ -232,8 +230,8 @@
 ;; =============================================================================
 
 (defmulti pyjama-call
-          "Multimethod for different Pyjama implementations"
-          :impl)
+  "Multimethod for different Pyjama implementations"
+  :impl)
 
 (defmethod pyjama-call :chatgpt
   [params]
@@ -332,8 +330,8 @@
   (let [entry (get @agents-registry (:id params))]
     (if (vector? entry)
       (reduce
-        (fn [prev-output step-id]
-          (call* (merge params {:prompt prev-output :id step-id})))
-        (:prompt (utils/templated-prompt params))
-        entry)
+       (fn [prev-output step-id]
+         (call* (merge params {:prompt prev-output :id step-id})))
+       (:prompt (utils/templated-prompt params))
+       entry)
       (call* params))))

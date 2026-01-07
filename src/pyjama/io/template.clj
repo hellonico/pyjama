@@ -1,97 +1,100 @@
 (ns pyjama.io.template
- (:require [clojure.string :as str]
-           [clojure.walk :as walk]))
+  (:require [clojure.string :as str]
+            [clojure.walk :as walk]))
 
 ;; ----------------------------------------------------------------------------
 ;; Tokens & helpers
 ;; ----------------------------------------------------------------------------
 ;; add near the top
 (def ^:private ops-set
- #{"+" "-" "*" "/" "max" "min" ">" "<" ">=" "<=" "=" "and" "or" "not" "?" "default"})
+  #{"+" "-" "*" "/" "max" "min" ">" "<" ">=" "<=" "=" "and" "or" "not" "?" "default"})
 
 
 (def token-re #"\{\{([^}]+)\}\}")
 (def single-token-re #"^\s*\{\{([^}]+)\}\}\s*$")
 
 (defn- kwish [s]
- (cond
-  (keyword? s) s
-  (and (string? s) (str/starts-with? s ":")) (keyword (subs s 1))
-  :else s))
+  (cond
+    (keyword? s) s
+    (and (string? s) (str/starts-with? s ":")) (keyword (subs s 1))
+    :else s))
 
 (defn- kwify [x]
- (cond
-  (keyword? x) x
-  (string? x) (keyword x)
-  :else x))
+  (cond
+    (keyword? x) x
+    (string? x) (keyword x)
+    :else x))
 
 (defn- parse-bracket-path
- "Turn e.g.
+  "Turn e.g.
     trace[-2].obs.files
     trace[-2][:obs][:files]
     [:trace -2 :obs :files]
     [:ctx.best-score]
   into a seq of segments: [\"trace\" -2 :obs :files]"
- [s]
- (let [s (str/trim (str s))]
-  (if (str/starts-with? s "[")
-   ;; EDN vector form like [:ctx.best-score] or [:trace -1 :obs :final-score]
-   (let [v (read-string s)]
-    (->> v
-         (mapcat
-          (fn [p]
-           (cond
-            (integer? p) [p]
+  [s]
+  (let [s (str/trim (str s))]
+    (if (str/starts-with? s "[")
+      ;; EDN vector form like [:ctx.best-score] or [:trace -1 :obs :final-score]
+      (let [v (read-string s)]
+        (->> v
+             (mapcat
+              (fn [p]
+                (cond
+                  (integer? p) [p]
 
-            (keyword? p)
-            (let [nm (name p)]
-             (if (clojure.string/includes? nm ".")
-              ;; split :ctx.best-score -> [:ctx :best-score]
-              (mapv keyword (clojure.string/split nm #"\."))
-              [p]))
+                  (keyword? p)
+                  (let [nm (name p)]
+                    (if (clojure.string/includes? nm ".")
+                      ;; split :ctx.best-score -> [:ctx :best-score]
+                      (mapv keyword (clojure.string/split nm #"\."))
+                      [p]))
 
-            (string? p)
-            (cond
-             (re-matches #"-?\d+" p) [(Integer/parseInt p)]
-             (clojure.string/includes? p ".")
-             ;; split "trace.obs" -> ["trace" "obs"]
-             (clojure.string/split p #"\.")
-             :else [p])
+                  (string? p)
+                  (cond
+                    (re-matches #"-?\d+" p) [(Integer/parseInt p)]
+                    (clojure.string/includes? p ".")
+                    ;; split "trace.obs" -> ["trace" "obs"]
+                    (clojure.string/split p #"\.")
+                    :else [p])
 
-            :else [p])))
-         vec))
-   ;; mixed dot/bracket form like trace[-1].obs.final-score
-   (let [s (-> s (clojure.string/replace #"\]" "")
-               (clojure.string/replace #"\[" "."))
-         parts (->> (clojure.string/split s #"\.")
-                    (remove clojure.string/blank?))]
-    (map (fn [p]
-          (cond
-           (re-matches #"-?\d+" p) (Integer/parseInt p)
-           (clojure.string/starts-with? p ":") (keyword (subs p 1))
-           :else p))
-         parts)))))
+                  :else [p])))
+             vec))
+      ;; mixed dot/bracket form like trace[-1].obs.final-score
+      (let [s (-> s (clojure.string/replace #"\]" "")
+                  (clojure.string/replace #"\[" "."))
+            parts (->> (clojure.string/split s #"\.")
+                       (remove clojure.string/blank?))]
+        (map (fn [p]
+               (cond
+                 (re-matches #"-?\d+" p) (Integer/parseInt p)
+                 (clojure.string/starts-with? p ":") (keyword (subs p 1))
+                 :else p))
+             parts)))))
 
 (defn- head-is? [h k]
- (or (= h k) (= h (keyword k))))
+  (or (= h k) (= h (keyword k))))
 
 
 (defn- resolve-trace [ctx idx-or-step ks]
- (let [tr (:trace ctx)]
-  (cond
-   (keyword? idx-or-step)                      ;; e.g. :play-candidate or :compile
-   (let [i (->> tr
-                (map-indexed vector)
-                (keep (fn [[i m]] (when (= (:step m) idx-or-step) i)))
-                last)]
-    (when (some? i)
-     (get-in (nth tr i) (mapv kwish ks))))
+  (let [tr (:trace ctx)]
+    (cond
+      (string? idx-or-step)
+      (recur ctx (keyword idx-or-step) ks)
 
-   :else                                       ;; existing numeric behavior
-   (let [n (count tr)
-         i (if (neg? idx-or-step) (+ n idx-or-step) idx-or-step)]
-    (when (and (>= i 0) (< i n))
-     (get-in (nth tr i) (mapv kwish ks)))))))
+      (keyword? idx-or-step)                      ;; e.g. :play-candidate or :compile
+      (let [i (->> tr
+                   (map-indexed vector)
+                   (keep (fn [[i m]] (when (= (:step m) idx-or-step) i)))
+                   last)]
+        (when (some? i)
+          (get-in (nth tr i) (mapv kwish ks))))
+
+      :else                                       ;; existing numeric behavior
+      (let [n (count tr)
+            i (if (neg? idx-or-step) (+ n idx-or-step) idx-or-step)]
+        (when (and (>= i 0) (< i n))
+          (get-in (nth tr i) (mapv kwish ks)))))))
 
 
 ;; ----------------------------------------------------------------------------
@@ -99,59 +102,59 @@
 ;; ----------------------------------------------------------------------------
 (declare eval-expr)
 (defn- resolve-token* [ctx params token]
- (let [content (str/trim token)]
-  (cond
-   ;; dot/bracket/EDN style
-   (re-find #"\[|\." content)
-   (let [parts (vec (parse-bracket-path content))
-         h (first parts)]
+  (let [content (str/trim token)]
     (cond
-     ;; Operator vector like [:> a b] or [:max ...]
-     (and (keyword? h) (contains? ops-set (name h)))
-     (let [op (name h)
-           args (->> (rest parts) (map pr-str) (str/join " "))]
-      (eval-expr ctx params (str op " " args)))
+      ;; dot/bracket/EDN style
+      (re-find #"\[|\." content)
+      (let [parts (vec (parse-bracket-path content))
+            h (first parts)]
+        (cond
+          ;; Operator vector like [:> a b] or [:max ...]
+          (and (keyword? h) (contains? ops-set (name h)))
+          (let [op (name h)
+                args (->> (rest parts) (map pr-str) (str/join " "))]
+            (eval-expr ctx params (str op " " args)))
 
-     ;; Normalized heads
-     (head-is? h "obs")
-     (let [ks (map kwify (rest parts))]
-      (get-in ctx (into [:last-obs] ks)))
+          ;; Normalized heads
+          (head-is? h "obs")
+          (let [ks (map kwify (rest parts))]
+            (get-in ctx (into [:last-obs] ks)))
 
-     (head-is? h "prompt") (:prompt ctx)
+          (head-is? h "prompt") (:prompt ctx)
 
-     (head-is? h "params")
-     (get-in params (map kwify (rest parts)))
+          (head-is? h "params")
+          (get-in params (map kwify (rest parts)))
 
-     (head-is? h "trace")
-     (let [idx (second parts)
-           ks (map kwify (drop 2 parts))]
-      (resolve-trace ctx idx ks))
+          (head-is? h "trace")
+          (let [idx (second parts)
+                ks (map kwify (drop 2 parts))]
+            (resolve-trace ctx idx ks))
 
-     (head-is? h "ctx")
-     (get-in ctx (map kwify (rest parts)))
+          (head-is? h "ctx")
+          (get-in ctx (map kwify (rest parts)))
 
-     ;; fallback into ctx using keywordized path
-     :else (get-in ctx (map kwify parts))))
+          ;; fallback into ctx using keywordized path
+          :else (get-in ctx (map kwify parts))))
 
-   ;; spaced style: "trace -2 :obs :text"
-   (str/starts-with? content "trace ")
-   (let [[_ idx & ks] (str/split content #"\s+")]
-    (resolve-trace ctx (Integer/parseInt idx) (map kwify ks)))
+      ;; spaced style: "trace -2 :obs :text"
+      (str/starts-with? content "trace ")
+      (let [[_ idx & ks] (str/split content #"\s+")]
+        (resolve-trace ctx (Integer/parseInt idx) (map kwify ks)))
 
-   ;; simple whole-token shortcuts
-   (= content "obs") (:last-obs ctx)
-   (= content "prompt") (:prompt ctx)
-   (= content "params") params
-   (= content "ctx") ctx
+      ;; simple whole-token shortcuts
+      (= content "obs") (:last-obs ctx)
+      (= content "prompt") (:prompt ctx)
+      (= content "params") params
+      (= content "ctx") ctx
 
-   ;; ":obs :text" spaced keywords, read under last-obs
-   (str/starts-with? content ":")
-   (get-in ctx (into [:last-obs]
-                     (map (comp kwify #(subs % 1))
-                          (str/split content #"\s+"))))
+      ;; ":obs :text" spaced keywords, read under last-obs
+      (str/starts-with? content ":")
+      (get-in ctx (into [:last-obs]
+                        (map (comp kwify #(subs % 1))
+                             (str/split content #"\s+"))))
 
-   ;; fallback: treat as key in ctx
-   :else (get ctx (keyword content)))))
+      ;; fallback: treat as key in ctx
+      :else (get ctx (keyword content)))))
 
 
 ;; ----------------------------------------------------------------------------
@@ -159,47 +162,47 @@
 ;; ----------------------------------------------------------------------------
 
 (defn- parse-filter [s]
- ;; "truncate:50"     -> ["truncate" ["50"]]
- ;; "slug"            -> ["slug"      []]
- ;; "sanitize,lower"  -> ["sanitize"  ["lower"]]   ; (rare, but we support comma args)
- (let [s (clojure.string/trim (str s))
-       ;; split on the FIRST ":" only, so arg strings can contain colons
-       parts (clojure.string/split s #":" 2)
-       name (clojure.string/trim (first parts))
-       arg-str (second parts)
-       args (if (seq arg-str)
-             (->> (clojure.string/split arg-str #",")
-                  (map clojure.string/trim)
-                  (remove clojure.string/blank?)
-                  vec)
-             [])]
-  [name args]))
+  ;; "truncate:50"     -> ["truncate" ["50"]]
+  ;; "slug"            -> ["slug"      []]
+  ;; "sanitize,lower"  -> ["sanitize"  ["lower"]]   ; (rare, but we support comma args)
+  (let [s (clojure.string/trim (str s))
+        ;; split on the FIRST ":" only, so arg strings can contain colons
+        parts (clojure.string/split s #":" 2)
+        name (clojure.string/trim (first parts))
+        arg-str (second parts)
+        args (if (seq arg-str)
+               (->> (clojure.string/split arg-str #",")
+                    (map clojure.string/trim)
+                    (remove clojure.string/blank?)
+                    vec)
+               [])]
+    [name args]))
 
 (defn- apply-filter [v [fname args]]
- (case fname
-  ;; filename-safe-ish slug
-  "slug" (-> (str v)
-             (str/lower-case)
-             (str/replace #"[^\p{Alnum}]+" "-")
-             (str/replace #"^-+|-+$" "")
-             (str/replace #"-{2,}" "-"))
-  ;; keep letters, digits, _ and -
-  "sanitize" (-> (str v)
-                 (str/replace #"\s+" "_")
-                 (str/replace #"[^A-Za-z0-9_\-]" ""))
-  "lower" (some-> v str str/lower-case)
-  "upper" (some-> v str str/upper-case)
-  "trim" (some-> v str str/trim)
-  "truncate" (let [n (some-> (first args) Integer/parseInt)
-                   s (str v)]
-              (if (and n (> (count s) n))
-               (subs s 0 n)
-               s))
-  ;; default: unknown filter = no-op
-  v))
+  (case fname
+    ;; filename-safe-ish slug
+    "slug" (-> (str v)
+               (str/lower-case)
+               (str/replace #"[^\p{Alnum}]+" "-")
+               (str/replace #"^-+|-+$" "")
+               (str/replace #"-{2,}" "-"))
+    ;; keep letters, digits, _ and -
+    "sanitize" (-> (str v)
+                   (str/replace #"\s+" "_")
+                   (str/replace #"[^A-Za-z0-9_\-]" ""))
+    "lower" (some-> v str str/lower-case)
+    "upper" (some-> v str str/upper-case)
+    "trim" (some-> v str str/trim)
+    "truncate" (let [n (some-> (first args) Integer/parseInt)
+                     s (str v)]
+                 (if (and n (> (count s) n))
+                   (subs s 0 n)
+                   s))
+    ;; default: unknown filter = no-op
+    v))
 
 (defn- apply-filters [v filters]
- (reduce apply-filter v filters))
+  (reduce apply-filter v filters))
 
 ;; ----------------------------------------------------------------------------
 ;; Tiny expression evaluator (prefix ops like + - * / max min > < >= <= = and or not ? default)
@@ -207,93 +210,93 @@
 
 ;; Split args by whitespace but respect [], "" pairs.
 (defn- tokenize-args [s]
- (let [n (count s)]
-  (loop [i 0 buf "" depth 0 inq? false out []]
-   (if (>= i n)
-    (cond-> out (pos? (count buf)) (conj buf))
-    (let [ch (.charAt ^String s i)]
-     (cond
-      (= ch \\ "") (recur (inc i) (str buf ch) depth (not inq?) out)
-      inq? (recur (inc i) (str buf ch) depth inq? out)
-      (= ch \[) (recur (inc i) (str buf ch) (inc depth) inq? out)
-      (= ch \]) (recur (inc i) (str buf ch) (dec depth) inq? out)
-      (and (zero? depth) (Character/isWhitespace ch))
-      (recur (inc i) "" depth inq? (cond-> out (pos? (count buf)) (conj buf)))
-      :else (recur (inc i) (str buf ch) depth inq? out)))))))
+  (let [n (count s)]
+    (loop [i 0 buf "" depth 0 inq? false out []]
+      (if (>= i n)
+        (cond-> out (pos? (count buf)) (conj buf))
+        (let [ch (.charAt ^String s i)]
+          (cond
+            (= ch \\ "") (recur (inc i) (str buf ch) depth (not inq?) out)
+            inq? (recur (inc i) (str buf ch) depth inq? out)
+            (= ch \[) (recur (inc i) (str buf ch) (inc depth) inq? out)
+            (= ch \]) (recur (inc i) (str buf ch) (dec depth) inq? out)
+            (and (zero? depth) (Character/isWhitespace ch))
+            (recur (inc i) "" depth inq? (cond-> out (pos? (count buf)) (conj buf)))
+            :else (recur (inc i) (str buf ch) depth inq? out)))))))
 
 (defn- parse-literal [s]
- (cond
-  (nil? s) nil
-  (re-matches #"^-?\d+$" s) (Long/parseLong s)
-  (re-matches #"^-?\d+\.\d+$" s) (Double/parseDouble s)
-  (and (>= (count s) 2) (= (first s) \") (= (last s) \")) (subs s 1 (dec (count s))) ;; "string"
-  (str/starts-with? s ":") (keyword (subs s 1))
-  :else s))
+  (cond
+    (nil? s) nil
+    (re-matches #"^-?\d+$" s) (Long/parseLong s)
+    (re-matches #"^-?\d+\.\d+$" s) (Double/parseDouble s)
+    (and (>= (count s) 2) (= (first s) \") (= (last s) \")) (subs s 1 (dec (count s))) ;; "string"
+    (str/starts-with? s ":") (keyword (subs s 1))
+    :else s))
 
 (defn- coerce-num [x]
- (cond
-  (number? x) (double x)
-  (string? x) (try (Double/parseDouble x) (catch Exception _ ##NaN))
-  :else ##NaN))
+  (cond
+    (number? x) (double x)
+    (string? x) (try (Double/parseDouble x) (catch Exception _ ##NaN))
+    :else ##NaN))
 
 (defn- truthy? [v]
- (cond
-  (nil? v) false
-  (string? v) (not (str/blank? v))
-  (sequential? v) (boolean (seq v))
-  (map? v) (boolean (seq v))
-  :else (boolean v)))
+  (cond
+    (nil? v) false
+    (string? v) (not (str/blank? v))
+    (sequential? v) (boolean (seq v))
+    (map? v) (boolean (seq v))
+    :else (boolean v)))
 
 (defn- eval-expr [ctx params expr]
- ;; expr like: "+ [:ctx.id] 1"  or  "? (> [:obs.final-score] [:ctx.best-score]) \"ok\" \"no\""
- (let [tokens (tokenize-args expr)
-       [op & args] tokens
-       ;; resolve each arg through resolve-token* if it looks like a path or {{...}}
-       resolve-arg (fn [a]
-                    (let [a (str/trim a)]
-                     (cond
-                      (re-matches #"\{\{.*\}\}" a)
-                      (let [[_ inner] (re-matches #"\{\{(.*)\}\}" a)]
-                       (resolve-token* ctx params (str/trim inner)))
+  ;; expr like: "+ [:ctx.id] 1"  or  "? (> [:obs.final-score] [:ctx.best-score]) \"ok\" \"no\""
+  (let [tokens (tokenize-args expr)
+        [op & args] tokens
+        ;; resolve each arg through resolve-token* if it looks like a path or {{...}}
+        resolve-arg (fn [a]
+                      (let [a (str/trim a)]
+                        (cond
+                          (re-matches #"\{\{.*\}\}" a)
+                          (let [[_ inner] (re-matches #"\{\{(.*)\}\}" a)]
+                            (resolve-token* ctx params (str/trim inner)))
 
-                      (str/starts-with? a "[") (resolve-token* ctx params a)
-                      (or (re-find #"[.:]" a)
-                          (re-find #"\[" a)) (resolve-token* ctx params a)
-                      :else (parse-literal a))))
-       vs (map resolve-arg args)]
-  (case op
-   ;; math
-   "+" (reduce (fn [acc v] (+ acc (coerce-num v))) 0.0 vs)
-   "*" (reduce (fn [acc v] (* acc (coerce-num v))) 1.0 vs)
-   "-" (if (= 1 (count vs))
-        (- (coerce-num (first vs)))
-        (reduce (fn [acc v] (- acc (coerce-num v)))
-                (coerce-num (first vs)) (rest vs)))
-   "/" (reduce (fn [acc v] (/ acc (coerce-num v)))
-               (coerce-num (first vs)) (rest vs))
-   "max" (apply max (map coerce-num vs))
-   "min" (apply min (map coerce-num vs))
+                          (str/starts-with? a "[") (resolve-token* ctx params a)
+                          (or (re-find #"[.:]" a)
+                              (re-find #"\[" a)) (resolve-token* ctx params a)
+                          :else (parse-literal a))))
+        vs (map resolve-arg args)]
+    (case op
+      ;; math
+      "+" (reduce (fn [acc v] (+ acc (coerce-num v))) 0.0 vs)
+      "*" (reduce (fn [acc v] (* acc (coerce-num v))) 1.0 vs)
+      "-" (if (= 1 (count vs))
+            (- (coerce-num (first vs)))
+            (reduce (fn [acc v] (- acc (coerce-num v)))
+                    (coerce-num (first vs)) (rest vs)))
+      "/" (reduce (fn [acc v] (/ acc (coerce-num v)))
+                  (coerce-num (first vs)) (rest vs))
+      "max" (apply max (map coerce-num vs))
+      "min" (apply min (map coerce-num vs))
 
-   ;; comparisons / logic
-   ">" (let [[a b] vs] (> (coerce-num a) (coerce-num b)))
-   "<" (let [[a b] vs] (< (coerce-num a) (coerce-num b)))
-   ">=" (let [[a b] vs] (>= (coerce-num a) (coerce-num b)))
-   "<=" (let [[a b] vs] (<= (coerce-num a) (coerce-num b)))
-   "=" (let [[a b] vs] (= a b))
-   "and" (every? truthy? vs)
-   "or" (some truthy? vs)
-   "not" (not (truthy? (first vs)))
+      ;; comparisons / logic
+      ">" (let [[a b] vs] (> (coerce-num a) (coerce-num b)))
+      "<" (let [[a b] vs] (< (coerce-num a) (coerce-num b)))
+      ">=" (let [[a b] vs] (>= (coerce-num a) (coerce-num b)))
+      "<=" (let [[a b] vs] (<= (coerce-num a) (coerce-num b)))
+      "=" (let [[a b] vs] (= a b))
+      "and" (every? truthy? vs)
+      "or" (some truthy? vs)
+      "not" (not (truthy? (first vs)))
 
-   ;; default: return first arg if present & non-blank, else second
-   "default" (let [[v dflt] vs
-                   v* (if (string? v) (str/trim v) v)]
-              (if (or (nil? v*) (and (string? v*) (str/blank? v*))) dflt v))
+      ;; default: return first arg if present & non-blank, else second
+      "default" (let [[v dflt] vs
+                      v* (if (string? v) (str/trim v) v)]
+                  (if (or (nil? v*) (and (string? v*) (str/blank? v*))) dflt v))
 
-   ;; ternary: ? cond a b
-   "?" (let [[c a b] vs] (if (truthy? c) a b))
+      ;; ternary: ? cond a b
+      "?" (let [[c a b] vs] (if (truthy? c) a b))
 
-   ;; unknown op → return original expr (don’t crash)
-   expr)))
+      ;; unknown op → return original expr (don’t crash)
+      expr)))
 
 ;; ----------------------------------------------------------------------------
 ;; Expressions + Filters + Resolution
@@ -301,80 +304,80 @@
 
 ;; replace resolve-with-filters with this version
 (defn- resolve-with-filters [ctx params token]
- (let [parts (->> (clojure.string/split token #"\|")
-                  (map clojure.string/trim)
-                  (remove clojure.string/blank?))
-       head (first parts)
-       filters (map parse-filter (rest parts))
-       ;; decide expression vs path by *first token*, not regex
-       head-tokens (tokenize-args head)
-       op (first head-tokens)
-       v0 (if (and op (ops-set op))
-           (eval-expr ctx params head)                      ;; arithmetic/logic/default/? expression
-           (resolve-token* ctx params head))]               ;; normal path (ctx/params/trace/etc.)
-  (apply-filters v0 filters)))
+  (let [parts (->> (clojure.string/split token #"\|")
+                   (map clojure.string/trim)
+                   (remove clojure.string/blank?))
+        head (first parts)
+        filters (map parse-filter (rest parts))
+        ;; decide expression vs path by *first token*, not regex
+        head-tokens (tokenize-args head)
+        op (first head-tokens)
+        v0 (if (and op (ops-set op))
+             (eval-expr ctx params head)                      ;; arithmetic/logic/default/? expression
+             (resolve-token* ctx params head))]               ;; normal path (ctx/params/trace/etc.)
+    (apply-filters v0 filters)))
 
 ;; ----------------------------------------------------------------------------
 ;; Rendering (string-mode vs value-mode)
 ;; ----------------------------------------------------------------------------
 
 (defn render-template
- "Render a STRING by replacing all {{...}} with stringified values."
- [tpl ctx params]
- (str/replace tpl token-re
-              (fn [[_ t]]
-               (let [v (resolve-with-filters ctx params t)]
-                (cond
-                 (nil? v) ""
-                 (string? v) v
-                 :else (pr-str v))))))
+  "Render a STRING by replacing all {{...}} with stringified values."
+  [tpl ctx params]
+  (str/replace tpl token-re
+               (fn [[_ t]]
+                 (let [v (resolve-with-filters ctx params t)]
+                   (cond
+                     (nil? v) ""
+                     (string? v) v
+                     :else (pr-str v))))))
 
 (defn- render-any
- "If s is exactly one {{token}}, return the RAW VALUE (after filters).
+  "If s is exactly one {{token}}, return the RAW VALUE (after filters).
  Otherwise, treat as a templated string and return a STRING."
- [s ctx params]
- (if-let [[_ expr] (re-matches single-token-re s)]
-  (resolve-with-filters ctx params expr)
-  (render-template s ctx params)))
+  [s ctx params]
+  (if-let [[_ expr] (re-matches single-token-re s)]
+    (resolve-with-filters ctx params expr)
+    (render-template s ctx params)))
 
 (defn render-value [v ctx params]
- (if (and (string? v) (re-find token-re v))
-  (render-any v ctx params)                                 ;; <— IMPORTANT: use render-any so single-token returns RAW
-  v))
+  (if (and (string? v) (re-find token-re v))
+    (render-any v ctx params)                                 ;; <— IMPORTANT: use render-any so single-token returns RAW
+    v))
 
 (defn- op-head? [h]
- (cond
-  (string? h) (contains? ops-set h)
-  (keyword? h) (contains? ops-set (name h))
-  :else false))
+  (cond
+    (string? h) (contains? ops-set h)
+    (keyword? h) (contains? ops-set (name h))
+    :else false))
 
 (defn- edn-expr->string [v]
- ;; Turn [:<= [:ctx :iterations] 0] into "<= [:ctx :iterations] 0"
- (let [h (first v)
-       op (if (keyword? h) (name h) (str h))]
-  (str op " "
-       (->> (rest v)
-            (map (fn [a]
-                  ;; Keep vectors as EDN (so resolve-token* can read them),
-                  ;; strings as-is, everything else via pr-str.
-                  (cond
-                   (vector? a) (pr-str a)
-                   (string? a) a
-                   :else (pr-str a))))
-            (clojure.string/join " ")))))
+  ;; Turn [:<= [:ctx :iterations] 0] into "<= [:ctx :iterations] 0"
+  (let [h (first v)
+        op (if (keyword? h) (name h) (str h))]
+    (str op " "
+         (->> (rest v)
+              (map (fn [a]
+                     ;; Keep vectors as EDN (so resolve-token* can read them),
+                     ;; strings as-is, everything else via pr-str.
+                     (cond
+                       (vector? a) (pr-str a)
+                       (string? a) a
+                       :else (pr-str a))))
+              (clojure.string/join " ")))))
 
 
 (defn render-args-deep [m ctx params]
- (walk/postwalk
-  (fn [x]
-   (cond
-    ;; NEW: evaluate operator vectors like [:<= ...], [:and ...], [:? ...]
-    (and (vector? x) (seq x) (op-head? (first x)))
-    (eval-expr ctx params (edn-expr->string x))
+  (walk/postwalk
+   (fn [x]
+     (cond
+       ;; NEW: evaluate operator vectors like [:<= ...], [:and ...], [:? ...]
+       (and (vector? x) (seq x) (op-head? (first x)))
+       (eval-expr ctx params (edn-expr->string x))
 
-    ;; existing behavior for strings
-    (string? x)
-    (render-any x ctx params)
+       ;; existing behavior for strings
+       (string? x)
+       (render-any x ctx params)
 
-    :else x))
-  (or m {})))
+       :else x))
+   (or m {})))
