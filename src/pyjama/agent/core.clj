@@ -2,6 +2,7 @@
   (:require
    [clojure.core :as core]
    [clojure.edn :as edn]
+   [clojure.java.io :as io]
    [clojure.string :as str]
    [pyjama.core]
    [pyjama.io.template]
@@ -73,8 +74,22 @@
 (defn- looks-like-template? [s]
   (boolean (re-find pyjama.io.template/token-re s)))
 
-(defn render-step-prompt [step ctx params]
-  (let [tpl (:prompt step)]
+(defn- kebab-to-snake [s]
+  (str/replace (name s) "-" "_"))
+
+(defn- load-prompt [p step-id]
+  (if (and (string? p) (str/starts-with? p "resource:"))
+    (let [path-suffix (subs p 9) ;; "resource:".length
+          path (if (= "dynamic" path-suffix)
+                 (str "prompts/" (kebab-to-snake step-id) ".md")
+                 path-suffix)]
+      (if-let [res (io/resource path)]
+        (slurp res)
+        (throw (ex-info (str "Prompt resource not found: " path) {:path path}))))
+    p))
+
+(defn render-step-prompt [step-id step ctx params]
+  (let [tpl (load-prompt (:prompt step) step-id)]
     (cond
       ;; Step has a literal prompt and it isn't templated: return as-is.
       (and (string? tpl) (not (looks-like-template? tpl)) (not (str/blank? tpl)))
@@ -242,7 +257,7 @@
               ;    (println "STEP" step-id "prompt-preview:"
               ;             (:prompt step))))
               ;(subs (:prompt step) 0 (min 60 (count (:prompt step)))))))
-                final-prompt (render-step-prompt step ctx params)
+                final-prompt (render-step-prompt step-id step ctx params)
                 ;; only pass LLM-relevant keys from step
               ;llm-step (apply dissoc step step-non-llm-keys)
                 llm-step (apply dissoc step step-non-llm-keys)
