@@ -197,29 +197,30 @@
 ;; Agent Registry and Configuration
 ;; =============================================================================
 
+(defn- deep-merge
+  "Recursively merges maps."
+  [& maps]
+  (if (every? map? maps)
+    (apply merge-with deep-merge maps)
+    (last maps)))
+
 (defn load-agents
-  "Load agent configuration from:
-   1. agents.edn specified in system property
+  "Load and merge agent configuration from (in order of precedence):
+   1. agents.edn specified in system property (highest)
    2. agents.edn in the current working directory
-   3. agents.edn found in the classpath
-   Returns an EDN map or empty map if not found."
+   3. agents.edn found in the classpath (lowest)
+   Returns a merged EDN map."
   []
   (let [prop-path (System/getProperty "agents.edn")
         prop-file (when prop-path (io/file prop-path))
         cwd-file (io/file "agents.edn")
-        cp-resource (io/resource "agents.edn")]
-    (cond
-      (and prop-file (.exists prop-file))
-      (edn/read-string (slurp prop-file))
+        cp-resource (io/resource "agents.edn")
 
-      (.exists cwd-file)
-      (edn/read-string (slurp cwd-file))
-
-      cp-resource
-      (edn/read-string (slurp cp-resource))
-
-      :else
-      {})))
+        configs (keep identity
+                      [(when cp-resource (edn/read-string (slurp cp-resource)))
+                       (when (.exists cwd-file) (edn/read-string (slurp cwd-file)))
+                       (when (and prop-file (.exists prop-file)) (edn/read-string (slurp prop-file)))])]
+    (apply deep-merge configs)))
 
 (def agents-registry
   "Lazy-loaded agents registry"
