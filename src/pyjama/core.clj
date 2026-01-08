@@ -13,8 +13,8 @@
    [pyjama.openrouter.core]
    [pyjama.chatgpt.core]
    [pyjama.claude.core]
+   [pyjama.gemini.core]
    [pyjama.utils :as utils])
-
 
   (:import [java.time LocalDateTime]
            [java.time.format DateTimeFormatter]))
@@ -252,6 +252,10 @@
 (defmethod pyjama-call :claude
   [params]
   (pyjama.claude.core/claude params))
+
+(defmethod pyjama-call :gemini
+  [params]
+  (pyjama.gemini.core/gemini params))
 
 (defmethod pyjama-call :default
   [params]

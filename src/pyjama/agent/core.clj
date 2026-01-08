@@ -78,7 +78,9 @@
   (str/replace (name s) "-" "_"))
 
 (defn- load-prompt [p step-id]
-  (if (and (string? p) (str/starts-with? p "resource:"))
+  (cond
+    ;; Explicit resource (old style) or explicit dynamic tag
+    (and (string? p) (str/starts-with? p "resource:"))
     (let [path-suffix (subs p 9) ;; "resource:".length
           path (if (= "dynamic" path-suffix)
                  (str "prompts/" (kebab-to-snake step-id) ".md")
@@ -86,7 +88,17 @@
       (if-let [res (io/resource path)]
         (slurp res)
         (throw (ex-info (str "Prompt resource not found: " path) {:path path}))))
-    p))
+
+    ;; No prompt specified -> try to load from convention
+    (nil? p)
+    (let [path (str "prompts/" (kebab-to-snake step-id) ".md")]
+      (if-let [res (io/resource path)]
+        (slurp res)
+        ;; If not found, return nil so we can fall back to inheritance or empty
+        nil))
+
+    ;; Literal prompt
+    :else p))
 
 (defn render-step-prompt [step-id step ctx params]
   (let [tpl (load-prompt (:prompt step) step-id)]
@@ -407,7 +419,8 @@
 (defn call
   "Agentic entry point: supports graphs, tools, and conditional routing."
   [{:keys [id] :as params}]
-  (let [agent (get @pyjama.core/agents-registry id)]
+  (let [registry @pyjama.core/agents-registry
+        agent (get registry id)]
     (if (vector? agent)
       ;; keep your legacy linear flow
       (reduce (fn [prev-output step-id]
@@ -416,7 +429,14 @@
               agent)
 
       ;; agent graph
-      (let [{:keys [start max-steps] :as spec} agent]
+      (let [;; MERGE GLOBAL TOOLS
+            default-tools (get registry :tools)
+            agent-tools (:tools agent)
+            merged-tools (merge default-tools agent-tools)
+            spec (assoc agent :tools merged-tools)
+
+            {:keys [start max-steps]} spec]
+
         (loop [ctx (merge {:id id :trace [] :prompt (:prompt params) :original-prompt (:prompt params)} params)
                step-id start
                n 0]
