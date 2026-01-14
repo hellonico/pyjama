@@ -204,21 +204,43 @@
     (apply merge-with deep-merge maps)
     (last maps)))
 
+(defn- load-edn-files-from-dir
+  "Load all .edn files from a directory and merge them"
+  [dir]
+  (when (.exists dir)
+    (let [edn-files (->> (.listFiles dir)
+                         (filter #(and (.isFile %)
+                                       (.endsWith (.getName %) ".edn")))
+                         (sort-by #(.getName %)))]
+      (when (seq edn-files)
+        (apply deep-merge
+               (map #(edn/read-string (slurp %)) edn-files))))))
+
 (defn load-agents
   "Load and merge agent configuration from (in order of precedence):
    1. agents.edn specified in system property (highest)
    2. agents.edn in the current working directory
-   3. agents.edn found in the classpath (lowest)
+   3. agents/ directory in the current working directory (modular agents)
+   4. agents.edn found in the classpath
+   5. agents/ directory in the classpath (modular agents, lowest)
    Returns a merged EDN map."
   []
   (let [prop-path (System/getProperty "agents.edn")
         prop-file (when prop-path (io/file prop-path))
         cwd-file (io/file "agents.edn")
+        cwd-dir (io/file "agents")
         cp-resource (io/resource "agents.edn")
+        cp-dir-url (io/resource "agents/")
+        cp-dir (when cp-dir-url
+                 (try
+                   (io/file (.toURI cp-dir-url))
+                   (catch Exception _ nil)))
 
         configs (keep identity
                       [(when cp-resource (edn/read-string (slurp cp-resource)))
+                       (when cp-dir (load-edn-files-from-dir cp-dir))
                        (when (.exists cwd-file) (edn/read-string (slurp cwd-file)))
+                       (when (.exists cwd-dir) (load-edn-files-from-dir cwd-dir))
                        (when (and prop-file (.exists prop-file)) (edn/read-string (slurp prop-file)))])]
     (apply deep-merge configs)))
 
