@@ -415,6 +415,48 @@
         (or hit fallback next :done))
       (or next :done))))
 
+(defn visualize
+  "Generate a simple ASCII flow diagram for an agent graph.
+   Returns nil (prints to stdout)."
+  [agent-id spec]
+  (let [start (:start spec)
+        steps (:steps spec)]
+    (println (str "\n[Flow] Diagram for: " agent-id "\n"))
+
+    (loop [current start
+           visited #{}]
+      (if (or (= current :done) (nil? current))
+        (println "   [Done]")
+        (if (contains? visited current)
+          (println "   (Loop) detected to" current)
+          (let [step (get steps current)]
+            (println (str "   * " (name current)))
+            (cond
+              (:parallel step)
+              (let [branches (:parallel step)]
+                (println "     | [Parallel Execution]")
+                (doseq [b branches]
+                  (println (str "     |-- " (name b))))
+                (println "     | [Join]"))
+
+              (:routes step)
+              (do
+                (println "     ? Decision:")
+                (doseq [r (:routes step)]
+                  (when (:next r)
+                    (println (str "     |-- [When " (pr-str (:when r)) "] -> " (name (:next r))))))
+                (if-let [fallback (some :else (:routes step))]
+                  (println (str "     +-- [Else] -> " (name fallback)))
+                  (println (str "     +-- [Default] -> " (name (or (:next step) :done))))))
+
+              :else
+              (println "     |"))
+
+            (if (:routes step)
+              (if (:next step)
+                (recur (:next step) (conj visited current))
+                (println "   (End of linear trace, multiple paths possible)"))
+              (recur (:next step) (conj visited current)))))))))
 
 (defn call
   "Agentic entry point: supports graphs, tools, and conditional routing."
