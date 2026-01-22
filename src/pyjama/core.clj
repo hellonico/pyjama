@@ -7,6 +7,7 @@
    [clojure.edn :as edn]
    [clojure.string :as str]
    [clojure.java.io :as io]
+   [clojure.set :as set]
 
    ;; Internal dependencies
    [pyjama.deepseek.core]
@@ -362,3 +363,95 @@
        (:prompt (utils/templated-prompt params))
        entry)
       (call* params))))
+
+;; =============================================================================
+;; Agent Registry & Discovery
+;; =============================================================================
+
+(defn- extract-template-keys
+  "Extract required keys from a template string like {{foo}}"
+  [s]
+  (when (string? s)
+    (->> (re-seq #"\{\{([^}]+)\}\}" s)
+         (map second)
+         (map str/trim)
+         (map keyword)
+         set)))
+
+(defn- extract-inputs
+  "Analyze agent spec to determine required inputs"
+  [spec]
+  (let [args (:args spec)
+        steps (:steps spec)
+        ;; Extract from :args map keys and template values
+        arg-keys (set (keys args))
+        template-keys (reduce (fn [acc v]
+                                (if (string? v)
+                                  (into acc (extract-template-keys v))
+                                  acc))
+                              #{}
+                              (vals args))
+        ;; Also look for {{...}} in step arguments just in case
+        step-template-keys (reduce (fn [acc step]
+                                     (reduce (fn [inner-acc v]
+                                               (if (string? v)
+                                                 (into inner-acc (extract-template-keys v))
+                                                 inner-acc))
+                                             acc
+                                             (vals (:args step))))
+                                   #{}
+                                   (vals steps))]
+    (sort (into (into arg-keys template-keys) step-template-keys))))
+
+(defn describe-agent
+  "Return a metadata map for the given agent ID"
+  [id]
+  (when-let [spec (get @agents-registry id)]
+    (if (map? spec)
+      {:id id
+       :description (:description spec "No description provided")
+       :type (if (:steps spec) :graph :simple)
+       :inputs (extract-inputs spec)
+       :outputs [:result] ;; Default implicit output
+       :spec spec}
+      {:id id
+       :description "Legacy sequence agent"
+       :type :sequence
+       :inputs []
+       :outputs [:result]
+       :spec spec})))
+
+(defn list-agents
+  "List all available agents with their metadata"
+  []
+  (->> (keys @agents-registry)
+       (map describe-agent)
+       (sort-by :id)))
+
+(defn search-agents
+  "Search agents by name or description"
+  [query]
+  (let [q (str/lower-case (or query ""))
+        agents (list-agents)]
+    (if (str/blank? q)
+      agents
+      (filter (fn [agent]
+                (or (str/includes? (str/lower-case (name (:id agent))) q)
+                    (str/includes? (str/lower-case (:description agent)) q)))
+              agents))))
+
+(defn run-agent
+  "Run an agent by ID with provided inputs map"
+  [id inputs]
+  (let [agent (describe-agent id)]
+    (when-not agent
+      (throw (ex-info (str "Agent not found: " id) {:id id})))
+
+    (let [required (set (:inputs agent))
+          provided (set (keys inputs))
+          missing (set/difference required provided)]
+      ;; Warn but allow execution (some inputs might be optional contexts)
+      (when (seq missing)
+        (println "⚠️  Warning: Potential missing inputs for agent" id ":" missing)))
+
+    (call (merge {:id id} inputs))))

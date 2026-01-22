@@ -433,7 +433,14 @@
             default-tools (get registry :tools)
             agent-tools (:tools agent)
             merged-tools (merge default-tools agent-tools)
-            spec (assoc agent :tools merged-tools)
+
+            ;; MERGE COMMON STEPS
+            ;; Automatically include standard lifecycle steps if defined in proper registry root
+            common-steps (:common-steps registry)
+            merged-steps (merge common-steps (:steps agent))
+
+            spec (assoc agent :tools merged-tools
+                        :steps merged-steps)
 
             {:keys [start max-steps]} spec]
 
