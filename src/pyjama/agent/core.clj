@@ -36,6 +36,27 @@
     :else
     (throw (ex-info "Tool :fn must be a symbol, Var, or IFn" {:fn f}))))
 
+(defn validate-all-tools
+  "Check all tools and print warnings for missing implementations."
+  [tools]
+  (let [missing (reduce-kv (fn [acc k {:keys [fn]}]
+                             (if (and fn (symbol? fn))
+                               (try
+                                 (if (var? (requiring-resolve fn))
+                                   acc
+                                   (conj acc [k fn]))
+                                 (catch Throwable _
+                                   (conj acc [k fn])))
+                               acc))
+                           []
+                           tools)]
+    (when (seq missing)
+      (binding [*out* *err*]
+        (println "\n⚠️  WARNING: The following tool implementation functions were not found:")
+        (doseq [[k f] (sort-by first missing)]
+          (println (str "   • " k " -> " f)))
+        (println)))))
+
 (defn explain-tool [agent-spec tool-k]
   (let [{:keys [fn args] :as tool} (get-in agent-spec [:tools tool-k])]
     (binding [*out* *err*]
@@ -485,6 +506,8 @@
                         :steps merged-steps)
 
             {:keys [start max-steps]} spec]
+
+        (validate-all-tools merged-tools)
 
         (loop [ctx (merge {:id id :trace [] :prompt (:prompt params) :original-prompt (:prompt params)} params)
                step-id start
