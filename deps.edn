@@ -1,5 +1,4 @@
-{
- :paths   ["src" "resources"]
+{:paths   ["src" "resources"]
  :deps
  {org.clojure/clojure     {:mvn/version "1.12.1"}
   clj-http/clj-http       {:mvn/version "3.13.1"}
@@ -13,19 +12,21 @@
   net.mikera/vectorz-clj  {:mvn/version "0.48.0"}
 
   ; TODO: clean up: not used directly here?
-  org.clj-commons/hickory {:mvn/version "0.7.7"}
+  org.clj-commons/hickory {:mvn/version "0.7.7"}}
+ :aliases {;; Main CLI alias (interactive menu + all commands)
+           :pyjama
+           {:main-opts ["-m" "pyjama.cli.agent"]}
 
-  }
- :aliases {
+           ;; Legacy aliases
            :call
            {:main-opts ["-m" "pyjama.cli.call"]}
 
            :doc
            {:main-opts ["-m" "pyjama.doc.core"]}
 
-           ; clj -X:agent :project-dir "." :prompt '"write clojure test cases for namespace pyjama.io.template"' :agents-edn '"test-resources/agentic/code.edn"' :id :clj-project
            :agents
            {:exec-fn pyjama.cli.agent/run-agents}
+
 
            :native-cli-doc
            {:main-opts ["-m" "clj.native-image" "pyjama.doc.core"
@@ -38,8 +39,7 @@
                         "--trace-object-instantiation=java.lang.Thread"
                         "--enable-url-protocols=http"
                         ;; optional native image name override
-                        "-o nightnote"
-                        ]
+                        "-o nightnote"]
             ;:jvm-opts  ["-Dclojure.compiler.direct-linking=true"]
             :extra-deps
             {clj.native-image/clj.native-image
@@ -57,8 +57,7 @@
                         "--trace-object-instantiation=java.lang.Thread"
                         "--enable-url-protocols=http"
                         ;; optional native image name override
-                        "-o pyjamamazing"
-                        ]
+                        "-o pyjamamazing"]
             ;:jvm-opts  ["-Dclojure.compiler.direct-linking=true"]
             :extra-deps
             {clj.native-image/clj.native-image
@@ -77,8 +76,7 @@
                         "--enable-url-protocols=http"
                         ;; optional native image name override
                         ;"-H:Name=pyjama"
-                        "-o pyjama"
-                        ]
+                        "-o pyjama"]
             :jvm-opts  ["-Dclojure.compiler.direct-linking=true"]
             :extra-deps
             {clj.native-image/clj.native-image
@@ -88,6 +86,4 @@
            :test {:extra-paths ["test" "test-resources"]
                   :extra-deps  {io.github.cognitect-labs/test-runner {:git/tag "v0.5.1" :git/sha "dfb30dd"}}
                   :main-opts   ["-m" "cognitect.test-runner"]
-                  :exec-fn     cognitect.test-runner.api/test}}
-
- }
+                  :exec-fn     cognitect.test-runner.api/test}}}

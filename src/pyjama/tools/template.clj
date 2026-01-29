@@ -39,10 +39,18 @@
    - {{context}} with combined codebase files and git history
    - {{codebase-files}} with just the codebase files
    - {{git-history}} with just the git history
-   - {{project-dir}} with the project directory"
+   - {{project-dir}} with the project directory
+   
+   Template can be:
+   - Direct string content
+   - file:// reference (e.g., file:///path/to/template.md)"
   [{:keys [template codebase-files git-history project-dir ctx]
     :or {codebase-files "" git-history "" project-dir "."}}]
-  (let [template-str (or template "")
+  (let [;; Resolve file:// references
+        template-str (if (and template (str/starts-with? template "file://"))
+                       (let [path (subs template 7)] ; Remove "file://" prefix
+                         (slurp path))
+                       (or template ""))
         combined-context (str "## Codebase Files\n\n" codebase-files "\n\n"
                               "## Git History\n\n" git-history)
 

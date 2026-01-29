@@ -7,7 +7,10 @@
    [clojure.string :as str]
    [cheshire.core :as json]
    [pyjama.agent.core :as agent]
-   [pyjama.core :as pyjama])
+   [pyjama.core :as pyjama]
+   [pyjama.runner :as runner]
+   [pyjama.cli.inspect :as inspect]
+   [pyjama.cli.search :as search])
   (:gen-class))
 
 (defn load-agents-config []
@@ -33,55 +36,89 @@
 (defn print-banner []
   (println "\n╔════════════════════════════════════════════════════════════════╗")
   (println "║                                                                ║")
-  (println "║        🔍 PYJAMA CODEBASE ANALYZER 🔍                         ║")
+  (println "║                  🤖 PYJAMA AGENTS 🤖                           ║")
   (println "║                                                                ║")
-  (println "║  Intelligent Multi-Agent System for Code Analysis             ║")
+  (println "║         Intelligent Multi-Agent Framework                     ║")
   (println "║                                                                ║")
   (println "╚════════════════════════════════════════════════════════════════╝\n"))
 
 (defn print-help []
   (println "
-Available Analysis Modes:
+Pyjama CLI - Agent Framework
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-1. COMPREHENSIVE ANALYSIS
-   Runs all analysis types in parallel and synthesizes findings
-   
-   Usage:
-   clj -M:comprehensive <project-dir> [output-file]
-   
-   Example:
-   clj -M:comprehensive . analysis-report.md
+USAGE:
+  clj -M:pyjama [command] [args...]
 
-2. DEEP DIVE ANALYSIS
-   Focuses on a specific aspect of the codebase
-   
-   Usage:
-   clj -M:deep-dive <project-dir> <focus> [output-file]
-   
-   Focus areas: security, performance, testing, documentation, refactoring
-   
-   Example:
-   clj -M:deep-dive . security security-audit.md
+COMMANDS:
 
-3. COMPARATIVE ANALYSIS
-   Compares two codebases side-by-side
-   
-   Usage:
-   clj -M:compare <project-a> <project-b>
-   
-   Example:
-   clj -M:compare ./old-version ./new-version
+  Interactive & Core:
+    (no args)           Interactive menu - select from all available tools
+    smart [dir] [out]   Smart analyzer - interactive agent selection
+                        - dir: project directory (default: current)
+                        - out: reports directory (default: <dir>/reports)
+    
+  System Tools:
+    inspect [check]     System health check and agent listing
+    reports             Browse and search analysis report history
+    history             (alias for reports)
+    list                List all available agents (JSON)
+    search <query>      Search agents by keyword
+    describe <id>       Show detailed agent information
+    visualize <id>      Display agent workflow diagram
+    
+  Analysis Modes:
+    comprehensive <dir> [out]
+                        Run all analysis types in parallel
+                        
+    deep-dive <dir> <focus> [out]
+                        Focus on specific aspect
+                        Focus: security, performance, testing, documentation, refactoring
+                        
+    compare <dir-a> <dir-b>
+                        Compare two codebases side-by-side
+                        
+    feature <dir> <name> [out]
+                        Generate feature documentation
+    
+  Advanced:
+    run <agent-id> <json-inputs>
+                        Execute any agent programmatically
+    help                Show this help
 
-4. FEATURE DOCUMENTATION
-   Generates extensive documentation for a specific feature
-   
-   Usage:
-   clj -M:run feature <project-dir> <feature-name> [output-file]
-   
-   Example:
-   clj -M:run feature . \"User Authentication\" auth-guide.md
+EXAMPLES:
 
+  # Interactive menu
+  clj -M:pyjama
+
+  # Smart analyzer on current directory
+  clj -M:pyjama smart
+
+  # Smart analyzer on specific project
+  clj -M:pyjama smart ~/projects/my-app
+
+  # Browse previous reports
+  clj -M:pyjama reports
+
+  # System check
+  clj -M:pyjama inspect
+
+  # Search for agents
+  clj -M:pyjama search architecture
+
+  # Comprehensive analysis
+  clj -M:pyjama comprehensive . analysis-report.md
+
+  # Deep dive into security
+  clj -M:pyjama deep-dive . security security-audit.md
+
+  # Compare codebases
+  clj -M:pyjama compare ./old-version ./new-version
+
+  # Run specific agent
+  clj -M:pyjama run project-purpose-analyzer '{\"project-dir\":\".\",\"output-file\":\"report.md\"}'
+
+For more information, visit: https://github.com/hellonico/pyjama
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 "))
 
@@ -269,7 +306,7 @@ Available Analysis Modes:
                       (map (fn [[k v]] [(keyword k) v]))
                       (into {})))]
 
-    (println (str "\n🤖 Running Generic Agent: " agent-id))
+    (println (str "\n🤖 Running Agent: " agent-id))
     (println "📥 Inputs:" inputs)
     (println "\n⏳ Executing...\n")
 
@@ -277,6 +314,121 @@ Available Analysis Modes:
           result (exec-agent params)]
       (println "\n✅ Agent execution complete!")
       result)))
+
+;; =============================================================================
+;; Interactive Menu (when no args provided)
+;; =============================================================================
+
+(def ^:private colors
+  {:red     "\033[0;31m"
+   :green   "\033[0;32m"
+   :yellow  "\033[1;33m"
+   :blue    "\033[0;34m"
+   :purple  "\033[0;35m"
+   :cyan    "\033[0;36m"
+   :white   "\033[1;37m"
+   :gray    "\033[0;90m"
+   :reset   "\033[0m"})
+
+(defn- colorize
+  "Apply color to text"
+  [color text]
+  (str (get colors color "") text (get colors :reset "")))
+
+(def ^:private menu-options
+  [{:key "1"
+    :label "🚀 Smart Analyzer"
+    :description "Interactive agent selection and execution"
+    :action #(runner/run-smart-analyzer)}
+
+   {:key "2"
+    :label "🔍 Search Reports"
+    :description "Browse and search analysis report history"
+    :action #(search/-main)}
+
+   {:key "3"
+    :label "🔧 Inspect System"
+    :description "Check system health and list agents"
+    :action #(inspect/-main "check")}
+
+   {:key "4"
+    :label "📋 List Agents"
+    :description "List all available agents (JSON)"
+    :action #(run-list-agents)}
+
+   {:key "5"
+    :label "🔎 Search Agents"
+    :description "Search agents by keyword"
+    :action (fn []
+              (print "Enter search query: ")
+              (flush)
+              (let [query (read-line)]
+                (when-not (str/blank? query)
+                  (run-search-agents query))))}
+
+   {:key "q"
+    :label "👋 Quit"
+    :description "Exit pyjama CLI"
+    :action #(do
+               (println (colorize :gray "Goodbye!"))
+               (System/exit 0))}])
+
+(defn- print-menu-banner
+  "Print the main CLI banner"
+  []
+  (println)
+  (println "╔════════════════════════════════════════════════════════════════╗")
+  (println "║                                                                ║")
+  (println "║        🧠 PYJAMA - Agent Framework CLI 🧠                      ║")
+  (println "║                                                                ║")
+  (println "║  Interactive Analysis • Report Management • System Tools       ║")
+  (println "║                                                                ║")
+  (println "╚════════════════════════════════════════════════════════════════╝")
+  (println))
+
+(defn- print-main-menu
+  "Print the interactive menu"
+  []
+  (println (colorize :cyan "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"))
+  (println (colorize :white "Main Menu"))
+  (println (colorize :cyan "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"))
+  (println)
+  (doseq [option menu-options]
+    (println (str "  " (colorize :green (:key option)) " - "
+                  (:label option)))
+    (println (str "      " (colorize :gray (:description option))))
+    (println))
+  (println (colorize :cyan "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"))
+  (println))
+
+(defn- run-interactive-menu
+  "Run the interactive menu loop"
+  []
+  (print-menu-banner)
+  (loop []
+    (print-main-menu)
+    (print (colorize :yellow "Select option [1-5, q]: "))
+    (flush)
+    (let [choice (str/trim (read-line))
+          option (first (filter #(= (:key %) choice) menu-options))]
+      (if option
+        (do
+          (println)
+          (try
+            ((:action option))
+            (catch Exception e
+              (println)
+              (println (colorize :red (str "❌ Error: " (.getMessage e))))
+              (when (System/getProperty "debug")
+                (.printStackTrace e))))
+          (println)
+          (println (colorize :gray "Press ENTER to continue..."))
+          (read-line)
+          (recur))
+        (do
+          (println (colorize :yellow "Invalid option. Please try again."))
+          (recur))))))
+
 
 (defn -main [& args]
   (let [[mode & params] args
@@ -286,7 +438,7 @@ Available Analysis Modes:
       (print-banner))
 
     (if (empty? args)
-      (print-help)
+      (run-interactive-menu)
       (try
         (case mode
           "comprehensive" (apply run-comprehensive-analysis params)
@@ -303,6 +455,17 @@ Available Analysis Modes:
           "visualize" (apply run-visualize-agent params)
           "run" (apply run-generic-execution params)
 
+          ;; Interactive smart analyzer
+          "smart" (apply runner/run-smart-analyzer
+                         (concat
+                          (when (first params) [:project-dir (first params)])
+                          (when (second params) [:reports-dir (second params)])))
+
+          ;; System tools
+          "inspect" (apply inspect/-main (or params ["check"]))
+          "reports" (apply search/-main params)
+          "history" (apply search/-main params)
+
           "help" (print-help)
           (do
             (println "❌ Unknown mode:" mode)
@@ -317,6 +480,4 @@ Available Analysis Modes:
                 (.printStackTrace e))))
           (System/exit 1))))
 
-    (when-not (json-mode? mode)
-      (println "\n👋 Analysis session ended.\n"))
     (System/exit 0)))
