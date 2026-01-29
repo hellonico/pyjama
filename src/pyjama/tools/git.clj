@@ -1110,3 +1110,110 @@
       (catch Exception e
         {:status :error
          :text (str "Failed to prepare branches: " (.getMessage e))}))))
+
+
+(defn format-pr-summary
+  "Format PR analysis into a lightweight summary without bulky diffs.
+   Includes file lists, statistics, and metadata but excludes diff-context."
+  [{:keys [analysis]}]
+  (let [data (if (map? analysis) analysis {})
+        {:keys [summary risk sensitive-files behavior-changes api-changes test-gap
+                all-files files-by-type suggested-reviewers]} data]
+    
+    {:status :ok
+     :text
+     (str "# PR Analysis: " (:title summary "Unknown") "
+"
+          "**Author:** " (:author summary "Unknown") "
+"
+          "**Base:** " (:base-branch summary) " | **Head:** " (:head-branch summary) "
+"
+          "**Stats:** " (:commits summary 0) " commits, " 
+          (:files summary 0) " files changed, "        
+          (:total-lines summary 0) " lines affected.
+
+"
+
+          "## Risk Assessment: " (str/upper-case (name (or (:level risk) :low))) 
+          " (Score: " (or (:score risk) 0) ")
+"
+          (str/join "
+" (map #(str "- " %) (:reasons risk [])))
+          "
+
+"
+
+          "## Files Changed by Type
+
+"
+          (when all-files
+            (let [by-type (group-by :type all-files)]
+              (str/join "
+
+"
+                        (for [[file-type files] (sort-by key by-type)]
+                          (str "### " (str/capitalize (name file-type)) 
+                               " Files (" (count files) ")
+"
+                               (str/join "
+"
+                                         (for [f files]
+                                           (str "- `" (:file f) "` "
+                                                "(+" (:added f 0) " / -" (:deleted f 0) ") "
+                                                "- " (name (:change-type f :unknown))))))))))
+          "
+
+"
+
+          (when (seq sensitive-files)
+            (str "### ⚠️ Sensitive Files Touched
+"
+                 (str/join "
+" (for [f sensitive-files]
+                                  (str "- `" (:file f) "` (detected: " 
+                                       (str/join ", " (map name (keys (:sensitive f)))) ")")))
+                 "
+
+"))
+
+          (when (seq behavior-changes)
+            (str "### ⚙️ Behavior Changes
+"
+                 (str/join "
+" (for [f behavior-changes] 
+                                  (str "- `" (:file f) "`")))
+                 "
+
+"))
+
+          (when (seq api-changes)
+            (str "### 🔌 API Changes
+"
+                 (str/join "
+" (for [f api-changes] 
+                                  (str "- `" (:file f) "`")))
+                 "
+
+"))
+
+          (when (:has-gap test-gap)
+            (str "### 🧪 Test Gap Detected
+"
+                 "Source files were changed but no corresponding test changes were found.
+"
+                 "- Source files changed: " (:source-files test-gap 0) "
+"
+                 "- Test files changed: " (:test-files test-gap 0) "
+
+"))
+
+          (when (seq suggested-reviewers)
+            (str "## Suggested Reviewers
+"
+                 (str/join "
+" (for [r (take 5 suggested-reviewers)]
+                                  (str "- " (:name r) " (" (:email r) ") - " 
+                                       (:total-commits r) " commits in changed files")))
+                 "
+
+")))}))
