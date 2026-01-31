@@ -51,6 +51,15 @@
   [parsed]
   (print-tokens parsed [:message :content]))
 
+(defn print-generate-image-tokens
+  "Print image generation progress or return image data"
+  [parsed]
+  (if (:done parsed)
+    (:image parsed)
+    (when-let [progress (some-> parsed (select-keys [:completed :total]))]
+      (print (str "\rProgress: " (:completed progress) "/" (:total progress)))
+      (flush))))
+
 ;; =============================================================================
 ;; Constants and Configuration
 ;; =============================================================================
@@ -94,6 +103,15 @@
               :post
               :embeddings]
 
+
+   :generate-image [{:model      "x/z-image-turbo"
+                     :keep_alive "5m"
+                     :stream     false
+                     :width      1024
+                     :height     768}
+                    :post
+                    print-generate-image-tokens
+                    :image]
    :version  [{} :get identity]})
 
 (def URL
@@ -125,16 +143,26 @@
   [ch parsed]
   (pipe-tokens ch [:status] parsed))
 
+(defn pipe-generate-image-progress
+  "Pipe image generation progress to channel"
+  [ch parsed]
+  (when (or (:completed parsed) (:total parsed) (:done parsed))
+    (async/go (async/>! ch parsed))))
+
+
 ;; =============================================================================
 ;; Utility Functions
 ;; =============================================================================
 
 (defn stream
-  "Process streaming response line by line"
+  "Process streaming response line by line, return final result from callback"
   [_fn body]
   (let [stream (io/reader body)]
-    (reduce (fn [_ line]
-              (_fn (json/parse-string line true)))
+    (reduce (fn [acc line]
+              (let [parsed (json/parse-string line true)
+                    result (_fn parsed)]
+                ;; Return the result if non-nil, otherwise keep accumulator
+                (or result acc)))
             nil
             (line-seq stream))))
 
@@ -168,6 +196,7 @@
                :chat print-chat-tokens
                :create print-create-tokens
                :pull print-pull-tokens
+               :generate-image print-generate-image-tokens
                :response)
              (-> command DEFAULTS last))
            ;(if (= command :generate) :response identity)
@@ -179,7 +208,7 @@
          streaming? (or (:stream params) (:streaming params))
          body (json/generate-string params)
          options {:method      (nth cmd-params 1)
-                  :url         (str url "/api/" (name command))
+                  :url         (str url "/api/" (if (= command :generate-image) "generate" (name command)))
                   :headers     {"Content-Type" "application/json"}
                   :body        body
                   :as          (if streaming? :stream :json)

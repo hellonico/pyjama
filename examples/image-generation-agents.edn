@@ -1,0 +1,84 @@
+;; Example agent configuration for image generation
+;; This demonstrates how to use pyjama.tools.image/generate-image in agent pipelines
+
+{:image-generator
+ {:description "Generates an image from a text prompt"
+  :args {:prompt {:type String :required true}}
+  :steps
+  {:generate
+   {:tool pyjama.tools.image/generate-image
+    :args {:prompt "{{prompt}}"
+           :width 512
+           :height 512
+           :output-path "/tmp/generated-{{timestamp}}.png"}}}}
+
+ :artistic-image-creator
+ {:description "Creates artistic images with Matisse style"
+  :args {:subject {:type String :required true}}
+  :steps
+  {:create-prompt
+   {:fn (fn [ctx] (str (:subject ctx) " in the style of Henri Matisse"))}
+
+   :generate
+   {:tool pyjama.tools.image/generate-image
+    :args {:prompt "{{trace[-1]}}"
+           :width 1024
+           :height 768
+           :output-path "/tmp/matisse-{{subject}}.png"}}}}
+
+ :batch-image-generator
+ {:description "Generates multiple images from different prompts"
+  :args {:prompts {:type Vector :required true}
+         :output-dir {:type String :default "/tmp/generated"}}
+  :steps
+  {:batch-generate
+   {:tool pyjama.tools.image/generate-batch
+    :args {:prompts "{{prompts}}"
+           :output-dir "{{output-dir}}"
+           :width 512
+           :height 512
+           :prefix "batch-image"}}}}
+
+ :image-with-analysis
+ {:description "Generates image and analyzes the result"
+  :args {:prompt {:type String :required true}}
+  :steps
+  {:generate
+   {:tool pyjama.tools.image/generate-image
+    :args {:prompt "{{prompt}}"
+           :width 512
+           :height 512}}
+
+   :analyze
+   {:fn (fn [ctx]
+          (let [result (get-in ctx [:trace :generate])]
+            {:status (:status result)
+             :size (:size result)
+             :model (:model result)
+             :summary (str "Generated " (:width result) "x" (:height result)
+                           " image (" (:size result) " bytes)")}))}}}
+
+ :conditional-image-gen
+ {:description "Generates image only if conditions are met"
+  :args {:prompt {:type String :required true}
+         :min-length {:type Integer :default 10}}
+  :steps
+  {:validate
+   {:fn (fn [ctx]
+          (>= (count (:prompt ctx)) (:min-length ctx)))}
+
+   :generate
+   {:when "{{trace[-1]}}"
+    :tool pyjama.tools.image/generate-image
+    :args {:prompt "{{prompt}}"
+           :width 512
+           :height 512
+           :output-path "/tmp/validated-image.png"}}
+
+   :result
+   {:fn (fn [ctx]
+          (if (get-in ctx [:trace :validate])
+            {:status "generated"
+             :image (get-in ctx [:trace :generate])}
+            {:status "skipped"
+             :reason "Prompt too short"}))}}}}

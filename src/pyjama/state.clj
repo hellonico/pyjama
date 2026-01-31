@@ -7,7 +7,7 @@
 (defn update-state [state path _fn]
   (swap! state update-in path
          (constantly
-           _fn)))
+          _fn)))
 
 ;
 ; LOCAL MODELS
@@ -15,14 +15,14 @@
   "This fetches info on local models for the given :url. Models will be stored in :local-models."
   [state]
   (update-state
-    state
-    [:local-models]
-    (pyjama.core/ollama
-      (@state :url)
-      :tags {}
-      (fn [res]
+   state
+   [:local-models]
+   (pyjama.core/ollama
+    (@state :url)
+    :tags {}
+    (fn [res]
         ;(map #(str/replace (:name %) #":latest" "") (:models res))))))
-        (map :name (:models res))))))
+      (map :name (:models res))))))
 
 ;
 ; REMOTE MODELS
@@ -49,13 +49,12 @@
                                 :system (:system @state)
                                 :prompt (:prompt @state)}
                                ;image-data (assoc :images image-data)
-                               system-data (assoc :system system-data)
-                               format-data (assoc :format format-data))
+                         system-data (assoc :system system-data)
+                         format-data (assoc :format format-data))
         result-ch (async/thread
                     (swap! state assoc :processing true)
                     (pyjama.core/ollama (:url @state) :generate request-params _fn)
-                    (swap! state assoc :processing false)
-                    )]
+                    (swap! state assoc :processing false))]
     (async/go
       ; close the messaging channel once the function has finished.
       (let [_ (async/<! result-ch)]
@@ -81,7 +80,7 @@
   (swap! state assoc
          :error nil
          :processing true)
- (clojure.pprint/pprint @state)
+  (clojure.pprint/pprint @state)
   ; make sure messages key is an array.
   ; has to be done beforehand
   ;(swap! state #(assoc % :messages (get % :messages [])))
@@ -99,24 +98,21 @@
         request-params (cond-> {:stream   true
                                 :model    (:model @state)
                                 :messages (:messages @state)}
-                               image-data (assoc :images image-data)
-                               system-data (assoc :system system-data)
-                               format-data (assoc :format format-data)
-                               options (assoc :options options)
-                               )
+                         image-data (assoc :images image-data)
+                         system-data (assoc :system system-data)
+                         format-data (assoc :format format-data)
+                         options (assoc :options options))
         result-ch (async/thread
                     (try
-                    (pyjama.core/ollama (:url @state) :chat request-params _fn)
+                      (pyjama.core/ollama (:url @state) :chat request-params _fn)
 
-                    (Thread/sleep 500)
+                      (Thread/sleep 500)
                     ;(println @state) ; TODO figure this one out. human input not showing if this print is not here.
-                    (catch Exception e
+                      (catch Exception e
                       ;(swap! state assoc :processing false)
                       ;(.printStackTrace e)
-                      (swap! state assoc :error (.getMessage e))
-                      ))
-                    (swap! state assoc :processing false)
-                    )]
+                        (swap! state assoc :error (.getMessage e))))
+                    (swap! state assoc :processing false))]
     (async/go
       ; close the messaging channel once the function has finished.
       (let [_ (async/<! result-ch)]
@@ -126,8 +122,7 @@
 
         ;(println "close2")
         ;(clojure.pprint/pprint @state)
-        (async/close! ch)
-        ))
+        (async/close! ch)))
     (async/go-loop []
       (if-let [val (async/<! ch)]
         (if (:processing @state)
@@ -160,9 +155,44 @@
           (swap! state update-in [:pull :status] (constantly val)) ; Update state with the latest value
           (recur))))))
 
-(defn check-version [state]
-  (let [
+;
+; IMAGE GENERATION
+(defn generate-image-stream [state prompt width height]
+  (swap! state update-in [:generate-image :prompt] (constantly prompt))
+  (swap! state update-in [:generate-image :width] (constantly width))
+  (swap! state update-in [:generate-image :height] (constantly height))
+  (let [ch (async/chan)
+        _fn (partial pyjama.core/pipe-generate-image-progress ch)
+        _ (swap! state assoc :generating true)
         result-ch (async/go
+                    (pyjama.core/ollama
+                     (:url @state)
+                     :generate-image
+                     {:stream true
+                      :model (or (:model @state) "x/z-image-turbo")
+                      :prompt prompt
+                      :width width
+                      :height height}
+                     _fn))]
+    (async/go
+      (let [result (async/<! result-ch)]
+        (swap! state assoc-in [:generate-image :image] result)
+        (swap! state assoc :generating false)
+        (async/close! ch)))
+    ; Update UI with values from the channel
+    (future
+      (loop []
+        (when-let [val (async/<!! ch)]
+          (when (:completed val)
+            (swap! state update-in [:generate-image :progress :completed] (constantly (:completed val))))
+          (when (:total val)
+            (swap! state update-in [:generate-image :progress :total] (constantly (:total val))))
+          (when (:done val)
+            (swap! state update-in [:generate-image :done] (constantly true)))
+          (recur))))))
+
+(defn check-version [state]
+  (let [result-ch (async/go
                     (try
                       (swap! state assoc-in
                              [:ollama]
