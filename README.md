@@ -153,12 +153,53 @@ Related blog [posts](http://blog.hellonico.info/tags/pyjama/)
            "The sky is blue because the smurfs are too."
            "The sky is red in the evening because the grand smurf is too."
            ]})
+
+; generate image
+(pyjama.core/ollama
+  url
+  :generate-image
+  {:prompt "A serene mountain landscape at sunset"
+   :model "alibaba/z-image-turbo"})
+
+; generate image with streaming progress
+(pyjama.core/ollama
+  url
+  :generate-image
+  {:prompt "A futuristic city with flying cars"
+   :model "alibaba/z-image-turbo"
+   :stream true})
+
+; generate image with custom options
+(pyjama.core/ollama
+  url
+  :generate-image
+  {:prompt "A portrait in the style of Van Gogh"
+   :model "alibaba/z-image-turbo"
+   :width 1024
+   :height 1024
+   :num-steps 20})
+```
+
+## Image Generation
+
+Pyjama supports AI image generation through Ollama using models like `alibaba/z-image-turbo`. The generated images are returned as Base64-encoded data and can include real-time progress updates.
+
+**Key Features:**
+- Streaming progress updates during generation
+- Customizable dimensions and generation steps
+- State management for tracking generation progress
+- Full integration with Ollama's image generation API
+
+For detailed examples and full-stack implementations, see:
+- [OLLAMA_IMAGE_GENERATION.md](OLLAMA_IMAGE_GENERATION.md) - Comprehensive documentation
+- [pyjama-agent-showcases/image-generator-agent](https://github.com/hellonico/pyjama-agent-showcases/tree/main/image-generator-agent) - Full web application example
+
 ```
 
 
 ## License
 
-Copyright © 2024-2025 hellonico
+Copyright © 2024-2026 hellonico
 
 This program and the accompanying materials are made available under the
 terms of the Eclipse Public License 2.0 which is available at
