@@ -33,10 +33,13 @@
 (defonce ^:private tool-namespaces (atom {}))
 
 (defn register-namespace!
-  "Register a namespace that provides tools via a `register-tools!` function.
+  "Register a namespace that provides tools.
   
-  The namespace must have a public `register-tools!` function that returns
-  a map of tool-keyword -> {:fn ... :description ...}
+  Supports two patterns:
+  1. A `register-tools!` function that returns a tool map
+  2. A `tools` def containing a tool map
+  
+  The tool map should be: tool-keyword -> {:fn ... :description ...}
   
   Example:
     (register-namespace! 'plane-client.pyjama.tools)
@@ -45,13 +48,40 @@
   [ns-sym]
   (try
     (require ns-sym)
-    (if-let [register-fn (ns-resolve ns-sym 'register-tools!)]
-      (let [tools (register-fn)]
-        (swap! tool-namespaces assoc ns-sym tools)
-        (println (str "✓ Registered " (count tools) " tools from " ns-sym))
-        tools)
-      (throw (ex-info (str "Namespace " ns-sym " does not have a register-tools! function")
-                      {:namespace ns-sym})))
+    (let [;; Try register-tools! function first
+          register-fn (ns-resolve ns-sym 'register-tools!)
+          ;; Fall back to tools def
+          tools-def (ns-resolve ns-sym 'tools)
+
+          tools (cond
+                  ;; Prefer register-tools! if it exists
+                  register-fn
+                  (do
+                    (println (str "✓ Using register-tools! from " ns-sym))
+                    (register-fn))
+
+                  ;; Fall back to tools def
+                  tools-def
+                  (do
+                    (println (str "✓ Using tools def from " ns-sym))
+                    ;; Extract the map, converting from Pyjama format if needed
+                    (let [raw-tools @tools-def]
+                      ;; Convert {:tool {:function fn ...}} to {:tool {:fn fn ...}}
+                      (into {}
+                            (map (fn [[k v]]
+                                   (if (and (map? v) (:function v))
+                                     [k (assoc (dissoc v :function) :fn (:function v))]
+                                     [k v]))
+                                 raw-tools))))
+
+                  ;; Neither found
+                  :else
+                  (throw (ex-info (str "Namespace " ns-sym " does not have a register-tools! function or tools def")
+                                  {:namespace ns-sym})))]
+
+      (swap! tool-namespaces assoc ns-sym tools)
+      (println (str "✓ Registered " (count tools) " tools from " ns-sym))
+      tools)
     (catch Exception e
       (binding [*out* *err*]
         (println (str "⚠️  Failed to register tools from " ns-sym ": " (.getMessage e))))
