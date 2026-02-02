@@ -30,12 +30,12 @@
               (cond
                 (nil? cond) "else"
                 (vector? cond)
-                (let [[op & args] cond]
+                (let [[op arg1 arg2] cond]
                   (case op
-                    :nonempty (str "nonempty " (format-path (first args)))
-                    :> (str (format-path (second args)) " > " (first args))
-                    :< (str (format-path (second args)) " < " (first args))
-                    := (str (format-path (second args)) " = " (pr-str (first args)))
+                    :nonempty (str "nonempty " (format-path arg1))
+                    :> (str (format-path arg2) " > " arg1)
+                    :< (str (format-path arg2) " < " arg1)
+                    := (str (format-path arg2) " = " (pr-str arg1))
                     (pr-str cond)))  ; default case for unknown operators
                 :else (pr-str cond)))
 
