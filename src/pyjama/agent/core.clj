@@ -6,6 +6,7 @@
    [clojure.string :as str]
    [pyjama.core]
    [pyjama.io.template]
+   [pyjama.tools.registry :as tool-registry]
    [pyjama.utils :as utils]))
 
 ;; Normalize any step result into a map so downstream logic is stable.
@@ -546,10 +547,12 @@
               agent)
 
       ;; agent graph
-      (let [;; MERGE GLOBAL TOOLS
+      (let [;; EXPAND WILDCARDS FIRST
+            agent-tools-expanded (tool-registry/expand-wildcard-tools (:tools agent))
+
+            ;; MERGE GLOBAL TOOLS
             default-tools (get registry :tools)
-            agent-tools (:tools agent)
-            merged-tools (merge default-tools agent-tools)
+            merged-tools (merge default-tools agent-tools-expanded)
 
             ;; MERGE COMMON STEPS
             ;; Automatically include standard lifecycle steps if defined in proper registry root
