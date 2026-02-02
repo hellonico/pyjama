@@ -411,6 +411,9 @@
       (map? v) (boolean (seq v))
       :else (some? v))))
 
+(defmethod eval-cond :truthy [ctx _ lhs]
+  (truthy* (get-path ctx lhs)))
+
 (defmethod eval-cond :default [_ctx op & _]
   (throw (ex-info "Unknown routing op" {:op op})))
 
