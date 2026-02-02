@@ -65,7 +65,10 @@ COMMANDS:
     list                List all available agents (JSON)
     search <query>      Search agents by keyword
     describe <id>       Show detailed agent information
-    visualize <id>      Display agent workflow diagram
+    visualize <id>      Display agent workflow diagram (ASCII)
+    visualize-mermaid <id> [file]
+                        Generate Mermaid flowchart diagram
+                        - file: optional output file (default: stdout)
     
   Analysis Modes:
     comprehensive <dir> [out]
@@ -293,6 +296,26 @@ For more information, visit: https://github.com/hellonico/pyjama
       (println (str "❌ Agent not found: " id))
       (System/exit 1))))
 
+(defn run-visualize-mermaid
+  "Generate a Mermaid flowchart diagram for an agent"
+  [id & [output-file]]
+  (if-let [meta (pyjama/describe-agent (keyword id))]
+    (let [spec (:spec meta)
+          registry @pyjama/agents-registry
+          common-steps (:common-steps registry)
+          merged-steps (merge common-steps (:steps spec))
+          full-spec (assoc spec :steps merged-steps)]
+      (require '[pyjama.agent.visualize :as viz])
+      (let [diagram ((resolve 'viz/visualize-mermaid) id full-spec)]
+        (if output-file
+          (do
+            (spit output-file diagram)
+            (println (str "✅ Mermaid diagram saved to: " output-file)))
+          (println diagram))))
+    (do
+      (println (str "❌ Agent not found: " id))
+      (System/exit 1))))
+
 (defn run-generic-execution
   "Run any agent with a map of inputs passed as JSON-encoded string or key=value pairs"
   [agent-id & args]
@@ -453,6 +476,7 @@ For more information, visit: https://github.com/hellonico/pyjama
           "search" (apply run-search-agents params)
           "describe" (apply run-describe-agent params)
           "visualize" (apply run-visualize-agent params)
+          "visualize-mermaid" (apply run-visualize-mermaid params)
           "run" (apply run-generic-execution params)
 
           ;; Interactive smart analyzer

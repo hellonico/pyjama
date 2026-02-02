@@ -194,6 +194,54 @@ For detailed examples and full-stack implementations, see:
 - [OLLAMA_IMAGE_GENERATION.md](OLLAMA_IMAGE_GENERATION.md) - Comprehensive documentation
 - [pyjama-agent-showcases/image-generator-agent](https://github.com/hellonico/pyjama-agent-showcases/tree/main/image-generator-agent) - Full web application example
 
+## Agent Framework
+
+Pyjama includes a powerful agent framework for building autonomous, multi-step workflows using declarative EDN configuration.
+
+### Loop Support (NEW!)
+
+Pyjama now supports declarative loops for batch processing, eliminating the need for manual "Fetch-Pop-Loop" patterns:
+
+```clojure
+{:batch-processor
+ {:start :fetch-items
+  :tools {:fetch-items {:fn my.ns/fetch-items-tool}
+          :process-item {:fn my.ns/process-item-tool}}
+  :steps
+  {:fetch-items
+   {:tool :fetch-items
+    :next :process-all}
+   
+   :process-all
+   {:loop-over [:obs :items]        ; Iterate over collection
+    :loop-body :process-one          ; Process each item
+    :next :done}
+   
+   :process-one
+   {:tool :process-item
+    :args {:id "{{loop-item.id}}"   ; Access current item
+           :name "{{loop-item.name}}"
+           :index "{{loop-index}}"}  ; Current index
+    :next :done}}}}                  ; Return to loop
+```
+
+**Loop Context Variables:**
+- `{{loop-item}}` - Current item being processed
+- `{{loop-index}}` - Zero-based index (0, 1, 2, ...)
+- `{{loop-count}}` - Total number of items
+- `{{loop-remaining}}` - Items remaining (including current)
+
+**Benefits:**
+- ✅ Simpler EDN configuration
+- ✅ No manual routing or pop tools needed
+- ✅ Automatic iteration management
+- ✅ Built-in loop context variables
+- ✅ Full trace support for each iteration
+
+For detailed documentation and examples, see:
+- [docs/LOOP_SUPPORT.md](docs/LOOP_SUPPORT.md) - Complete loop documentation
+- [examples/loop-demo-agents.edn](examples/loop-demo-agents.edn) - Working examples
+
 ```
 
 

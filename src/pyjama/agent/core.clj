@@ -90,7 +90,7 @@
 
 
 (def step-non-llm-keys
-  #{:tool :routes :next :terminal? :message :message-path :message-template})
+  #{:tool :routes :next :terminal? :message :message-path :message-template :loop :loop-body :loop-over})
 
 (defn- looks-like-template? [s]
   (boolean (re-find pyjama.io.template/token-re s)))
@@ -169,6 +169,7 @@
 ;; --- run a subgraph from a step id until :done or a terminal? ---------------
 (declare run-step)
 (declare decide-next)
+(declare run-loop)
 
 (defn- run-subgraph
   "Runs a branch starting at start-id on a copy of ctx.
@@ -234,13 +235,17 @@
 
 (defn- run-step [{:keys [steps tools] :as spec} step-id ctx params]
   (println "▶︎" (:id ctx) "▶︎" step-id)
-  (let [{:keys [tool parallel] :as step} (get steps step-id)]
-    (cond tool
-          (let [{:keys [fn args] :as tool-spec} (get tools tool)
+  (let [{:keys [tool parallel loop-over loop-body] :as step} (get steps step-id)]
+    (cond
+      (and loop-over loop-body)
+      (run-loop spec step ctx params)
 
-                base-args (merge args (:args step))
-                ;; render ALL args deeply (single-token → raw value, multi-token → string)
-                rendered (pyjama.io.template/render-args-deep base-args ctx params)
+      tool
+      (let [{:keys [fn args] :as tool-spec} (get tools tool)
+
+            base-args (merge args (:args step))
+            ;; render ALL args deeply (single-token → raw value, multi-token → string)
+            rendered (pyjama.io.template/render-args-deep base-args ctx params)
 
               ;_ (binding [*out* *err*] (println "→ TOOL" tool "RENDERED:" rendered))
               ;_ (binding [*out* *err*]
@@ -249,40 +254,40 @@
               ;   (println "           ARGS =" (pr-str (dissoc targs :ctx :params))))
               ;
 
-                ;; build message (keep whatever you already had)
-                msg (cond
-                      (:message step) (:message step)
-                      (:message-path step) (get-in ctx (:message-path step))
-                      (:message-template step) (pyjama.io.template/render-template (:message-template step) ctx params)
-                      :else (or (get-in ctx [:last-obs :text])
-                                (when (string? (:last-obs ctx)) (:last-obs ctx))
-                                (pr-str (:last-obs ctx))))
+            ;; build message (keep whatever you already had)
+            msg (cond
+                  (:message step) (:message step)
+                  (:message-path step) (get-in ctx (:message-path step))
+                  (:message-template step) (pyjama.io.template/render-template (:message-template step) ctx params)
+                  :else (or (get-in ctx [:last-obs :text])
+                            (when (string? (:last-obs ctx)) (:last-obs ctx))
+                            (pr-str (:last-obs ctx))))
 
-                targs (merge {:message msg} rendered {:ctx ctx :params params})
+            targs (merge {:message msg} rendered {:ctx ctx :params params})
               ;_ (binding [*out* *err*] (println "→ TOOL" tool "ARGS" (dissoc targs :ctx :params)))
 
-                raw ((resolve-fn* fn) targs)
+            raw ((resolve-fn* fn) targs)
               ;_ (binding [*out* *err*] (println "   RAW     →" (pr-str raw)))
 
-                ;; NO COERCION HERE — pass through
-                obs (as-obs raw)
+            ;; NO COERCION HERE — pass through
+            obs (as-obs raw)
               ;_     (binding [*out* *err*] (println "   AS-OBS  →" (pr-str obs)))
 
-                ;; record last obs + hoist files (for easy retrieval fallback)
-                ctx' (-> ctx
-                         (assoc :last-obs obs)
-                         ;; merge files hoist, if present
-                         (cond-> (:files obs) (assoc :project-files (:files obs)))
-                         ;; ✅ NEW: merge ctx mutations from tools
-                         (cond-> (:set obs) (merge (:set obs))))]
-            ctx')
+            ;; record last obs + hoist files (for easy retrieval fallback)
+            ctx' (-> ctx
+                     (assoc :last-obs obs)
+                     ;; merge files hoist, if present
+                     (cond-> (:files obs) (assoc :project-files (:files obs)))
+                     ;; ✅ NEW: merge ctx mutations from tools
+                     (cond-> (:set obs) (merge (:set obs))))]
+        ctx')
 
-          ;; NEW: fork/join branch
-          (and (vector? parallel) (seq parallel))
-          (run-fork spec step ctx params)
+      ;; NEW: fork/join branch
+      (and (vector? parallel) (seq parallel))
+      (run-fork spec step ctx params)
 
-          :else
-          (let [;_ (prn ">>" step-id ">" step)
+      :else
+      (let [;_ (prn ">>" step-id ">" step)
               ;_ (binding [*out* *err*]
               ;   (println "STEP" step-id "→ has-step-prompt?"
               ;            (boolean (and (string? (:prompt step)) (seq (:prompt step)))))
@@ -290,18 +295,18 @@
               ;    (println "STEP" step-id "prompt-preview:"
               ;             (:prompt step))))
               ;(subs (:prompt step) 0 (min 60 (count (:prompt step)))))))
-                final-prompt (render-step-prompt step-id step ctx params)
-                ;; only pass LLM-relevant keys from step
+            final-prompt (render-step-prompt step-id step ctx params)
+            ;; only pass LLM-relevant keys from step
               ;llm-step (apply dissoc step step-non-llm-keys)
-                llm-step (apply dissoc step step-non-llm-keys)
-                ;; NEW: render all templatable fields in the LLM step (impl/model/url/temperature/etc)
-                llm-step-rendered (pyjama.io.template/render-args-deep llm-step ctx params)
-                llm-input (-> (merge params llm-step-rendered)
-                              (assoc :prompt final-prompt
-                                     :id step-id))
-                raw (pyjama.core/call* llm-input)
-                obs (as-obs raw)]
-            (assoc ctx :last-obs obs)))))
+            llm-step (apply dissoc step step-non-llm-keys)
+            ;; NEW: render all templatable fields in the LLM step (impl/model/url/temperature/etc)
+            llm-step-rendered (pyjama.io.template/render-args-deep llm-step ctx params)
+            llm-input (-> (merge params llm-step-rendered)
+                          (assoc :prompt final-prompt
+                                 :id step-id))
+            raw (pyjama.core/call* llm-input)
+            obs (as-obs raw)]
+        (assoc ctx :last-obs obs)))))
 
 
 (defn- pathlike? [x]
@@ -434,6 +439,41 @@
       (nil? w) nxt
       :else nil)))
 
+(defn- run-loop
+  "Execute a loop over a collection of items.
+   Loop step should have:
+   - :loop-over - path to collection (e.g., [:obs :items])
+   - :loop-body - step-id to execute for each item
+   - :next - step to go to after loop completes"
+  [spec {:keys [loop-over loop-body] :as step} ctx params]
+  (let [collection (get-path ctx loop-over)
+        items (cond
+                (sequential? collection) collection
+                (map? collection) (vals collection)
+                :else [])
+        total-count (count items)]
+
+    (if (empty? items)
+      (assoc ctx :last-obs {:status :ok :loop-count 0 :message "No items to process"})
+      (loop [remaining items
+             index 0
+             results []]
+        (if (empty? remaining)
+          (assoc ctx :last-obs {:status :ok
+                                :loop-count total-count
+                                :loop-results results
+                                :message (str "Processed " total-count " items")})
+          (let [current-item (first remaining)
+                loop-ctx (assoc ctx
+                                :loop-item current-item
+                                :loop-index index
+                                :loop-count total-count
+                                :loop-remaining (count remaining))
+                result (run-subgraph spec loop-body loop-ctx params)
+                obs (:obs result)]
+            (recur (rest remaining)
+                   (inc index)
+                   (conj results obs))))))))
 
 (defn decide-next [{:keys [steps]} step-id ctx]
   (let [{:keys [routes next]} (get steps step-id)]
@@ -461,6 +501,12 @@
           (let [step (get steps current)]
             (println (str "   * " (name current)))
             (cond
+              (and (:loop-over step) (:loop-body step))
+              (do
+                (println (str "     | [Loop Over: " (pr-str (:loop-over step)) "]"))
+                (println (str "     |-- Body: " (name (:loop-body step))))
+                (println "     | [End Loop]"))
+
               (:parallel step)
               (let [branches (:parallel step)]
                 (println "     | [Parallel Execution]")

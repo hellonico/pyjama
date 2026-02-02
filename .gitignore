@@ -28,6 +28,6 @@ reports
 /docs/generated.md
 secrets.edn
 alan.md
-docs
+doc
 /pyjamamazing
 /.lsp/

@@ -1,0 +1,71 @@
+{:loop-demo-agent
+ {:description "Demo agent showing the new loop construct for batch processing"
+  :start :create-items
+  :max-steps 50
+
+  :tools
+  {:create-sample-items
+   {:fn (fn [{:keys [count]}]
+          {:items (vec (for [i (range count)]
+                         {:id (inc i)
+                          :name (str "Item-" (inc i))
+                          :priority (rand-nth ["high" "medium" "low"])
+                          :status "pending"}))})}
+
+   :process-item
+   {:fn (fn [{:keys [item]}]
+          (println (str "  Processing: " (:name item) " (priority: " (:priority item) ")"))
+          (Thread/sleep 100)  ; Simulate work
+          {:status "completed"
+           :item-id (:id item)
+           :result (str "Processed " (:name item))})}}
+
+  :steps
+  {:create-items
+   {:tool :create-sample-items
+    :args {:count 5}
+    :next :loop-all-items}
+
+   :loop-all-items
+   {:loop-over [:obs :items]
+    :loop-body :process-one-item
+    :next :summarize}
+
+   :process-one-item
+   {:tool :process-item
+    :args {:item "{{loop-item}}"}
+    :next :done}  ; Return to loop
+
+   :summarize
+   {:prompt "Summarize the batch processing results:\n\nTotal items: {{last-obs.loop-count}}\nResults: {{last-obs.loop-results}}\n\nProvide a brief summary of what was accomplished."
+    :next :done}}}
+
+ :loop-with-llm-agent
+ {:description "Demo showing loop with LLM analysis for each item"
+  :start :fetch-data
+  :max-steps 50
+
+  :tools
+  {:fetch-data
+   {:fn (fn [_]
+          {:items [{:id 1 :title "Bug in login" :description "Users can't log in"}
+                   {:id 2 :title "Feature request" :description "Add dark mode"}
+                   {:id 3 :title "Performance issue" :description "Slow page load"}]})}}
+
+  :steps
+  {:fetch-data
+   {:tool :fetch-data
+    :next :analyze-all}
+
+   :analyze-all
+   {:loop-over [:obs :items]
+    :loop-body :analyze-one
+    :next :final-report}
+
+   :analyze-one
+   {:prompt "Analyze this issue ({{loop-index}} of {{loop-count}}):\n\nTitle: {{loop-item.title}}\nDescription: {{loop-item.description}}\n\nProvide:\n1. Severity (low/medium/high)\n2. Estimated effort (hours)\n3. Recommended action\n\nBe concise (2-3 sentences)."
+    :next :done}
+
+   :final-report
+   {:prompt "Create a final summary report:\n\nTotal issues analyzed: {{last-obs.loop-count}}\n\nIndividual analyses:\n{{last-obs.loop-results}}\n\nProvide:\n1. Overall priority ranking\n2. Recommended order of execution\n3. Total estimated time"
+    :next :done}}}}
