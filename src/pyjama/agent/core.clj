@@ -417,9 +417,14 @@
 (defmethod eval-cond :default [_ctx op & _]
   (throw (ex-info "Unknown routing op" {:op op})))
 
-(defn- eval-when-dsl [ctx v]                                ;; v like [:= [:obs :status] :test]
-  (let [[op & args] v]
-    (apply eval-cond ctx op args)))
+(defn- eval-when-dsl [ctx v]
+  ;; v like [:= [:obs :status] :test] OR just [:obs :has-attachments]
+  (let [[first-elem & args] v]
+    (if (#{:obs :ctx :trace} first-elem)
+      ;; It's a path, not an operator - check if truthy
+      (truthy* (get-path ctx v))
+      ;; It's an operator - apply it
+      (apply eval-cond ctx first-elem args))))
 
 (defn eval-route [ctx route]
   (let [{w :when nxt :next :as r} route]
