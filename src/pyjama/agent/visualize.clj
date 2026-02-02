@@ -25,19 +25,19 @@
                 (str/join " " (map name (filter keyword? path)))
                 (str path)))
 
-            (format-condition [cond]
+            (format-condition [condition]
               "Format a condition to be human-readable"
               (cond
-                (nil? cond) "else"
-                (vector? cond)
-                (let [[op arg1 arg2] cond]
+                (nil? condition) "else"
+                (vector? condition)
+                (let [[op arg1 arg2] condition]
                   (case op
                     :nonempty (str "nonempty " (format-path arg1))
                     :> (str (format-path arg2) " > " arg1)
                     :< (str (format-path arg2) " < " arg1)
                     := (str (format-path arg2) " = " (pr-str arg1))
-                    (pr-str cond)))  ; default case for unknown operators
-                :else (pr-str cond)))
+                    (pr-str condition)))  ; default case for unknown operators
+                :else (pr-str condition)))
 
             (node-def [step-id step]
               (let [nname (node-name step-id)
