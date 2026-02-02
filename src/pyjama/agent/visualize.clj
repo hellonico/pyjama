@@ -33,9 +33,9 @@
                 (let [[op arg1 arg2] condition]
                   (case op
                     :nonempty (str "nonempty " (format-path arg1))
-                    :> (str (format-path arg2) " > " arg1)
-                    :< (str (format-path arg2) " < " arg1)
-                    := (str (format-path arg2) " = " (pr-str arg1))
+                    :> (str (format-path arg1) " > " arg2)
+                    :< (str (format-path arg1) " < " arg2)
+                    := (str (format-path arg1) " = " (pr-str arg2))
                     (pr-str condition)))  ; default case for unknown operators
                 :else (pr-str condition)))
 
