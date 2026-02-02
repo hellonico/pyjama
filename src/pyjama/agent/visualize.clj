@@ -36,7 +36,7 @@
                     :> (str (format-path (second args)) " > " (first args))
                     :< (str (format-path (second args)) " < " (first args))
                     := (str (format-path (second args)) " = " (pr-str (first args)))
-                    (pr-str cond)))
+                    (pr-str cond)))  ; default case for unknown operators
                 :else (pr-str cond)))
 
             (node-def [step-id step]
@@ -110,12 +110,13 @@
             (:routes step)
             (do
               (doseq [route (:routes step)]
-                (when (:next route)
-                  (let [condition (format-condition (:when route))]
-                    (.append sb (str "    " nname " -->|" condition "| "
-                                     (node-name (:next route)) "\n")))))
+                (let [next-step (or (:next route) (:else route))]
+                  (when next-step
+                    (let [condition (if (:else route) "else" (format-condition (:when route)))]
+                      (.append sb (str "    " nname " -->|" condition "| "
+                                       (node-name next-step) "\n"))))))
               (when (and (:next step)
-                         (not (some :next (:routes step))))
+                         (not (some #(or (:next %) (:else %)) (:routes step))))
                 (.append sb (str "    " nname " --> "
                                  (node-name (:next step)) "\n"))))
 
