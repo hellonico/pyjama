@@ -5,7 +5,7 @@
   (println "Testing Gemini API...")
   (try
     (let [response (pyjama/call {:impl :gemini
-                                 :model "gemini-1.5-flash"
+                                 :model "gemini-2.5-flash"
                                  :prompt "Tell me a one-sentence joke."})]
       (println "Response:" response))
     (catch Exception e

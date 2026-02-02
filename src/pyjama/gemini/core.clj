@@ -2,17 +2,12 @@
   (:require
    [cheshire.core :as json]
    [clj-http.client :as client]
-   [clojure.string :as str]
    [secrets.core]
    [pyjama.utils :as utils]))
 
 (def gemini-endpoint "https://generativelanguage.googleapis.com/v1beta/models")
 
-(defn api-key
-  "Get Google API key from secrets"
-  []
-  (or (secrets.core/get-secret :google-api-key)
-      (System/getenv "GOOGLE_API_KEY")))
+
 
 (defn- build-messages [prompt system]
   (let [contents (cond-> []
@@ -24,14 +19,9 @@
 (defn gemini
   "Main Gemini API function"
   [_config]
-  (let [model (or (:model _config) "gemini-1.5-flash")
+  (let [model (or (:model _config) "gemini-2.0-flash")
         config (utils/templated-prompt _config)
-        key (api-key)]
-
-    (when (str/blank? key)
-      (println "⚠️  Google API Key not found!")
-      (println "   Please add :google-api-key to your secrets.edn")
-      (println "   OR set GOOGLE_API_KEY environment variable."))
+        key (secrets.core/require-secret!! :google-api-key)]
 
     (let [url (str gemini-endpoint "/" model ":generateContent?key=" key)
 
