@@ -6,7 +6,7 @@
   cheshire/cheshire       {:mvn/version "6.0.0"}
   org.clojure/core.async  {:mvn/version "1.8.741"}
   hellonico/secrets       {:git/url "https://github.com/hellonico/secrets.git"
-                           :git/sha "a9bbf5ab13fc5df2ae6e20a586b14a5476eb945c"}
+                           :git/sha "5e8824ca5f0cd079041dee300a4809ee63aa2cae"}
 
   ; this is used for embeddings
   net.mikera/vectorz-clj  {:mvn/version "0.48.0"}
