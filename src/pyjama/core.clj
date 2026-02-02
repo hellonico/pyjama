@@ -308,7 +308,14 @@
 
 (defmethod pyjama-call :gemini
   [params]
-  (pyjama.gemini.core/gemini params))
+  (if (or (:stream params) (:streaming params) (:on-chunk params))
+    ;; Streaming mode
+    (pyjama.gemini.core/gemini-stream
+     params
+     (or (:on-chunk params) (fn [chunk] (print chunk) (flush)))
+     (:on-complete params))
+    ;; Non-streaming mode
+    (pyjama.gemini.core/gemini params)))
 
 (defmethod pyjama-call :default
   [params]

@@ -13,12 +13,11 @@
       (let [parsed-body (json/parse-string body true)]
         (when-let [content (get-in parsed-body [:choices 0 :message :content])]
           ;(println "Success:" content)
-          content
-          ))
+          content))
       (println "Error:" body))))
 
-(defn api-key[]
-  (secrets.core/get-secret :deepseek-api-key))
+(defn api-key []
+  (secrets.core/require-secret!! :deepseek-api-key))
 
 (defn call
   [_config]
@@ -32,10 +31,9 @@
               :messages    [{:role "system" :content (or system "You are a helpful assistant.")},
                             {:role :user :content prompt}]
               :stream      stream
-              :temperature 0.7
-              }]
+              :temperature 0.7}]
     (handle-response
-      (client/post url {:headers      headers
-                        :body         (json/generate-string body)
-                        :content-type :json
-                        :accept       :json}))))
+     (client/post url {:headers      headers
+                       :body         (json/generate-string body)
+                       :content-type :json
+                       :accept       :json}))))
