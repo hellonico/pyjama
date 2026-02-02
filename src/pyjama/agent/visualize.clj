@@ -19,6 +19,26 @@
     (letfn [(node-name [k] (str/replace (name k) #"[^a-zA-Z0-9_]" "_"))
             (node-label [k] (str/replace (name k) #"-" " "))
 
+            (format-path [path]
+              "Format a path like [:obs :items] to 'obs items'"
+              (if (vector? path)
+                (str/join " " (map name (filter keyword? path)))
+                (str path)))
+
+            (format-condition [cond]
+              "Format a condition to be human-readable"
+              (cond
+                (nil? cond) "else"
+                (vector? cond)
+                (let [[op & args] cond]
+                  (case op
+                    :nonempty (str "nonempty " (format-path (first args)))
+                    :> (str (format-path (second args)) " > " (first args))
+                    :< (str (format-path (second args)) " < " (first args))
+                    := (str (format-path (second args)) " = " (pr-str (first args)))
+                    (pr-str cond)))
+                :else (pr-str cond)))
+
             (node-def [step-id step]
               (let [nname (node-name step-id)
                     label (node-label step-id)]
@@ -68,7 +88,7 @@
             (and (:loop-over step) (:loop-body step))
             (do
               (.append sb (str "    " nname " -->|loop over<br/>"
-                               (pr-str (:loop-over step)) "| "
+                               (format-path (:loop-over step)) "| "
                                (node-name (:loop-body step)) "\n"))
               (.append sb (str "    " (node-name (:loop-body step))
                                " -.->|each item| " nname "\n"))
@@ -91,9 +111,7 @@
             (do
               (doseq [route (:routes step)]
                 (when (:next route)
-                  (let [condition (if (:when route)
-                                    (str (pr-str (:when route)))
-                                    "else")]
+                  (let [condition (format-condition (:when route))]
                     (.append sb (str "    " nname " -->|" condition "| "
                                      (node-name (:next route)) "\n")))))
               (when (and (:next step)
@@ -108,18 +126,18 @@
 
             ;; Terminal step (goes to done)
             :else
-            (.append sb (str "    " nname " --> Done\n")))))
+            (.append sb (str "    " nname " --> done\n")))))
 
-      ;; Add Done node
-      (.append sb "    Done([Done])\n\n")
+      ;; Add done node
+      (.append sb "    done([Done])\n\n")
 
       ;; Add styles
       (doseq [[step-id step] steps]
         (.append sb (node-style step-id step)))
 
-      ;; Style Start and Done
+      ;; Style Start and done
       (.append sb "    style Start fill:#4caf50,stroke:#2e7d32\n")
-      (.append sb "    style Done fill:#ef5350,stroke:#c62828\n")
+      (.append sb "    style done fill:#ef5350,stroke:#c62828\n")
 
       (.append sb "```\n"))
 
