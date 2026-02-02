@@ -69,6 +69,33 @@ This imports tools with **prefixes** to avoid naming conflicts:
 
 Explicit tools **override** wildcard imports if there's a naming conflict.
 
+### 4. Direct Function References (NEW!)
+
+You can now reference Clojure functions directly without the `{:fn ...}` wrapper:
+
+```edn
+:tools
+{:plane/* plane-client.pyjama.tools
+ 
+ ;; Direct function references - automatically wrapped!
+ :log-event clojure.pprint/pprint
+ :parse-json clojure.data.json/read-str
+ :format-data my-ns/custom-formatter
+ 
+ ;; Still works with full format when you want custom descriptions
+ :notify {:fn my-ns/notify-slack :description "Send Slack notification"}}
+```
+
+**How it works:**
+- Symbol references like `clojure.pprint/pprint` are automatically converted to `{:fn clojure.pprint/pprint :description "Tool: clojure.pprint/pprint"}`
+- This makes it super easy to use any Clojure function as a tool
+- You can still use the full `{:fn ... :description ...}` format when you want custom descriptions
+
+**Benefits:**
+- Less boilerplate for simple function wrappers
+- Use any Clojure function directly
+- Mix with wildcards and explicit tool definitions
+
 ## How It Works
 
 ### Step 1: Define `register-tools!` in Your Tool Namespace

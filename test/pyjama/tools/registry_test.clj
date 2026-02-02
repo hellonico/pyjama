@@ -64,3 +64,51 @@
     (let [all (registry/all-tools)]
       (is (contains? all :tool-1))
       (is (contains? all :tool-2)))))
+
+(deftest test-normalize-tool-def
+  (testing "Normalize full tool definition (no change)"
+    (let [tool-def {:fn 'my-ns/my-fn :description "My tool"}
+          result (registry/normalize-tool-def tool-def)]
+      (is (= tool-def result))))
+
+  (testing "Normalize symbol reference"
+    (let [result (registry/normalize-tool-def 'plane-client.pyjama.tools/create-issue)]
+      (is (= 'plane-client.pyjama.tools/create-issue (:fn result)))
+      (is (string? (:description result)))))
+
+  (testing "Normalize var reference"
+    (let [result (registry/normalize-tool-def #'mock-tool-1)]
+      (is (= #'mock-tool-1 (:fn result)))
+      (is (string? (:description result)))))
+
+  (testing "Normalize anonymous function"
+    (let [anon-fn (fn [obs] {:result obs})
+          result (registry/normalize-tool-def anon-fn)]
+      (is (= anon-fn (:fn result)))
+      (is (= "Tool: anonymous-fn" (:description result))))))
+
+(deftest test-normalize-tools-map
+  (testing "Normalize mixed tools map"
+    (let [tools-map {:tool-1 'my-ns/fn-1
+                     :tool-2 {:fn 'my-ns/fn-2 :description "Custom"}
+                     :tool-3 #'mock-tool-1}
+          result (registry/normalize-tools-map tools-map)]
+      (is (= 'my-ns/fn-1 (get-in result [:tool-1 :fn])))
+      (is (string? (get-in result [:tool-1 :description])))
+      (is (= 'my-ns/fn-2 (get-in result [:tool-2 :fn])))
+      (is (= "Custom" (get-in result [:tool-2 :description])))
+      (is (= #'mock-tool-1 (get-in result [:tool-3 :fn]))))))
+
+(deftest test-direct-function-with-wildcards
+  (testing "Mix direct function references with wildcards"
+    (let [custom-fn (fn [obs] {:custom true})
+          result (registry/expand-wildcard-tools
+                  {:* 'pyjama.tools.registry-test
+                   :custom-tool custom-fn
+                   :another-tool 'my-ns/another-fn})]
+      (is (contains? result :tool-1))
+      (is (contains? result :tool-2))
+      (is (contains? result :custom-tool))
+      (is (contains? result :another-tool))
+      (is (= custom-fn (get-in result [:custom-tool :fn])))
+      (is (= 'my-ns/another-fn (get-in result [:another-tool :fn]))))))

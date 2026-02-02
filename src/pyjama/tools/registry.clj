@@ -78,6 +78,57 @@
   []
   (apply merge (vals @tool-namespaces)))
 
+(defn normalize-tool-def
+  "Normalize a tool definition to the standard {:fn ... :description ...} format.
+  
+  Supports multiple input formats:
+  1. Full tool def: {:fn my-ns/my-fn :description \"...\"}
+  2. Symbol reference: 'my-ns/my-fn
+  3. Direct function: #'my-ns/my-fn or (fn [obs] ...)
+  
+  For simple function references, automatically wraps them with a default description."
+  [tool-def]
+  (cond
+    ;; Already a proper tool definition
+    (and (map? tool-def) (:fn tool-def))
+    tool-def
+
+    ;; Symbol reference to a function
+    (symbol? tool-def)
+    {:fn tool-def
+     :description (str "Tool: " tool-def)}
+
+    ;; Direct function value (var or fn)
+    (or (var? tool-def) (ifn? tool-def))
+    (let [fn-name (if (var? tool-def)
+                    (str (:ns (meta tool-def)) "/" (:name (meta tool-def)))
+                    "anonymous-fn")]
+      {:fn tool-def
+       :description (str "Tool: " fn-name)})
+
+    ;; Map without :fn key - assume it's {:fn value}
+    (map? tool-def)
+    (if (= 1 (count tool-def))
+      (let [[k v] (first tool-def)]
+        {:fn v :description (str "Tool: " (name k))})
+      tool-def)
+
+    ;; Unknown format - return as-is and let validation catch it
+    :else tool-def))
+
+(defn normalize-tools-map
+  "Normalize all tool definitions in a tools map.
+  
+  Converts simple function references to proper tool definitions:
+  {:my-tool 'my-ns/my-fn} => {:my-tool {:fn 'my-ns/my-fn :description \"...\"}}
+  
+  This allows for more concise tool definitions in agent EDN files."
+  [tools-map]
+  (into {}
+        (map (fn [[k v]]
+               [k (normalize-tool-def v)])
+             tools-map)))
+
 (defn expand-wildcard-tools
   "Expand wildcard tool imports in agent tool definitions.
   
@@ -156,8 +207,9 @@
            {}
            wildcards)]
 
-      ;; Merge: explicit tools override wildcards
-      (merge expanded-wildcards (into {} explicit)))))
+      ;; Normalize explicit tools (supports direct function references)
+      ;; Then merge: explicit tools override wildcards
+      (merge expanded-wildcards (normalize-tools-map (into {} explicit))))))
 
 (defn auto-discover!
   "Auto-discover and register tool namespaces matching a pattern.
