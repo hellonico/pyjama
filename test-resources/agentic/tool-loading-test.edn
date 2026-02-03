@@ -1,0 +1,21 @@
+{:default {:impl :chatgpt}
+
+ :tool-loading-test
+ {:description "Test agent to verify tool namespace loading"
+  :start :test-simple
+  :max-steps 5
+
+  :steps
+  {:test-simple
+   {:tool :test-simple-tool
+    :args {:message "Testing simple tool"}
+    :next :done}
+
+   :done
+   {:tool :passthrough
+    :args {:message "All tools loaded successfully!"}
+    :terminal? true}}
+
+  :tools
+  {:test-simple-tool {:fn pyjama.tools.utils/passthrough}
+   :passthrough {:fn pyjama.tools.utils/passthrough}}}}

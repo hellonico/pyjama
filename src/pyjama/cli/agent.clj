@@ -13,12 +13,63 @@
    [pyjama.cli.search :as search])
   (:gen-class))
 
+(defn load-agents-from-directory
+  "Load all .edn files from a directory and merge them"
+  [dir-path]
+  (let [dir (io/file dir-path)]
+    (when (.isDirectory dir)
+      (let [edn-files (->> (.listFiles dir)
+                           (filter #(and (.isFile %)
+                                         (str/ends-with? (.getName %) ".edn")))
+                           (sort-by #(.getName %)))]
+        (when (seq edn-files)
+          (println (str "📂 Loading " (count edn-files) " agent file(s) from: " dir-path))
+          (reduce
+           (fn [acc file]
+             (try
+               (let [content (slurp file)
+                     data (read-string content)]
+                 (println (str "  ✓ Loaded: " (.getName file)))
+                 (merge acc data))
+               (catch Exception e
+                 (println (str "  ✗ Error loading " (.getName file) ": " (.getMessage e)))
+                 acc)))
+           {}
+           edn-files))))))
+
 (defn load-agents-config []
   (let [path (System/getProperty "agents.edn")]
-    (when-not (and path (.exists (io/file path)))
-      (let [res (io/resource "agents.edn")]
-        (when res
-          (System/setProperty "agents.edn" (.getPath res)))))))
+    (if path
+      ;; Support comma-separated directories/files
+      (let [paths (str/split path #",")
+            merged-config (reduce
+                           (fn [acc p]
+                             (let [trimmed (str/trim p)
+                                   file (io/file trimmed)]
+                               (cond
+                                 ;; Directory: load all .edn files
+                                 (.isDirectory file)
+                                 (merge acc (load-agents-from-directory trimmed))
+
+                                 ;; File: load single file
+                                 (.exists file)
+                                 (do
+                                   (println (str "📄 Loading agents from: " trimmed))
+                                   (merge acc (read-string (slurp file))))
+
+                                 ;; Not found
+                                 :else
+                                 (do
+                                   (println (str "⚠️  Path not found: " trimmed))
+                                   acc))))
+                           {}
+                           paths)]
+        (when (seq merged-config)
+          merged-config))
+
+      ;; Fallback to resource if no system property
+      (when-let [res (io/resource "agents.edn")]
+        (System/setProperty "agents.edn" (.getPath res))))))
 
 ;; Initialize on namespace load if not explicitly set
 (load-agents-config)

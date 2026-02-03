@@ -256,7 +256,27 @@
    Returns a merged EDN map."
   []
   (let [prop-path (System/getProperty "agents.edn")
-        prop-file (when prop-path (io/file prop-path))
+
+        ;; Handle system property (file, directory, or comma-separated)
+        prop-configs (when prop-path
+                       (let [paths (str/split prop-path #",")]
+                         (keep (fn [p]
+                                 (let [trimmed (str/trim p)
+                                       file (io/file trimmed)]
+                                   (cond
+                                     ;; Directory: load all .edn files
+                                     (.isDirectory file)
+                                     (load-edn-files-from-dir file)
+
+                                     ;; File: load single file
+                                     (.exists file)
+                                     (edn/read-string (slurp file))
+
+                                     ;; Not found - skip
+                                     :else
+                                     nil)))
+                               paths)))
+
         cwd-file (io/file "agents.edn")
         cwd-dir (io/file "agents")
         cp-resource (io/resource "agents.edn")
@@ -267,12 +287,14 @@
                    (catch Exception _ nil)))
 
         configs (keep identity
-                      [(when cp-resource (edn/read-string (slurp cp-resource)))
-                       (when cp-dir (load-edn-files-from-dir cp-dir))
-                       (when (.exists cwd-file) (edn/read-string (slurp cwd-file)))
-                       (when (.exists cwd-dir) (load-edn-files-from-dir cwd-dir))
-                       (when (and prop-file (.exists prop-file)) (edn/read-string (slurp prop-file)))])]
-    (apply deep-merge configs)))
+                      (concat
+                       ;; Classpath resources (lowest priority)
+                       [(when cp-resource (edn/read-string (slurp cp-resource)))
+                        (when cp-dir (load-edn-files-from-dir cp-dir))
+                        (when (.exists cwd-file) (edn/read-string (slurp cwd-file)))
+                        (when (.exists cwd-dir) (load-edn-files-from-dir cwd-dir))]
+                       ;; System property configs (highest priority)
+                       prop-configs))]    (apply deep-merge configs)))
 
 (def agents-registry
   "Lazy-loaded agents registry"
