@@ -74,6 +74,37 @@
 ;; Initialize on namespace load if not explicitly set
 (load-agents-config)
 
+(defn run-init-hooks!
+  "Run optional initialization hooks from project namespaces.
+  
+  Projects can define an init namespace (e.g., codebase-analyzer.init)
+  with an init! function that will be called at startup.
+  
+  This is useful for registering hooks, setting up integrations, etc."
+  []
+  (try
+    ;; Try to find and call project-specific init function
+    (when-let [init-ns (or (System/getProperty "pyjama.init.ns")
+                           ;; Auto-detect common init namespaces
+                           (some #(try
+                                    (require %)
+                                    (when (ns-resolve % 'init!)
+                                      %)
+                                    (catch Exception _ nil))
+                                 ['codebase-analyzer.init
+                                  'project.init
+                                  'app.init]))]
+      (when-let [init-fn (ns-resolve init-ns 'init!)]
+        (println (str "🔧 Running initialization from " init-ns))
+        (init-fn)))
+    (catch Exception e
+      ;; Initialization is optional, so just log and continue
+      (binding [*out* *err*]
+        (println "⚠️  Initialization hook failed:" (.getMessage e))))))
+
+;; Run initialization hooks after loading config
+(run-init-hooks!)
+
 (defn get-runtime-overrides []
   (let [env-impl (or (System/getenv "PYJAMA_IMPL") (System/getenv "LLM_PROVIDER"))
         env-model (or (System/getenv "LLM_MODEL") (System/getenv "OLLAMA_MODEL"))]

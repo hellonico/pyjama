@@ -7,6 +7,7 @@
    [pyjama.core]
    [pyjama.io.template]
    [pyjama.tools.registry :as tool-registry]
+   [pyjama.agent.hooks :as hooks]
    [pyjama.utils :as utils]))
 
 ;; Normalize any step result into a map so downstream logic is stable.
@@ -273,6 +274,13 @@
             ;; NO COERCION HERE — pass through
             obs (as-obs raw)
               ;_     (binding [*out* *err*] (println "   AS-OBS  →" (pr-str obs)))
+
+            ;; ✅ NEW: Execute registered hooks for this tool
+            _ (hooks/run-hooks! tool {:tool-name tool
+                                      :args targs
+                                      :result obs
+                                      :ctx ctx
+                                      :params params})
 
             ;; record last obs + hoist files (for easy retrieval fallback)
             ctx' (-> ctx
