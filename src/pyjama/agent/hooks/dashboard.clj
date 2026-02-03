@@ -79,7 +79,7 @@
   (shared/get-dashboard-data))
 
 (defn- html-page
-  "Generate the improved dashboard HTML page with collapsible workflows and navigation."
+  "Generate the improved dashboard HTML page with tabbed navigation (ES5 compatible)."
   []
   (str
    "<!DOCTYPE html>
@@ -92,215 +92,196 @@
         * { margin: 0; padding: 0; box-sizing: border-box; }
         
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: #333;
-            padding: 20px;
             min-height: 100vh;
-        }
-        
-        .container {
-            max-width: 1400px;
-            margin: 0 auto;
         }
         
         header {
             background: white;
-            padding: 30px;
-            border-radius: 15px;
-            box-shadow: 0 10px 40px rgba(0,0,0,0.1);
-            margin-bottom: 30px;
-            text-align: center;
+            padding: 20px 30px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
         }
         
         h1 {
-            font-size: 2.5em;
+            font-size: 2em;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
-            margin-bottom: 10px;
         }
         
-        .subtitle {
-            color: #666;
-            font-size: 1.1em;
-        }
+        .subtitle { color: #666; font-size: 0.9em; margin-top: 5px; }
         
-        .grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+        .nav {
+            background: white;
+            padding: 15px 30px;
+            display: flex;
             gap: 20px;
-            margin-bottom: 20px;
+            border-bottom: 2px solid #f0f0f0;
         }
+        
+        .nav-item {
+            padding: 10px 20px;
+            cursor: pointer;
+            border-radius: 8px;
+            font-weight: 500;
+            color: #666;
+            transition: 0.2s;
+        }
+        
+        .nav-item:hover { background: #f8f9fa; }
+        .nav-item.active {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        
+        .container { max-width: 1400px; margin: 0 auto; padding: 30px 20px; }
+        .view { display: none; }
+        .view.active { display: block; }
         
         .card {
             background: white;
             padding: 25px;
             border-radius: 15px;
             box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
         }
         
         .card h2 {
             font-size: 1.5em;
             margin-bottom: 20px;
             color: #667eea;
-            display: flex;
-            align-items: center;
-            gap: 10px;
+        }
+        
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
         }
         
         .metric {
-            display: flex;
-            justify-content: space-between;
-            padding: 12px 0;
-            border-bottom: 1px solid #f0f0f0;
-        }
-        
-        .metric:last-child {
-            border-bottom: none;
-        }
-        
-        .metric-label {
-            color: #666;
-            font-weight: 500;
-        }
-        
-        .metric-value {
-            font-weight: bold;
-            color: #333;
-            font-size: 1.1em;
-        }
-        
-        .agent-item {
             padding: 15px;
             background: #f8f9fa;
             border-radius: 10px;
-            margin-bottom: 10px;
+        }
+        
+        .metric-label { color: #666; font-size: 0.9em; }
+        .metric-value { font-weight: bold; color: #333; font-size: 1.8em; }
+        
+        .agent-card {
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 12px;
+            margin-bottom: 15px;
             border-left: 4px solid #667eea;
+            cursor: pointer;
+            transition: 0.2s;
         }
         
-        .agent-item.completed {
-            border-left-color: #28a745;
-            opacity: 0.7;
+        .agent-card:hover {
+            background: #e9ecef;
+            transform: translateX(5px);
         }
         
-        .agent-name {
-            font-weight: bold;
-            color: #333;
-            margin-bottom: 5px;
+        .agent-card.completed { border-left-color: #28a745; opacity: 0.8; }
+        
+        .agent-header {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 10px;
         }
+        
+        .agent-name { font-weight: bold; font-size: 1.1em; }
         
         .agent-status {
-            display: inline-block;
-            padding: 4px 12px;
+            padding: 6px 14px;
             border-radius: 20px;
-            font-size: 0.85em;
+            font-size: 0.8em;
             font-weight: 600;
             text-transform: uppercase;
         }
         
-        .status-running {
-            background: #667eea;
-            color: white;
-        }
+        .agent-status.running { background: #667eea; color: white; }
+        .agent-status.completed { background: #28a745; color: white; }
         
-        .status-completed {
-            background: #28a745;
-            color: white;
-        }
+        .agent-meta { color: #666; font-size: 0.9em; margin-bottom: 15px; }
         
-        .log-entry {
-            padding: 10px;
-            background: #f8f9fa;
+        .current-step-preview {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 12px;
+            background: white;
             border-radius: 8px;
-            margin-bottom: 8px;
-            font-family: 'Monaco', 'Courier New', monospace;
-            font-size: 0.9em;
-            border-left: 3px solid #667eea;
         }
         
-        .log-timestamp {
-            color: #999;
-            font-size: 0.85em;
-        }
-        
-        .log-agent {
-            color: #667eea;
-            font-weight: bold;
-        }
-        
-        .log-tool {
-            color: #764ba2;
-        }
-        
-        .status-ok {
-            color: #28a745;
-        }
-        
-        .status-error {
-            color: #dc3545;
-        }
-        
-        .refresh-info {
-            text-align: center;
-            color: white;
-            margin-top: 20px;
-            font-size: 0.9em;
-        }
-        
-        .pulse {
-            display: inline-block;
-            width: 10px;
-            height: 10px;
-            background: #28a745;
+        .step-indicator {
+            width: 30px;
+            height: 30px;
             border-radius: 50%;
-            margin-right: 8px;
-            animation: pulse 2s infinite;
-        }
-        
-        @keyframes pulse {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.5; }
-        }
-        
-        .empty-state {
-            text-align: center;
-            padding: 40px;
-            color: #999;
-        }
-        
-        .hook-badge {
-            display: inline-block;
-            padding: 6px 12px;
-            background: #e9ecef;
-            border-radius: 20px;
-            margin: 5px;
-            font-size: 0.9em;
-        }
-        
-        .hook-count {
             background: #667eea;
             color: white;
-            padding: 2px 8px;
-            border-radius: 10px;
-            margin-left: 5px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
             font-weight: bold;
         }
         
-        /* Workflow Progress Styles */
-        .workflow-steps {
-            display: flex;
+        .step-indicator.completed { background: #28a745; }
+        .step-info { flex: 1; }
+        .step-name { font-weight: 600; }
+        .step-count { color: #666; font-size: 0.85em; margin-top: 3px; }
+        .expand-hint { color: #667eea; font-size: 0.85em; font-weight: 500; }
+        
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.7);
+            z-index: 1000;
             align-items: center;
-            margin: 20px 0;
-            overflow-x: auto;
-            padding: 10px 0;
+            justify-content: center;
         }
         
-        .step-item {
+        .modal.active { display: flex; }
+        
+        .modal-content {
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            max-width: 800px;
+            max-height: 80vh;
+            overflow-y: auto;
+            position: relative;
+        }
+        
+        .modal-close {
+            position: absolute;
+            top: 15px;
+            right: 20px;
+            font-size: 2em;
+            cursor: pointer;
+            color: #666;
+        }
+        
+        .modal-title { font-size: 1.8em; color: #667eea; margin-bottom: 20px; }
+        
+        .workflow-full { display: flex; flex-direction: column; gap: 10px; }
+        
+        .workflow-step {
             display: flex;
             align-items: center;
-            min-width: 150px;
+            gap: 15px;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 10px;
         }
+        
+        .workflow-step.completed { background: #d4edda; }
+        .workflow-step.running { background: #cfe2ff; border: 2px solid #667eea; }
         
         .step-circle {
             width: 40px;
@@ -310,96 +291,103 @@
             align-items: center;
             justify-content: center;
             font-weight: bold;
-            font-size: 0.9em;
-            flex-shrink: 0;
         }
         
-        .step-circle.completed {
-            background: #28a745;
-            color: white;
+        .step-circle.completed { background: #28a745; color: white; }
+        .step-circle.running { background: #667eea; color: white; }
+        .step-circle.pending { background: #e9ecef; color: #666; }
+        
+        .step-details { flex: 1; }
+        .step-title { font-weight: 600; margin-bottom: 5px; }
+        .step-duration { color: #666; font-size: 0.85em; }
+        
+        .activity-log { display: flex; flex-direction: column; gap: 10px; }
+        
+        .activity-item {
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 10px;
+            border-left: 4px solid #667eea;
         }
         
-        .step-circle.running {
-            background: #667eea;
-            color: white;
-            animation: pulse-step 1.5s infinite;
+        .activity-item.ok { border-left-color: #28a745; }
+        .activity-time { color: #666; font-size: 0.85em; margin-bottom: 5px; }
+        .activity-agent { color: #667eea; font-weight: 600; }
+        .activity-tool { font-weight: 500; }
+        
+        .activity-status {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 0.8em;
+            font-weight: 600;
+            margin-left: 8px;
         }
         
-        .step-circle.pending {
-            background: #e9ecef;
-            color: #999;
-        }
+        .activity-status.ok { background: #d4edda; color: #155724; }
         
-        @keyframes pulse-step {
-            0%, 100% { transform: scale(1); opacity: 1; }
-            50% { transform: scale(1.1); opacity: 0.8; }
-        }
-        
-        .step-connector {
-            height: 3px;
-            flex: 1;
-            min-width: 30px;
-            margin: 0 5px;
-        }
-        
-        .step-connector.completed {
-            background: #28a745;
-        }
-        
-        .step-connector.pending {
-            background: #e9ecef;
-        }
-        
-        .step-label {
-            margin-top: 8px;
-            font-size: 0.85em;
+        .empty-state {
             text-align: center;
-            color: #666;
-            word-wrap: break-word;
-            max-width: 150px;
+            padding: 40px;
+            color: #999;
+            font-size: 1.1em;
         }
         
-        .step-wrapper {
+        .refresh-info {
+            text-align: center;
+            padding: 15px;
+            color: rgba(255,255,255,0.9);
             display: flex;
-            flex-direction: column;
             align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+        
+        .pulse {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: #4ade80;
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.3; }
         }
     </style>
 </head>
 <body>
+    <header>
+        <h1>🤖 Pyjama Agent Dashboard</h1>
+        <div class=\"subtitle\">Real-time monitoring of agent execution and metrics</div>
+    </header>
+    
+    <div class=\"nav\">
+        <div class=\"nav-item active\" onclick=\"switchView('metrics')\">📊 Metrics</div>
+        <div class=\"nav-item\" onclick=\"switchView('agents')\">🤖 Active Agents</div>
+        <div class=\"nav-item\" onclick=\"switchView('activity')\">📝 Activity</div>
+    </div>
+    
     <div class=\"container\">
-        <header>
-            <h1>🎣 Pyjama Agent Dashboard</h1>
-            <p class=\"subtitle\">Real-time monitoring of agent execution, metrics, and hooks</p>
-        </header>
-        
-        <div class=\"grid\">
+        <div id=\"metrics-view\" class=\"view active\">
             <div class=\"card\">
                 <h2>📊 Global Metrics</h2>
-                <div id=\"global-metrics\">
-                    <div class=\"empty-state\">Loading metrics...</div>
-                </div>
-            </div>
-            
-            <div class=\"card\">
-                <h2>🤖 Active Agents</h2>
-                <div id=\"active-agents\">
-                    <div class=\"empty-state\">No agents running</div>
-                </div>
-            </div>
-            
-            <div class=\"card\">
-                <h2>🔧 Registered Hooks</h2>
-                <div id=\"hooks-status\">
-                    <div class=\"empty-state\">Loading hooks...</div>
-                </div>
+                <div id=\"global-metrics\" class=\"metrics-grid\"></div>
             </div>
         </div>
         
-        <div class=\"card\">
-            <h2>📝 Recent Activity</h2>
-            <div id=\"recent-logs\">
-                <div class=\"empty-state\">No recent activity</div>
+        <div id=\"agents-view\" class=\"view\">
+            <div class=\"card\">
+                <h2>🤖 Active Agents</h2>
+                <div id=\"active-agents\"></div>
+            </div>
+        </div>
+        
+        <div id=\"activity-view\" class=\"view\">
+            <div class=\"card\">
+                <h2>📝 Recent Activity</h2>
+                <div id=\"recent-logs\" class=\"activity-log\"></div>
             </div>
         </div>
         
@@ -409,139 +397,182 @@
         </div>
     </div>
     
+    <div id=\"workflow-modal\" class=\"modal\" onclick=\"if (event.target === this) closeModal();\">
+        <div class=\"modal-content\">
+            <span class=\"modal-close\" onclick=\"closeModal()\">&times;</span>
+            <h2 class=\"modal-title\" id=\"modal-agent-name\">Agent Workflow</h2>
+            <div id=\"modal-workflow\" class=\"workflow-full\"></div>
+        </div>
+    </div>
+    
     <script>
+        var currentView = 'metrics';
+        
+        function switchView(view) {
+            currentView = view;
+            var views = document.querySelectorAll('.view');
+            for (var i = 0; i < views.length; i++) {
+                views[i].classList.remove('active');
+            }
+            var navItems = document.querySelectorAll('.nav-item');
+            for (var j = 0; j < navItems.length; j++) {
+                navItems[j].classList.remove('active');
+            }
+            document.getElementById(view + '-view').classList.add('active');
+            event.target.classList.add('active');
+        }
+        
         function formatTimestamp(ts) {
-            const date = new Date(ts);
-            return date.toLocaleTimeString();
+            return new Date(ts).toLocaleTimeString();
         }
         
         function formatDuration(ms) {
             if (ms < 1000) return ms.toFixed(2) + 'ms';
-            return (ms / 1000).toFixed(2) + 's';
+            if (ms < 60000) return (ms / 1000).toFixed(2) + 's';
+            return Math.floor(ms / 60000) + 'm ' + Math.floor((ms % 60000) / 1000) + 's';
+        }
+        
+        function showWorkflow(agentId, agentData) {
+            var modal = document.getElementById('workflow-modal');
+            var modalTitle = document.getElementById('modal-agent-name');
+            var modalWorkflow = document.getElementById('modal-workflow');
+            
+            modalTitle.textContent = agentId + ' - Full Workflow';
+            
+            var steps = agentData.steps || [];
+            var currentStep = agentData['current-step'];
+            
+            var html = '';
+            for (var i = 0; i < steps.length; i++) {
+                var step = steps[i];
+                var isCompleted = step.status === 'ok' || step.status === 'completed';
+                var isRunning = step.status === 'running' || step['step-id'] === currentStep;
+                var isPending = !isCompleted && !isRunning;
+                
+                var statusClass = isPending ? 'pending' : (isCompleted ? 'completed' : 'running');
+                var circleContent = isPending ? (i + 1) : (isCompleted ? '✓' : '▶');
+                
+                var duration = '';
+                if (step['end-time'] && step['start-time']) {
+                    duration = formatDuration(step['end-time'] - step['start-time']);
+                } else if (isRunning && step['start-time']) {
+                    duration = formatDuration(Date.now() - step['start-time']) + ' (running)';
+                }
+                
+                html += '<div class=\"workflow-step ' + statusClass + '\">' +
+                        '<div class=\"step-circle ' + statusClass + '\">' + circleContent + '</div>' +
+                        '<div class=\"step-details\">' +
+                        '<div class=\"step-title\">' + step['step-id'] + '</div>' +
+                        (duration ? '<div class=\"step-duration\">' + duration + '</div>' : '') +
+                        '</div></div>';
+            }
+            
+            modalWorkflow.innerHTML = html;
+            modal.classList.add('active');
+        }
+        
+        function closeModal() {
+            document.getElementById('workflow-modal').classList.remove('active');
         }
         
         function updateDashboard() {
             fetch('/api/data')
-                .then(res => res.json())
-                .then(data => {
-                    // Update global metrics
-                    const metrics = data.metrics.global;
-                    document.getElementById('global-metrics').innerHTML = `
-                        <div class=\"metric\">
-                            <span class=\"metric-label\">Total Executions</span>
-                            <span class=\"metric-value\">${metrics.count || 0}</span>
-                        </div>
-                        <div class=\"metric\">
-                            <span class=\"metric-label\">Success Rate</span>
-                            <span class=\"metric-value\">${((metrics['success-rate'] || 0) * 100).toFixed(1)}%</span>
-                        </div>
-                        <div class=\"metric\">
-                            <span class=\"metric-label\">Avg Duration</span>
-                            <span class=\"metric-value\">${formatDuration(metrics['avg-duration-ms'] || 0)}</span>
-                        </div>
-                        <div class=\"metric\">
-                            <span class=\"metric-label\">Throughput</span>
-                            <span class=\"metric-value\">${(metrics.throughput || 0).toFixed(2)} ops/sec</span>
-                        </div>
-                    `;
+                .then(function(res) { return res.json(); })
+                .then(function(data) {
+                    var metrics = data.metrics.global || {};
+                    document.getElementById('global-metrics').innerHTML =
+                        '<div class=\"metric\"><div class=\"metric-label\">Total Executions</div><div class=\"metric-value\">' + (metrics.count || 0) + '</div></div>' +
+                        '<div class=\"metric\"><div class=\"metric-label\">Success Rate</div><div class=\"metric-value\">' + ((metrics['success-rate'] || 0) * 100).toFixed(1) + '%</div></div>' +
+                        '<div class=\"metric\"><div class=\"metric-label\">Avg Duration</div><div class=\"metric-value\">' + formatDuration(metrics['avg-duration-ms'] || 0) + '</div></div>' +
+                        '<div class=\"metric\"><div class=\"metric-label\">Throughput</div><div class=\"metric-value\">' + (metrics.throughput || 0).toFixed(2) + ' ops/sec</div></div>';
                     
-                    // Update active agents
-                    const agents = data.agents;
-                    const agentKeys = Object.keys(agents);
+                    var agents = data.agents || {};
+                    var agentKeys = Object.keys(agents);
+                    
                     if (agentKeys.length === 0) {
-                        document.getElementById('active-agents').innerHTML = '<div class=\"empty-state\">No agents running</div>';
+                        document.getElementById('active-agents').innerHTML = '<div class=\"empty-state\">No active agents</div>';
                     } else {
-                        document.getElementById('active-agents').innerHTML = agentKeys.map(agentId => {
-                            const agent = agents[agentId];
-                            const status = agent.status || 'unknown';
-                            const statusClass = status === 'running' ? 'status-running' : 'status-completed';
-                            const itemClass = status === 'running' ? 'agent-item' : 'agent-item completed';
+                        var agentsHTML = '';
+                        for (var k = 0; k < agentKeys.length; k++) {
+                            var agentId = agentKeys[k];
+                            var agent = agents[agentId];
+                            var isCompleted = agent.status === 'completed';
+                            var steps = agent.steps || [];
+                            var currentStep = agent['current-step'];
+                            var completedCount = 0;
+                            for (var m = 0; m < steps.length; m++) {
+                                if (steps[m].status === 'ok' || steps[m].status === 'completed') {
+                                    completedCount++;
+                                }
+                            }
                             
-                            // Calculate duration with fallbacks
-                            let duration = 0;
+                            var duration = 0;
                             if (agent['end-time'] && agent['start-time']) {
                                 duration = agent['end-time'] - agent['start-time'];
                             } else if (agent['start-time']) {
                                 duration = Date.now() - agent['start-time'];
-                            } else if (agent['last-seen']) {
-                                // Fallback: estimate from last-seen
-                                duration = Date.now() - agent['last-seen'];
                             }
                             
-                            // Build workflow progress if available
-                            let workflowHTML = '';
-                            if (agent.steps && agent.steps.length > 0) {
-                                const currentStep = agent['current-step'];
-                                const steps = agent.steps;
-                                
-                                workflowHTML = '<div class=\"workflow-steps\" style=\"margin-top: 12px;\">';
-                                steps.forEach((step, index) => {
-                                    const isCompleted = step.status === 'ok' || step.status === 'completed';
-                                    const isRunning = step.status === 'running' || step['step-id'] === currentStep;
-                                    
-                                    let circleClass = 'pending';
-                                    let circleContent = index + 1;
-                                    if (isCompleted) {
-                                        circleClass = 'completed';
-                                        circleContent = '✓';
-                                    } else if (isRunning) {
-                                        circleClass = 'running';
-                                        circleContent = '▶';
-                                    }
-                                    
-                                    workflowHTML += '<div class=\"step-item\"><div class=\"step-wrapper\"><div class=\"step-circle ' + circleClass + '\">' + circleContent + '</div><div class=\"step-label\">' + step['step-id'] + '</div></div>';
-                                    
-                                    if (index < steps.length - 1) {
-                                        const connectorClass = isCompleted ? 'completed' : 'pending';
-                                        workflowHTML += '<div class=\"step-connector ' + connectorClass + '\"></div>';
-                                    }
-                                    
-                                    workflowHTML += '</div>';
-                                });
-                                workflowHTML += '</div>';
+                            agentsHTML += '<div class=\"agent-card ' + (isCompleted ? 'completed' : '') + '\" onclick=\"showWorkflow(' + JSON.stringify(agentId) + ', ' + JSON.stringify(agent) + ')\">' +
+                                '<div class=\"agent-header\">' +
+                                '<div class=\"agent-name\">' + agentId + '</div>' +
+                                '<div class=\"agent-status ' + (isCompleted ? 'completed' : 'running') + '\">' + (isCompleted ? 'COMPLETED' : 'RUNNING') + '</div>' +
+                                '</div>' +
+                                '<div class=\"agent-meta\">Duration: ' + formatDuration(duration) + '</div>';
+                            
+                            if (currentStep) {
+                                agentsHTML += '<div class=\"current-step-preview\">' +
+                                    '<div class=\"step-indicator\">▶</div>' +
+                                    '<div class=\"step-info\">' +
+                                    '<div class=\"step-name\">' + currentStep + '</div>' +
+                                    '<div class=\"step-count\">' + completedCount + ' of ' + steps.length + ' steps completed</div>' +
+                                    '</div>' +
+                                    '<div class=\"expand-hint\">Click to expand →</div>' +
+                                    '</div>';
+                            } else {
+                                agentsHTML += '<div class=\"current-step-preview\">' +
+                                    '<div class=\"step-indicator completed\">✓</div>' +
+                                    '<div class=\"step-info\">' +
+                                    '<div class=\"step-name\">All steps completed</div>' +
+                                    '<div class=\"step-count\">' + steps.length + ' steps total</div>' +
+                                    '</div>' +
+                                    '<div class=\"expand-hint\">Click to view →</div>' +
+                                    '</div>';
                             }
                             
-                            return '<div class=\"' + itemClass + '\"><div class=\"agent-name\">' + agentId + '</div><span class=\"agent-status ' + statusClass + '\">' + status + '</span><div style=\"margin-top: 8px; color: #666; font-size: 0.9em;\">Duration: ' + formatDuration(duration) + '</div>' + workflowHTML + '</div>';
-                        }).join('');
+                            agentsHTML += '</div>';
+                        }
+                        document.getElementById('active-agents').innerHTML = agentsHTML;
                     }
                     
-                    // Update hooks status
-                    const hooks = data.hooks.registered;
-                    const hookKeys = Object.keys(hooks);
-                    if (hookKeys.length === 0) {
-                        document.getElementById('hooks-status').innerHTML = '<div class=\"empty-state\">No hooks registered</div>';
-                    } else {
-                        document.getElementById('hooks-status').innerHTML = hookKeys.map(tool => {
-                            const count = hooks[tool];
-                            return '<span class=\"hook-badge\">' + tool + '<span class=\"hook-count\">' + count + '</span></span>';
-                        }).join('');
-                    }
-                    
-                    // Workflow progress is now shown inline with each agent
-                    
-                    // Update recent logs
-                    const logs = data['recent-logs'];
+                    var logs = data['recent-logs'] || [];
                     if (logs.length === 0) {
                         document.getElementById('recent-logs').innerHTML = '<div class=\"empty-state\">No recent activity</div>';
                     } else {
-                        document.getElementById('recent-logs').innerHTML = logs.slice().reverse().slice(0, 20).map(log => {
-                            const statusClass = log.status === 'ok' ? 'status-ok' : 'status-error';
-                            return '<div class=\"log-entry\"><span class=\"log-timestamp\">' + formatTimestamp(log.timestamp) + '</span><span class=\"log-agent\">' + log['agent-id'] + '</span> executed <span class=\"log-tool\">' + log.tool + '</span> - <span class=\"' + statusClass + '\">' + (log.status || 'unknown') + '</span></div>';
-                        }).join('');
+                        var logsHTML = '';
+                        var recentLogs = logs.slice().reverse().slice(0, 20);
+                        for (var n = 0; n < recentLogs.length; n++) {
+                            var log = recentLogs[n];
+                            var status = log.status || 'ok';
+                            logsHTML += '<div class=\"activity-item ' + status + '\">' +
+                                '<div class=\"activity-time\">' + formatTimestamp(log.timestamp) + '</div>' +
+                                '<div>' +
+                                '<span class=\"activity-agent\">' + log['agent-id'] + '</span> executed ' +
+                                '<span class=\"activity-tool\">' + log.tool + '</span>' +
+                                '<span class=\"activity-status ' + status + '\">' + status + '</span>' +
+                                '</div></div>';
+                        }
+                        document.getElementById('recent-logs').innerHTML = logsHTML;
                     }
                 })
-                .catch(err => console.error('Failed to fetch dashboard data:', err));
+                .catch(function(err) { console.error('Error:', err); });
         }
         
-        // Initial update
         updateDashboard();
-        
-        // Auto-refresh every 2 seconds
         setInterval(updateDashboard, 2000);
     </script>
 </body>
 </html>"))
-
 (defn- handle-request
   "Handle HTTP request."
   [request-line]
