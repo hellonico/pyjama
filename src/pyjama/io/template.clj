@@ -120,6 +120,10 @@
           (let [ks (map kwify (rest parts))]
             (get-in ctx (into [:last-obs] ks)))
 
+          (head-is? h "last-obs")
+          (let [ks (map kwify (rest parts))]
+            (get-in ctx (into [:last-obs] ks)))
+
           (head-is? h "prompt") (:prompt ctx)
 
           (head-is? h "params")
@@ -143,6 +147,7 @@
 
       ;; simple whole-token shortcuts
       (= content "obs") (:last-obs ctx)
+      (= content "last-obs") (:last-obs ctx)
       (= content "prompt") (:prompt ctx)
       (= content "params") params
       (= content "ctx") ctx

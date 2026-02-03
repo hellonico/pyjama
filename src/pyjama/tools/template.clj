@@ -1,6 +1,7 @@
 (ns pyjama.tools.template
   (:require [clojure.java.io :as io]
-            [clojure.string :as str]))
+            [clojure.string :as str]
+            [pyjama.io.template]))
 
 (defn find-template
   "Find template file from multiple locations (user folders, then built-in resources)"
@@ -24,12 +25,19 @@
           {:source :resource :path (last locations) :content (slurp resource)}))))
 
 (defn render-custom-template
-  "Render a markdown template by replacing {{context}} with provided context"
-  [{:keys [template context project-dir] :or {project-dir "."}}]
+  "Render a markdown template by replacing {{context}} with provided context.
+   Also supports full template interpolation for nested variables."
+  [{:keys [template context project-dir ctx params] :or {project-dir "."}}]
   (if-let [{:keys [content path]} (find-template template project-dir)]
-    {:status :ok
-     :template path
-     :text (str/replace content "{{context}}" (or context ""))}
+    (let [;; First replace {{context}} placeholder with the provided context
+          with-context (str/replace content "{{context}}" (or context ""))
+          ;; Then render any remaining template variables using the agent context
+          rendered (if (and ctx (re-find #"\{\{" with-context))
+                     (pyjama.io.template/render-template with-context ctx (or params {}))
+                     with-context)]
+      {:status :ok
+       :template path
+       :text rendered})
     {:status :error
      :message (str "Template not found: " template)}))
 
