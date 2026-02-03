@@ -79,7 +79,7 @@
   (shared/get-dashboard-data))
 
 (defn- html-page
-  "Generate the dashboard HTML page."
+  "Generate the improved dashboard HTML page with collapsible workflows and navigation."
   []
   (str
    "<!DOCTYPE html>
