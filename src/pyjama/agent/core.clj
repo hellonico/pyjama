@@ -8,6 +8,7 @@
    [pyjama.io.template]
    [pyjama.tools.registry :as tool-registry]
    [pyjama.agent.hooks :as hooks]
+   [pyjama.agent.hooks.shared-metrics :as shared-metrics]
    [pyjama.utils :as utils]))
 
 ;; Normalize any step result into a map so downstream logic is stable.
@@ -181,7 +182,15 @@
          sid start-id
          n 0]
     (if (or (= sid :done) (>= n (or (:max-steps spec) 20)))
-      {:obs (:last-obs c) :trace (:trace c)}
+      (do
+        ;; Mark agent as complete in shared metrics when done
+        (try
+          (when-let [agent-id (:id ctx)]
+            (when-let [complete-fn (try (requiring-resolve 'pyjama.agent.hooks.shared-metrics/record-agent-complete!)
+                                        (catch Exception _ nil))]
+              (complete-fn agent-id)))
+          (catch Exception _ nil))
+        {:obs (:last-obs c) :trace (:trace c)})
       (let [c' (run-step spec sid c params)
             c'' (update c' :trace (fnil conj []) {:step sid :obs (:last-obs c')})
             nid (decide-next spec sid c'')]
@@ -237,85 +246,86 @@
 
 (defn- run-step [{:keys [steps tools] :as spec} step-id ctx params]
   (println "▶︎" (:id ctx) "▶︎" step-id)
-  (let [{:keys [tool parallel loop-over loop-body] :as step} (get steps step-id)]
-    (cond
-      (and loop-over loop-body)
-      (run-loop spec step ctx params)
 
-      tool
-      (let [{:keys [fn args] :as tool-spec} (get tools tool)
+  ;; Track step execution in shared metrics (if available)
+  (try
+    (when-let [agent-id (:id ctx)]
+      (when-let [track-fn (resolve 'pyjama.agent.hooks.shared-metrics/track-step-execution!)]
+        (track-fn agent-id step-id)))
+    (catch Exception _ nil))  ;; Silently fail if shared metrics not available
 
-            base-args (merge args (:args step))
-            ;; render ALL args deeply (single-token → raw value, multi-token → string)
-            rendered (pyjama.io.template/render-args-deep base-args ctx params)
+  (let [{:keys [tool parallel loop-over loop-body] :as step} (get steps step-id)
+        ;; Execute the step and capture result
+        result-ctx (cond
+                     (and loop-over loop-body)
+                     (run-loop spec step ctx params)
 
-              ;_ (binding [*out* *err*] (println "→ TOOL" tool "RENDERED:" rendered))
-              ;_ (binding [*out* *err*]
-              ;   (println "→ TOOL" tool
-              ;            "MESSAGE=" (pr-str (subs (str message) 0 (min 120 (count (str message))))))
-              ;   (println "           ARGS =" (pr-str (dissoc targs :ctx :params))))
-              ;
+                     tool
+                     (let [{:keys [fn args] :as tool-spec} (get tools tool)
 
-            ;; build message (keep whatever you already had)
-            msg (cond
-                  (:message step) (:message step)
-                  (:message-path step) (get-in ctx (:message-path step))
-                  (:message-template step) (pyjama.io.template/render-template (:message-template step) ctx params)
-                  :else (or (get-in ctx [:last-obs :text])
-                            (when (string? (:last-obs ctx)) (:last-obs ctx))
-                            (pr-str (:last-obs ctx))))
+                           base-args (merge args (:args step))
+                           ;; render ALL args deeply (single-token → raw value, multi-token → string)
+                           rendered (pyjama.io.template/render-args-deep base-args ctx params)
 
-            targs (merge {:message msg} rendered {:ctx ctx :params params})
-              ;_ (binding [*out* *err*] (println "→ TOOL" tool "ARGS" (dissoc targs :ctx :params)))
+                           ;; build message (keep whatever you already had)
+                           msg (cond
+                                 (:message step) (:message step)
+                                 (:message-path step) (get-in ctx (:message-path step))
+                                 (:message-template step) (pyjama.io.template/render-template (:message-template step) ctx params)
+                                 :else (or (get-in ctx [:last-obs :text])
+                                           (when (string? (:last-obs ctx)) (:last-obs ctx))
+                                           (pr-str (:last-obs ctx))))
 
-            raw ((resolve-fn* fn) targs)
-              ;_ (binding [*out* *err*] (println "   RAW     →" (pr-str raw)))
+                           targs (merge {:message msg} rendered {:ctx ctx :params params})
 
-            ;; NO COERCION HERE — pass through
-            obs (as-obs raw)
-              ;_     (binding [*out* *err*] (println "   AS-OBS  →" (pr-str obs)))
+                           raw ((resolve-fn* fn) targs)
 
-            ;; ✅ NEW: Execute registered hooks for this tool
-            _ (hooks/run-hooks! tool {:tool-name tool
-                                      :args targs
-                                      :result obs
-                                      :ctx ctx
-                                      :params params})
+                           ;; NO COERCION HERE — pass through
+                           obs (as-obs raw)
 
-            ;; record last obs + hoist files (for easy retrieval fallback)
-            ctx' (-> ctx
-                     (assoc :last-obs obs)
-                     ;; merge files hoist, if present
-                     (cond-> (:files obs) (assoc :project-files (:files obs)))
-                     ;; ✅ NEW: merge ctx mutations from tools
-                     (cond-> (:set obs) (merge (:set obs))))]
-        ctx')
+                           ;; ✅ NEW: Execute registered hooks for this tool
+                           _ (hooks/run-hooks! tool {:tool-name tool
+                                                     :args targs
+                                                     :result obs
+                                                     :ctx ctx
+                                                     :params params})
 
-      ;; NEW: fork/join branch
-      (and (vector? parallel) (seq parallel))
-      (run-fork spec step ctx params)
+                           ;; record last obs + hoist files (for easy retrieval fallback)
+                           ctx' (-> ctx
+                                    (assoc :last-obs obs)
+                                    ;; merge files hoist, if present
+                                    (cond-> (:files obs) (assoc :project-files (:files obs)))
+                                    ;; ✅ NEW: merge ctx mutations from tools
+                                    (cond-> (:set obs) (merge (:set obs))))]
+                       ctx')
 
-      :else
-      (let [;_ (prn ">>" step-id ">" step)
-              ;_ (binding [*out* *err*]
-              ;   (println "STEP" step-id "→ has-step-prompt?"
-              ;            (boolean (and (string? (:prompt step)) (seq (:prompt step)))))
-              ;   (when (and (string? (:prompt step)) (seq (:prompt step)))
-              ;    (println "STEP" step-id "prompt-preview:"
-              ;             (:prompt step))))
-              ;(subs (:prompt step) 0 (min 60 (count (:prompt step)))))))
-            final-prompt (render-step-prompt step-id step ctx params)
-            ;; only pass LLM-relevant keys from step
-              ;llm-step (apply dissoc step step-non-llm-keys)
-            llm-step (apply dissoc step step-non-llm-keys)
-            ;; NEW: render all templatable fields in the LLM step (impl/model/url/temperature/etc)
-            llm-step-rendered (pyjama.io.template/render-args-deep llm-step ctx params)
-            llm-input (-> (merge params llm-step-rendered)
-                          (assoc :prompt final-prompt
-                                 :id step-id))
-            raw (pyjama.core/call* llm-input)
-            obs (as-obs raw)]
-        (assoc ctx :last-obs obs)))))
+                     ;; NEW: fork/join branch
+                     (and (vector? parallel) (seq parallel))
+                     (run-fork spec step ctx params)
+
+                     :else
+                     (let [final-prompt (render-step-prompt step-id step ctx params)
+                           llm-step (apply dissoc step step-non-llm-keys)
+                           ;; NEW: render all templatable fields in the LLM step (impl/model/url/temperature/etc)
+                           llm-step-rendered (pyjama.io.template/render-args-deep llm-step ctx params)
+                           llm-input (-> (merge params llm-step-rendered)
+                                         (assoc :prompt final-prompt
+                                                :id step-id))
+                           raw (pyjama.core/call* llm-input)
+                           obs (as-obs raw)]
+                       (assoc ctx :last-obs obs)))]
+
+    ;; Mark step as complete
+    (try
+      (when-let [agent-id (:id ctx)]
+        (when-let [complete-fn (resolve 'pyjama.agent.hooks.shared-metrics/record-step-complete!)]
+          (let [status (get-in result-ctx [:last-obs :status] :ok)]
+            (complete-fn agent-id step-id status))))
+      (catch Exception _ nil))
+
+    result-ctx))
+
+
 
 
 (defn- pathlike? [x]
@@ -574,13 +584,25 @@
 
         (validate-all-tools merged-tools)
 
+        ;; Mark agent as started in shared metrics
+        (try
+          (when-let [start-fn (resolve 'pyjama.agent.hooks.shared-metrics/record-agent-start!)]
+            (start-fn id))
+          (catch Exception _ nil))
+
         (loop [ctx (merge {:id id :trace [] :prompt (:prompt params) :original-prompt (:prompt params)} params)
                step-id start
                n 0]
           (if (or (= step-id :done) (>= n (or max-steps 20)))
-            (:last-obs ctx)
+            (do
+              ;; Mark agent as complete in shared metrics
+              (try
+                (when-let [complete-fn (resolve 'pyjama.agent.hooks.shared-metrics/record-agent-complete!)]
+                  (complete-fn id))
+                (catch Exception _ nil))
+              (:last-obs ctx))
             (let [ctx' (run-step spec step-id ctx params)         ;; run the step, update :last-obs
                   ctx'' (update ctx' :trace (fnil conj [])
                                 {:step step-id :obs (:last-obs ctx')}) ;; record new obs
-                  next-id (decide-next spec step-id ctx'')]
-              (recur ctx'' next-id (inc n)))))))))
+                  nid (decide-next spec step-id ctx'')]
+              (recur ctx'' nid (inc n)))))))))
