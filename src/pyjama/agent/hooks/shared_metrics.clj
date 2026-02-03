@@ -214,7 +214,9 @@
                                :avg-duration-ms (if (and global (pos? (:count global)))
                                                   (double (/ (:total-duration global) (:count global)))
                                                   0.0)
-                               :throughput 0.0})
+                               :throughput (if (and global (:total-duration global) (pos? (:total-duration global)))
+                                             (double (/ (* (:count global) 1000.0) (:total-duration global)))
+                                             0.0)})
                :tools (or tools {})
                :agents (or agents {})}
      :recent-logs (or (:recent-logs metrics) [])

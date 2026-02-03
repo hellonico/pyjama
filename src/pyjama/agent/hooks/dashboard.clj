@@ -304,14 +304,17 @@
         .activity-log { display: flex; flex-direction: column; gap: 10px; }
         
         .activity-item {
-            padding: 15px;
+            padding: 10px 15px;
             background: #f8f9fa;
-            border-radius: 10px;
+            border-radius: 8px;
             border-left: 4px solid #667eea;
+            display: flex;
+            align-items: center;
+            gap: 10px;
         }
         
         .activity-item.ok { border-left-color: #28a745; }
-        .activity-time { color: #666; font-size: 0.85em; margin-bottom: 5px; }
+        .activity-time { color: #666; font-size: 0.85em; min-width: 80px; }
         .activity-agent { color: #667eea; font-weight: 600; }
         .activity-tool { font-weight: 500; }
         
@@ -567,6 +570,20 @@
                 })
                 .catch(function(err) { console.error('Error:', err); });
         }
+        
+        
+        // Event delegation for agent cards
+        document.addEventListener('click', function(e) {
+            var card = e.target.closest('.agent-card');
+            if (card) {
+                var agentId = card.getAttribute('data-agent-id');
+                var agentDataStr = card.getAttribute('data-agent-data');
+                if (agentId && agentDataStr) {
+                    var agentData = JSON.parse(decodeURIComponent(agentDataStr));
+                    showWorkflow(agentId, agentData);
+                }
+            }
+        });
         
         updateDashboard();
         setInterval(updateDashboard, 2000);
