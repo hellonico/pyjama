@@ -1,0 +1,26 @@
+🔧 Initializing Pyjama agent hooks...
+✓ Registered logging hooks for 5 tools
+✓ Registered logging hooks
+✓ Registered metrics hooks for 5 tools
+✓ Registered metrics hooks
+✓ Registered shared metrics hooks for dashboard
+✓ Pyjama initialization complete
+
+╔════════════════════════════════════════════════════════════════╗
+║                                                                ║
+║                  🤖 PYJAMA AGENTS 🤖                           ║
+║                                                                ║
+║         Intelligent Multi-Agent Framework                     ║
+║                                                                ║
+╚════════════════════════════════════════════════════════════════╝
+
+
+🤖 Running Agent: demos/dashboard/agents/code-snippet.edn
+📥 Inputs: {:output-dir /Users/nico/cool/origami-nightweave/pyjama/demos/dashboard/output}
+
+⏳ Executing...
+
+▶︎ :demos/dashboard/agents/code-snippet.edn ▶︎ nil
+
+❌ Error during analysis:
+Cannot invoke "clojure.lang.Named.getName()" because "x" is null

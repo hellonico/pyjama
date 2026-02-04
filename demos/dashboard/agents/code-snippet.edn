@@ -1,0 +1,14 @@
+{:name "code-snippet"
+ :description "Creates a simple code snippet"
+ :steps
+ [{:id "write-code"
+   :prompt "Write a simple 'Hello World' function in Python and save it to hello.py"
+   :tools [:write-file]}
+
+  {:id "document"
+   :prompt "Read hello.py and write documentation for it in hello-docs.md"
+   :tools [:read-files :write-file]}
+
+  {:id "review"
+   :prompt "Read both files and provide a summary"
+   :tools [:read-files]}]}
