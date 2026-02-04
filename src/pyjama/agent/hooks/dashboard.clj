@@ -504,10 +504,19 @@
                         '<div class=\"metric\"><div class=\"metric-label\">Avg Duration</div><div class=\"metric-value\">' + formatDuration(metrics['avg-duration-ms'] || 0) + '</div></div>' +
                         '<div class=\"metric\"><div class=\"metric-label\">Throughput</div><div class=\"metric-value\">' + (metrics.throughput || 0).toFixed(2) + ' ops/sec</div></div>';
                     
-                    var agents = data.agents || {};
-                    var agentKeys = Object.keys(agents);
+                    // Separate running and completed agents
+                    var runningAgents = [];
+                    var completedAgents = [];
+                    for (var key in agents) {
+                        if (agents[key].status === 'running') {
+                            runningAgents.push({id: key, data: agents[key]});
+                        } else if (agents[key].status === 'completed') {
+                            completedAgents.push({id: key, data: agents[key]});
+                        }
+                    }
                     
-                    if (agentKeys.length === 0) {
+                    // Render Active Agents (running only)
+                    if (runningAgents.length === 0) {
                         document.getElementById('active-agents').innerHTML = '<div class=\"empty-state\">No active agents</div>';
                     } else {
                         var agentsHTML = '';
