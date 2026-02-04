@@ -7,7 +7,7 @@ This demo showcases the Pyjama agent dashboard by launching multiple small agent
 1. **Start the dashboard** (if not already running):
    ```bash
    cd /Users/nico/cool/origami-nightweave/pyjama
-   ./start-dashboard.sh
+   ./demos/dashboard/start-dashboard.sh
    ```
 
 2. **Launch the demo agents**:

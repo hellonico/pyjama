@@ -45,7 +45,7 @@ cd "$SCRIPT_DIR/../.."
 
 # Agent 1: Hello World
 echo "  ✓ Starting hello-world agent..."
-clj -M:pyjama run demos/dashboard/agents/hello-world.edn "{\"output-dir\": \"$OUTPUT_DIR\"}" > "$OUTPUT_DIR/hello-world.log" 2>&1 &
+clj -J-Dagents.edn=demos/dashboard/agents -M:pyjama run demos/dashboard/agents/hello-world.edn "{\"output-dir\": \"$OUTPUT_DIR\"}" > "$OUTPUT_DIR/hello-world.log" 2>&1 &
 AGENT1_PID=$!
 
 # Small delay to stagger starts
@@ -53,28 +53,28 @@ sleep 0.5
 
 # Agent 2: File Counter
 echo "  ✓ Starting file-counter agent..."
-clj -M:pyjama run demos/dashboard/agents/file-counter.edn "{\"output-dir\": \"$OUTPUT_DIR\"}" > "$OUTPUT_DIR/file-counter.log" 2>&1 &
+clj -J-Dagents.edn=demos/dashboard/agents -M:pyjama run demos/dashboard/agents/file-counter.edn "{\"output-dir\": \"$OUTPUT_DIR\"}" > "$OUTPUT_DIR/file-counter.log" 2>&1 &
 AGENT2_PID=$!
 
 sleep 0.5
 
 # Agent 3: Poem Writer
 echo "  ✓ Starting poem-writer agent..."
-clj -M:pyjama run demos/dashboard/agents/poem-writer.edn "{\"output-dir\": \"$OUTPUT_DIR\"}" > "$OUTPUT_DIR/poem-writer.log" 2>&1 &
+clj -J-Dagents.edn=demos/dashboard/agents -M:pyjama run demos/dashboard/agents/poem-writer.edn "{\"output-dir\": \"$OUTPUT_DIR\"}" > "$OUTPUT_DIR/poem-writer.log" 2>&1 &
 AGENT3_PID=$!
 
 sleep 0.5
 
 # Agent 4: Quick Math
 echo "  ✓ Starting quick-math agent..."
-clj -M:pyjama run demos/dashboard/agents/quick-math.edn "{\"output-dir\": \"$OUTPUT_DIR\"}" > "$OUTPUT_DIR/quick-math.log" 2>&1 &
+clj -J-Dagents.edn=demos/dashboard/agents -M:pyjama run demos/dashboard/agents/quick-math.edn "{\"output-dir\": \"$OUTPUT_DIR\"}" > "$OUTPUT_DIR/quick-math.log" 2>&1 &
 AGENT4_PID=$!
 
 sleep 0.5
 
 # Agent 5: Code Snippet
 echo "  ✓ Starting code-snippet agent..."
-clj -M:pyjama run demos/dashboard/agents/code-snippet.edn "{\"output-dir\": \"$OUTPUT_DIR\"}" > "$OUTPUT_DIR/code-snippet.log" 2>&1 &
+clj -J-Dagents.edn=demos/dashboard/agents -M:pyjama run demos/dashboard/agents/code-snippet.edn "{\"output-dir\": \"$OUTPUT_DIR\"}" > "$OUTPUT_DIR/code-snippet.log" 2>&1 &
 AGENT5_PID=$!
 
 echo ""

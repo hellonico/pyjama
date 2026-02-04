@@ -419,19 +419,39 @@ For more information, visit: https://github.com/hellonico/pyjama
                  ;; transform proper key value pairs
                  (->> (partition 2 args)
                       (map (fn [[k v]] [(keyword k) v]))
-                      (into {})))]
+                      (into {})))
+        
+        ;; Check if agent-id is a file path and load it if so
+        agent-file (io/file agent-id)
+        agent-spec (when (and (.exists agent-file) (.isFile agent-file))
+                     (try
+                       (let [content (slurp agent-file)
+                             spec (read-string content)]
+                         (println (str "📂 Loaded agent from file: " agent-id))
+                         ;; Register the agent in the registry
+                         (swap! pyjama.core/agents-registry assoc (keyword agent-id) spec)
+                         spec)
+                       (catch Exception e
+                         (println (str "⚠️  Failed to load agent file: " (.getMessage e)))
+                         nil)))
+        
+        ;; Use the agent's :name if available, otherwise use the file path
+        actual-agent-name (or (:name agent-spec) agent-id)
+        actual-agent-id (keyword agent-id)]
 
     (println (str "\n🤖 Running Agent: " agent-id))
+    (when (and agent-spec (not= agent-id actual-agent-name))
+      (println (str "   Name: " actual-agent-name)))
     (println "📥 Inputs:" inputs)
     (println "\n⏳ Executing...\n")
+    
+    ;; Set system property for shared metrics tracking
+    (System/setProperty "pyjama.agent.id" actual-agent-name)
 
-    (let [params (assoc inputs :id (keyword agent-id))
+    (let [params (assoc inputs :id actual-agent-id)
           result (exec-agent params)]
       (println "\n✅ Agent execution complete!")
       result)))
-
-;; =============================================================================
-;; Interactive Menu (when no args provided)
 ;; =============================================================================
 
 (def ^:private colors

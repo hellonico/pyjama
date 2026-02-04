@@ -585,9 +585,13 @@
         (validate-all-tools merged-tools)
 
         ;; Mark agent as started in shared metrics
+        ;; Use the agent's :name field if available, otherwise fall back to id
         (try
           (when-let [start-fn (resolve 'pyjama.agent.hooks.shared-metrics/record-agent-start!)]
-            (start-fn id))
+            (let [agent-name (or (:name agent)
+                                 (when id (if (keyword? id) (name id) (str id)))
+                                 "unknown-agent")]
+              (start-fn agent-name)))
           (catch Exception _ nil))
 
         (loop [ctx (merge {:id id :trace [] :prompt (:prompt params) :original-prompt (:prompt params)} params)
