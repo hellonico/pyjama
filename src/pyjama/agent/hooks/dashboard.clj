@@ -369,6 +369,7 @@
     <div class=\"nav\">
         <div class=\"nav-item active\" onclick=\"switchView('metrics')\">📊 Metrics</div>
         <div class=\"nav-item\" onclick=\"switchView('agents')\">🤖 Active Agents</div>
+        <div class=\"nav-item\" onclick=\"switchView('past-runs')\">📜 Past Runs</div>
         <div class=\"nav-item\" onclick=\"switchView('activity')\">📝 Activity</div>
     </div>
     
@@ -385,6 +386,12 @@
             </div>
         </div>
         
+        
+        <div id=\"past-runs-view\" class=\"view\">
+            <div class=\"card\">
+                <div id=\"past-runs\"></div>
+            </div>
+        </div>
         <div id=\"activity-view\" class=\"view\">
             <div class=\"card\">
                 <div id=\"recent-logs\" class=\"activity-log\"></div>
@@ -480,7 +487,18 @@
                 .then(function(res) { return res.json(); })
                 .then(function(data) {
                     var metrics = data.metrics.global || {};
+                    
+                    // Count currently running agents
+                    var agents = data.agents || {};
+                    var runningCount = 0;
+                    for (var key in agents) {
+                        if (agents[key].status === 'running') {
+                            runningCount++;
+                        }
+                    }
+                    
                     document.getElementById('global-metrics').innerHTML =
+                        '<div class=\"metric\"><div class=\"metric-label\">Currently Running</div><div class=\"metric-value\">' + runningCount + '</div></div>' +
                         '<div class=\"metric\"><div class=\"metric-label\">Total Executions</div><div class=\"metric-value\">' + (metrics.count || 0) + '</div></div>' +
                         '<div class=\"metric\"><div class=\"metric-label\">Success Rate</div><div class=\"metric-value\">' + ((metrics['success-rate'] || 0) * 100).toFixed(1) + '%</div></div>' +
                         '<div class=\"metric\"><div class=\"metric-label\">Avg Duration</div><div class=\"metric-value\">' + formatDuration(metrics['avg-duration-ms'] || 0) + '</div></div>' +
@@ -493,9 +511,9 @@
                         document.getElementById('active-agents').innerHTML = '<div class=\"empty-state\">No active agents</div>';
                     } else {
                         var agentsHTML = '';
-                        for (var k = 0; k < agentKeys.length; k++) {
-                            var agentId = agentKeys[k];
-                            var agent = agents[agentId];
+                        for (var k = 0; k < runningAgents.length; k++) {
+                            var agentId = runningAgents[k].id;
+                            var agent = runningAgents[k].data;
                             var isCompleted = agent.status === 'completed';
                             var steps = agent.steps || [];
                             var currentStep = agent['current-step'];
@@ -544,6 +562,8 @@
                         }
                         document.getElementById('active-agents').innerHTML = agentsHTML;
                     }
+                    
+                    
                     
                     var logs = data['recent-logs'] || [];
                     if (logs.length === 0) {
