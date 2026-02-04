@@ -74,26 +74,16 @@
 ;; Initialize on namespace load if not explicitly set
 (load-agents-config)
 
-(defn- run-init-hooks!
-  "Run initialization hooks.
+(defn run-init-hooks!
+  "Run optional initialization hooks from project namespaces.
   
-  1. First runs Pyjama's default initialization (logging, metrics, shared metrics)
-  2. Then runs project-specific initialization if available
+  Projects can define an init namespace (e.g., codebase-analyzer.init)
+  with an init! function that will be called at startup.
   
   This is useful for registering hooks, setting up integrations, etc."
   []
-  ;; 1. Run Pyjama's default initialization
   (try
-    (require '[pyjama.agent.init :as pyjama-init])
-    (let [init-fn (resolve 'pyjama.agent.init/init!)]
-      (init-fn))
-    (catch Exception e
-      ;; Default init is optional, log and continue
-      (binding [*out* *err*]
-        (println "⚠️  Pyjama default initialization failed:" (.getMessage e)))))
-  
-  ;; 2. Run project-specific initialization (if available)
-  (try
+    ;; Try to find and call project-specific init function
     (when-let [init-ns (or (System/getProperty "pyjama.init.ns")
                            ;; Auto-detect common init namespaces
                            (some #(try
@@ -105,12 +95,12 @@
                                   'project.init
                                   'app.init]))]
       (when-let [init-fn (ns-resolve init-ns 'init!)]
-        (println (str "🔧 Running project initialization from " init-ns))
+        (println (str "🔧 Running initialization from " init-ns))
         (init-fn)))
     (catch Exception e
-      ;; Project initialization is optional, so just log and continue
+      ;; Initialization is optional, so just log and continue
       (binding [*out* *err*]
-        (println "⚠️  Project initialization hook failed:" (.getMessage e))))))
+        (println "⚠️  Initialization hook failed:" (.getMessage e))))))
 
 ;; Run initialization hooks after loading config
 (run-init-hooks!)
