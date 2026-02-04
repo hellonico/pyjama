@@ -425,23 +425,10 @@ For more information, visit: https://github.com/hellonico/pyjama
                       (map (fn [[k v]] [(keyword k) v]))
                       (into {})))
         
-        ;; Check if agent-id is a file path and load it if so
-        agent-file (io/file agent-id)
-        agent-spec (when (and (.exists agent-file) (.isFile agent-file))
-                     (try
-                       (let [content (slurp agent-file)
-                             spec (read-string content)]
-                         (println (str "📂 Loaded agent from file: " agent-id))
-                         ;; Register the agent in the registry
-                         (swap! pyjama.core/agents-registry assoc (keyword agent-id) spec)
-                         spec)
-                       (catch Exception e
-                         (println (str "⚠️  Failed to load agent file: " (.getMessage e)))
-                         nil)))
-        
-        ;; Use the agent's :name if available, otherwise use the file path
-        actual-agent-name (or (:name agent-spec) agent-id)
-        actual-agent-id (keyword agent-id)]
+        ;; Look up the agent in the registry to get its :name
+        agent-key (keyword agent-id)
+        agent-spec (get @pyjama.core/agents-registry agent-key)
+        actual-agent-name (or (:name agent-spec) agent-id)]
 
     (println (str "\n🤖 Running Agent: " agent-id))
     (when (and agent-spec (not= agent-id actual-agent-name))
@@ -452,7 +439,7 @@ For more information, visit: https://github.com/hellonico/pyjama
     ;; Set system property for shared metrics tracking
     (System/setProperty "pyjama.agent.id" actual-agent-name)
 
-    (let [params (assoc inputs :id actual-agent-id)
+    (let [params (assoc inputs :id agent-key)
           result (exec-agent params)]
       (println "\n✅ Agent execution complete!")
       result)))
