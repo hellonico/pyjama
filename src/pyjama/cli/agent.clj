@@ -28,9 +28,13 @@
            (fn [acc file]
              (try
                (let [content (slurp file)
-                     data (read-string content)]
-                 (println (str "  ✓ Loaded: " (.getName file)))
-                 (merge acc data))
+                     data (read-string content)
+                     ;; Use :name field if available, otherwise use filename without .edn
+                     agent-name (or (:name data)
+                                    (str/replace (.getName file) #"\.edn$" ""))
+                     agent-key (keyword agent-name)]
+                 (println (str "  ✓ Loaded: " (.getName file) " as " agent-name))
+                 (assoc acc agent-key data))
                (catch Exception e
                  (println (str "  ✗ Error loading " (.getName file) ": " (.getMessage e)))
                  acc)))

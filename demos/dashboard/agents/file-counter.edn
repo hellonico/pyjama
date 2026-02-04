@@ -1,14 +1,18 @@
 {:name "file-counter"
  :description "Counts files in the current directory"
+ :start :discover
  :steps
- [{:id "discover"
-   :prompt "List all files in the current directory"
-   :tools [:list-directory]}
-
-  {:id "analyze"
-   :prompt "Count how many files were found and write the count to file-count.txt"
-   :tools [:write-file]}
-
-  {:id "report"
-   :prompt "Read the file-count.txt and report the result"
-   :tools [:read-files]}]}
+ {:discover
+  {:prompt "List all files in the current directory"
+   :tools [:list-directory]
+   :next :analyze}
+  
+  :analyze
+  {:prompt "Count how many files were found and write the count to file-count.txt"
+   :tools [:write-file]
+   :next :report}
+  
+  :report
+  {:prompt "Read the file-count.txt and report the result"
+   :tools [:read-files]
+   :next :done}}}

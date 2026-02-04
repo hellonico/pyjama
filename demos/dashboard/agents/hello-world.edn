@@ -1,10 +1,13 @@
 {:name "hello-world"
  :description "Simple hello world agent that writes a greeting"
+ :start :greet
  :steps
- [{:id "greet"
-   :prompt "Write a friendly greeting message to a file called hello.txt"
-   :tools [:write-file]}
-
-  {:id "confirm"
-   :prompt "Read the hello.txt file and confirm it was created"
-   :tools [:read-files]}]}
+ {:greet
+  {:prompt "Write a friendly greeting message to a file called hello.txt"
+   :tools [:write-file]
+   :next :confirm}
+  
+  :confirm
+  {:prompt "Read the hello.txt file and confirm it was created"
+   :tools [:read-files]
+   :next :done}}}
