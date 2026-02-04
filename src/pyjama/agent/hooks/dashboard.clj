@@ -375,21 +375,18 @@
     <div class=\"container\">
         <div id=\"metrics-view\" class=\"view active\">
             <div class=\"card\">
-                <h2>📊 Global Metrics</h2>
                 <div id=\"global-metrics\" class=\"metrics-grid\"></div>
             </div>
         </div>
         
         <div id=\"agents-view\" class=\"view\">
             <div class=\"card\">
-                <h2>🤖 Active Agents</h2>
                 <div id=\"active-agents\"></div>
             </div>
         </div>
         
         <div id=\"activity-view\" class=\"view\">
             <div class=\"card\">
-                <h2>📝 Recent Activity</h2>
                 <div id=\"recent-logs\" class=\"activity-log\"></div>
             </div>
         </div>
@@ -516,7 +513,7 @@
                                 duration = Date.now() - agent['start-time'];
                             }
                             
-                            agentsHTML += '<div class=\"agent-card ' + (isCompleted ? 'completed' : '') + '\" onclick=\"showWorkflow(' + JSON.stringify(agentId) + ', ' + JSON.stringify(agent) + ')\">' +
+                            agentsHTML += '<div class=\"agent-card ' + (isCompleted ? 'completed' : '') + '\" data-agent-data=\"' + encodeURIComponent(JSON.stringify(agent)) + '\" data-agent-id=\"' + agentId + '\">'+
                                 '<div class=\"agent-header\">' +
                                 '<div class=\"agent-name\">' + agentId + '</div>' +
                                 '<div class=\"agent-status ' + (isCompleted ? 'completed' : 'running') + '\">' + (isCompleted ? 'COMPLETED' : 'RUNNING') + '</div>' +
@@ -576,11 +573,17 @@
         document.addEventListener('click', function(e) {
             var card = e.target.closest('.agent-card');
             if (card) {
+                e.preventDefault();
+                e.stopPropagation();
                 var agentId = card.getAttribute('data-agent-id');
                 var agentDataStr = card.getAttribute('data-agent-data');
                 if (agentId && agentDataStr) {
-                    var agentData = JSON.parse(decodeURIComponent(agentDataStr));
-                    showWorkflow(agentId, agentData);
+                    try {
+                        var agentData = JSON.parse(decodeURIComponent(agentDataStr));
+                        showWorkflow(agentId, agentData);
+                    } catch (err) {
+                        console.error('Failed to parse agent data:', err);
+                    }
                 }
             }
         });
