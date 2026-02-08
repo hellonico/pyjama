@@ -191,7 +191,7 @@ Pyjama supports AI image generation through Ollama using models like `alibaba/z-
 - Full integration with Ollama's image generation API
 
 For detailed examples and full-stack implementations, see:
-- [OLLAMA_IMAGE_GENERATION.md](OLLAMA_IMAGE_GENERATION.md) - Comprehensive documentation
+- [docs/OLLAMA_IMAGE_GENERATION.md](docs/OLLAMA_IMAGE_GENERATION.md) - Comprehensive documentation
 - [pyjama-agent-showcases/image-generator-agent](https://github.com/hellonico/pyjama-agent-showcases/tree/main/image-generator-agent) - Full web application example
 
 ## Agent Framework

@@ -1,0 +1,18 @@
+{:name "poem-writer"
+ :description "Writes a short poem about coding"
+ :start :compose
+ :steps
+ {:compose
+  {:prompt "Write a short 4-line poem about the joy of coding and save it to poem.txt"
+   :tools [:write-file]
+   :next :review}
+  
+  :review
+  {:prompt "Read the poem from poem.txt and provide a brief review"
+   :tools [:read-files]
+   :next :enhance}
+  
+  :enhance
+  {:prompt "Add a title to the poem and save the enhanced version to poem-final.txt"
+   :tools [:write-file]
+   :next :done}}}

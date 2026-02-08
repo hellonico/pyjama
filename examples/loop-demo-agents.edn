@@ -5,20 +5,10 @@
 
   :tools
   {:create-sample-items
-   {:fn (fn [{:keys [count]}]
-          {:items (vec (for [i (range count)]
-                         {:id (inc i)
-                          :name (str "Item-" (inc i))
-                          :priority (rand-nth ["high" "medium" "low"])
-                          :status "pending"}))})}
+   {:fn 'examples.loop_demo_tools/create-sample-items}
 
    :process-item
-   {:fn (fn [{:keys [item]}]
-          (println (str "  Processing: " (:name item) " (priority: " (:priority item) ")"))
-          (Thread/sleep 100)  ; Simulate work
-          {:status "completed"
-           :item-id (:id item)
-           :result (str "Processed " (:name item))})}}
+   {:fn 'examples.loop_demo_tools/process-item}}
 
   :steps
   {:create-items
@@ -47,10 +37,7 @@
 
   :tools
   {:fetch-data
-   {:fn (fn [_]
-          {:items [{:id 1 :title "Bug in login" :description "Users can't log in"}
-                   {:id 2 :title "Feature request" :description "Add dark mode"}
-                   {:id 3 :title "Performance issue" :description "Slow page load"}]})}}
+   {:fn 'examples.loop_demo_tools/fetch-data}}
 
   :steps
   {:fetch-data

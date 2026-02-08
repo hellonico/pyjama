@@ -243,8 +243,20 @@
                                        (.endsWith (.getName %) ".edn")))
                          (sort-by #(.getName %)))]
       (when (seq edn-files)
-        (apply deep-merge
-               (map #(edn/read-string (slurp %)) edn-files))))))
+        ;; Check if files contain agent specs (with :name field) or raw config
+        (let [loaded-files (map #(edn/read-string (slurp %)) edn-files)
+              first-file (first loaded-files)]
+          (if (:name first-file)
+            ;; Agent specs with :name field - register by name
+            (reduce (fn [acc file-data]
+                      (let [agent-name (or (:name file-data)
+                                           "unknown-agent")
+                            agent-key (keyword agent-name)]
+                        (assoc acc agent-key file-data)))
+                    {}
+                    loaded-files)
+            ;; Raw config maps - merge them
+            (apply deep-merge loaded-files)))))))
 
 (defn load-agents
   "Load and merge agent configuration from (in order of precedence):

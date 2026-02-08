@@ -13,7 +13,7 @@
     ;; Header
     (.append sb "```mermaid\n")
     (.append sb "flowchart TD\n")
-    (.append sb (str "    Start([" agent-id "]) --> " (name start) "\n\n"))
+    (.append sb (str "    Start([" agent-id "]) --> " (str/replace (name start) #"[^a-zA-Z0-9_]" "_") "\n\n"))
 
     ;; Helper functions
     (letfn [(node-name [k] (str/replace (name k) #"[^a-zA-Z0-9_]" "_"))
@@ -25,19 +25,34 @@
                 (str/join " " (map name (filter keyword? path)))
                 (str path)))
 
+            (escape-for-mermaid [s]
+              "Escape a string to be safe in Mermaid edge labels"
+              (-> s
+                  (str/replace "\"" "#quot;")
+                  (str/replace "[" "#91;")
+                  (str/replace "]" "#93;")))
+
             (format-condition [condition]
               "Format a condition to be human-readable"
               (cond
                 (nil? condition) "else"
+                ;; Check if its a simple path check like [:obs :has-attachments]
+                (and (vector? condition)
+                     (#{:obs :ctx :trace} (first condition))
+                     (> (count condition) 1))
+                (name (last condition))  ; Just show the final property name
+
+                ;; Check if its an operator-based condition
                 (vector? condition)
                 (let [[op arg1 arg2] condition]
                   (case op
                     :nonempty (str "nonempty " (format-path arg1))
                     :> (str (format-path arg1) " > " arg2)
                     :< (str (format-path arg1) " < " arg2)
-                    := (str (format-path arg1) " = " (pr-str arg2))
-                    (pr-str condition)))  ; default case for unknown operators
-                :else (pr-str condition)))
+                    := (str (format-path arg1) " = " (escape-for-mermaid (pr-str arg2)))
+                    (escape-for-mermaid (pr-str condition))))  ; default case for unknown operators
+
+                :else (escape-for-mermaid (pr-str condition))))
 
             (node-def [step-id step]
               (let [nname (node-name step-id)

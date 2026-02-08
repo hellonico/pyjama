@@ -1,0 +1,13 @@
+{:name "quick-math"
+ :description "Performs simple math calculations"
+ :start :calculate
+ :steps
+ {:calculate
+  {:prompt "Calculate the sum of numbers 1 through 10 and write the result to math-result.txt"
+   :tools [:write-file]
+   :next :verify}
+  
+  :verify
+  {:prompt "Read math-result.txt and verify the calculation is correct (should be 55)"
+   :tools [:read-files]
+   :next :done}}}

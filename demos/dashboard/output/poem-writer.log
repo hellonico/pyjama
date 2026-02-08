@@ -1,0 +1,33 @@
+📂 Loading 5 agent file(s) from: demos/dashboard/agents
+  ✓ Loaded: code-snippet.edn as code-snippet
+  ✓ Loaded: file-counter.edn as file-counter
+  ✓ Loaded: hello-world.edn as hello-world
+  ✓ Loaded: poem-writer.edn as poem-writer
+  ✓ Loaded: quick-math.edn as quick-math
+🔧 Initializing Pyjama agent hooks...
+✓ Registered logging hooks for 5 tools
+✓ Registered logging hooks
+✓ Registered metrics hooks for 5 tools
+✓ Registered metrics hooks
+✓ Registered shared metrics hooks for dashboard
+✓ Pyjama initialization complete
+
+╔════════════════════════════════════════════════════════════════╗
+║                                                                ║
+║                  🤖 PYJAMA AGENTS 🤖                           ║
+║                                                                ║
+║         Intelligent Multi-Agent Framework                     ║
+║                                                                ║
+╚════════════════════════════════════════════════════════════════╝
+
+
+🤖 Running Agent: poem-writer
+📥 Inputs: {:output-dir /Users/nico/cool/origami-nightweave/pyjama/demos/dashboard/output}
+
+⏳ Executing...
+
+▶︎ :poem-writer ▶︎ :compose
+▶︎ :poem-writer ▶︎ :review
+▶︎ :poem-writer ▶︎ :enhance
+
+✅ Agent execution complete!
