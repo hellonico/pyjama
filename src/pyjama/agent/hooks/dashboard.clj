@@ -12,6 +12,8 @@
             [pyjama.agent.hooks.metrics :as metrics]
             [pyjama.agent.hooks.logging :as logging]
             [pyjama.agent.hooks.shared-metrics :as shared]
+            [pyjama.agent.visualize :as visualize]
+            [pyjama.core :as pyjama]
             [clojure.data.json :as json]
             [clojure.string :as str])
   (:import [java.net ServerSocket]
@@ -88,6 +90,7 @@
     <meta charset=\"UTF-8\">
     <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">
     <title>Pyjama Agent Dashboard</title>
+    <script src=\"https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js\"></script>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         
@@ -358,6 +361,52 @@
             0%, 100% { opacity: 1; }
             50% { opacity: 0.3; }
         }
+        
+        /* Modal Tabs */
+        .modal-tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            border-bottom: 2px solid #f0f0f0;
+        }
+        
+        .modal-tab {
+            padding: 10px 20px;
+            cursor: pointer;
+            border-bottom: 3px solid transparent;
+            font-weight: 500;
+            color: #666;
+            transition: 0.2s;
+        }
+        
+        .modal-tab:hover { color: #667eea; }
+        .modal-tab.active {
+            color: #667eea;
+            border-bottom-color: #667eea;
+        }
+        
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+        
+        /* Mermaid Diagram Viewer */
+        .diagram-container {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 10px;
+            overflow-x: auto;
+            min-height: 400px;
+        }
+        
+        /* Highlight current step in Mermaid diagram */
+        .mermaid .current-step {
+            filter: drop-shadow(0 0 10px #667eea);
+            animation: glow 2s infinite;
+        }
+        
+        @keyframes glow {
+            0%, 100% { filter: drop-shadow(0 0 10px #667eea); }
+            50% { filter: drop-shadow(0 0 20px #667eea); }
+        }
     </style>
 </head>
 <body>
@@ -408,7 +457,21 @@
         <div class=\"modal-content\">
             <span class=\"modal-close\" onclick=\"closeModal()\">&times;</span>
             <h2 class=\"modal-title\" id=\"modal-agent-name\">Agent Workflow</h2>
-            <div id=\"modal-workflow\" class=\"workflow-full\"></div>
+            
+            <div class=\"modal-tabs\">
+                <div class=\"modal-tab active\" onclick=\"switchModalTab('steps')\">📋 Steps</div>
+                <div class=\"modal-tab\" onclick=\"switchModalTab('diagram')\">📊 Diagram</div>
+            </div>
+            
+            <div id=\"tab-steps\" class=\"tab-content active\">
+                <div id=\"modal-workflow\" class=\"workflow-full\"></div>
+            </div>
+            
+            <div id=\"tab-diagram\" class=\"tab-content\">
+                <div id=\"diagram-container\" class=\"diagram-container\">
+                    <div id=\"mermaid-diagram\"></div>
+                </div>
+            </div>
         </div>
     </div>
     
@@ -440,6 +503,10 @@
         }
         
         function showWorkflow(agentId, agentData) {
+            // Store current agent info for diagram rendering
+            currentAgentId = agentId;
+            currentAgentData = agentData;
+            
             var modal = document.getElementById('workflow-modal');
             var modalTitle = document.getElementById('modal-agent-name');
             var modalWorkflow = document.getElementById('modal-workflow');
@@ -480,6 +547,91 @@
         
         function closeModal() {
             document.getElementById('workflow-modal').classList.remove('active');
+        }
+        
+        function switchModalTab(tab) {
+            // Update tab buttons
+            var tabs = document.querySelectorAll('.modal-tab');
+            for (var i = 0; i < tabs.length; i++) {
+                tabs[i].classList.remove('active');
+            }
+            event.target.classList.add('active');
+            
+            // Update tab content
+            var contents = document.querySelectorAll('.tab-content');
+            for (var j = 0; j < contents.length; j++) {
+                contents[j].classList.remove('active');
+            }
+            document.getElementById('tab-' + tab).classList.add('active');
+            
+            // If switching to diagram tab, render it
+            if (tab === 'diagram') {
+                renderMermaidDiagram();
+            }
+        }
+        
+        var currentAgentId = null;
+        var currentAgentData = null;
+        
+        function renderMermaidDiagram() {
+            if (!currentAgentId) return;
+            
+            var container = document.getElementById('mermaid-diagram');
+            container.innerHTML = '<div style=\"text-align: center; padding: 40px; color: #999;\">Loading diagram...</div>';
+            
+            // Fetch the Mermaid diagram from the server
+            fetch('/api/agent/' + encodeURIComponent(currentAgentId) + '/diagram')
+                .then(function(res) { return res.text(); })
+                .then(function(mermaidCode) {
+                    // Create a unique ID for this diagram
+                    var diagramId = 'mermaid-' + Date.now();
+                    container.innerHTML = '<div id=\"' + diagramId + '\">' + mermaidCode + '</div>';
+                    
+                    // Render the mermaid diagram
+                    mermaid.init(undefined, '#' + diagramId);
+                    
+                    // Highlight the current step after rendering
+                    setTimeout(function() {
+                        highlightCurrentStep();
+                    }, 100);
+                })
+                .catch(function(err) {
+                    container.innerHTML = '<div style=\"text-align: center; padding: 40px; color: #dc3545;\">Failed to load diagram: ' + err.message + '</div>';
+                });
+        }
+        
+        function highlightCurrentStep() {
+            if (!currentAgentData) return;
+            
+            var currentStep = currentAgentData['current-step'];
+            if (!currentStep) return;
+            
+            // Convert step name to node name format (replace hyphens with underscores)
+            var nodeName = currentStep.replace(/[^a-zA-Z0-9_]/g, '_');
+            
+            // Find and highlight the current step node in the SVG
+            var diagram = document.querySelector('#mermaid-diagram svg');
+            if (!diagram) return;
+            
+            // Try to find the node by id
+            var node = diagram.querySelector('#' + nodeName);
+            if (!node) {
+                // Try alternate selectors
+                var nodes = diagram.querySelectorAll('g.node');
+                for (var i = 0; i < nodes.length; i++) {
+                    var nodeId = nodes[i].getAttribute('id');
+                    if (nodeId && nodeId.includes(nodeName)) {
+                        node = nodes[i];
+                        break;
+                    }
+                }
+            }
+            
+            if (node) {
+                node.classList.add('current-step');
+                // Scroll into view
+                node.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
         }
         
         function updateDashboard() {
@@ -617,6 +769,18 @@
             }
         });
         
+        
+        // Initialize Mermaid
+        mermaid.initialize({
+            startOnLoad: false,
+            theme: 'default',
+            securityLevel: 'loose',
+            flowchart: {
+                useMaxWidth: true,
+                htmlLabels: true
+            }
+        });
+        
         updateDashboard();
         setInterval(updateDashboard, 2000);
     </script>
@@ -641,6 +805,38 @@
                "Pragma" "no-cache"
                "Expires" "0"}
      :body (json/write-str (get-dashboard-data))}
+
+    ;; New endpoint for agent diagrams
+    (str/starts-with? request-line "GET /api/agent/")
+    (let [;; Extract agent ID from URL: GET /api/agent/{id}/diagram HTTP/1.1
+          path (second (str/split request-line #" "))
+          parts (str/split path #"/")
+          agent-id (when (>= (count parts) 4)
+                     (keyword (java.net.URLDecoder/decode (nth parts 3) "UTF-8")))
+          is-diagram? (and (>= (count parts) 5)
+                           (= (nth parts 4) "diagram"))]
+      (if (and agent-id is-diagram?)
+        (try
+          ;; Get agent spec from registry
+          (let [registry @pyjama/agents-registry
+                agent-spec (get registry agent-id)]
+            (if agent-spec
+              {:status 200
+               :content-type "text/plain"
+               :headers {"Cache-Control" "no-cache, no-store, must-revalidate"
+                         "Pragma" "no-cache"
+                         "Expires" "0"}
+               :body (visualize/visualize-mermaid agent-id agent-spec)}
+              {:status 404
+               :content-type "text/plain"
+               :body (str "Agent not found: " agent-id)}))
+          (catch Exception e
+            {:status 500
+             :content-type "text/plain"
+             :body (str "Error generating diagram: " (.getMessage e))}))
+        {:status 400
+         :content-type "text/plain"
+         :body "Invalid agent diagram request"}))
 
     :else
     {:status 404
