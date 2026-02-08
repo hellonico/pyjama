@@ -817,10 +817,11 @@
       (if (and agent-id is-diagram?)
         (try
           ;; Get agent spec from shared metrics (where we now store it)
+          ;; Note: shared-metrics reads JSON with :key-fn keyword, so keys are keywords
           (let [dashboard-data (get-dashboard-data)
-                agents (get dashboard-data "agents")  ; JSON has string keys
-                agent-data (get agents (name agent-id))  ; Convert keyword to string
-                agent-spec (get agent-data "spec")]  ; JSON has string keys
+                agents (:agents dashboard-data)
+                agent-data (get agents (keyword (name agent-id)))  ; Ensure keyword lookup
+                agent-spec (:spec agent-data)]
             (if agent-spec
               {:status 200
                :content-type "text/plain"
