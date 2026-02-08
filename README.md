@@ -102,6 +102,32 @@ Secure API credentials with the **[Secrets Library](https://github.com/hellonico
 
 👉 **[Full Documentation](https://github.com/hellonico/secrets)** | **[Quick Start](docs/SECRETS.md)**
 
+## Agent Showcases
+
+Full-stack example agents demonstrating Pyjama's capabilities:
+
+### 🎨 [Image Generator Agent](https://github.com/hellonico/pyjama-agent-showcases/tree/main/image-generator-agent)
+AI image generation with Ollama's Z-Image Turbo model. Full-stack ClojureScript app with real-time progress tracking and beautiful UI.
+- Text-to-image generation
+- Real-time HTTP polling  
+- Custom dimensions (128×128 to 2048×2048)
+- Modern gradient UI
+
+### 🎬 [Movie Review Agent](https://github.com/hellonico/pyjama-agent-showcases/tree/main/movie-review-agent)
+AI-powered movie analysis using TMDB API. CLI and web UI modes.
+- TMDB API integration
+- LLM-powered reviews
+- Plot summaries & recommendations
+- Web UI + CLI modes
+
+### 📧 [Email Agents](https://github.com/hellonico/pyjama-agent-showcases/tree/main/email-agents)
+Email automation with **pure EDN** (no Clojure code!). Watcher and sender agents.
+- Email monitoring with batch processing
+- LLM email composition
+- IMAP/SMTP integration
+- Declarative loops
+
+**More showcases:** [pyjama-agent-showcases](https://github.com/hellonico/pyjama-agent-showcases)
 
 ## Documentation
 
@@ -113,7 +139,6 @@ Secure API credentials with the **[Secrets Library](https://github.com/hellonico
   - [simple-loop-demo.edn](examples/simple-loop-demo.edn) - Batch processing
 - **[API Examples](docs/EXAMPLES.md)** - Comprehensive Ollama/ChatGPT examples
 - **[Loop Support](docs/LOOP_SUPPORT.md)** - Detailed loop documentation
-- **[Image Generation](docs/OLLAMA_IMAGE_GENERATION.md)** - AI image generation
 - **[Changelog](docs/CHANGELOG.md)** - Release history
 
 ## Installation
