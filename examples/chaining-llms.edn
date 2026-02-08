@@ -1,0 +1,44 @@
+;; Example: Chaining LLM calls for research workflow
+{:research-agent
+ {:description "Chain multiple LLM calls to research a topic comprehensively"
+  :start :initial-research
+  :max-steps 10
+
+  :steps
+  {:initial-research
+   {:prompt "Research the topic: {{ctx.topic}}. Provide a brief overview in 2-3 sentences."
+    :next :deep-dive}
+
+   :deep-dive
+   {:prompt "Based on this overview: {{last-obs}}
+
+Provide a detailed analysis covering:
+1. Key concepts
+2. Current trends
+3. Practical applications
+
+Be specific and cite examples."
+    :next :generate-questions}
+
+   :generate-questions
+   {:prompt "Given this analysis: {{last-obs}}
+
+Generate 3 thought-provoking questions that would help someone understand this topic better."
+    :next :answer-questions}
+
+   :answer-questions
+   {:prompt "Answer each of these questions in detail: {{last-obs}}
+
+Provide comprehensive answers with examples."
+    :next :summarize}
+
+   :summarize
+   {:prompt "Synthesize all previous research into a final summary:
+
+Overview: {{trace.0.obs}}
+Analysis: {{trace.1.obs}}
+Questions: {{trace.2.obs}}
+Answers: {{trace.3.obs}}
+
+Create a cohesive 3-paragraph summary suitable for a technical blog post."
+    :next :done}}}}

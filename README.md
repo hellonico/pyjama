@@ -1,59 +1,84 @@
 # Pyjama
 
-A [Clojure](https://clojure.org/) client for [Ollama](https://ollama.com/)
+**Autonomous Agent Framework** + **Ollama/ChatGPT Client** for Clojure
+
+Build multi-step AI workflows with declarative EDN configuration. Chain LLM calls, route based on results, monitor in real-time.
 
 Related blog [posts](http://blog.hellonico.info/tags/pyjama/)
 
-## Quick Start
-
-### Ollama API
-
-```clojure
-(require '[pyjama.core])
-(def url "http://localhost:11434")
-
-; Using :ollama directly
-(pyjama.core/ollama url :generate 
-  {:prompt "Explain what Clojure is in one sentence"})
-```
-
-### ChatGPT / OpenAI
-
-```clojure
-(require '[pyjama.openai :as openai])
-
-; Using :chatgpt
-(openai/chatgpt 
-  {:messages [{:role "user" 
-               :content "Explain what Clojure is in one sentence"}]})
-```
-
-**For comprehensive examples**, see [docs/EXAMPLES.md](docs/EXAMPLES.md)
-
-## Live Dashboard 📊
-
-Monitor your agents in real-time with beautiful Mermaid flowchart visualizations:
-
-```bash
-# Start dashboard
-clj -M -m pyjama.agent.hooks.dashboard
-
-# Run your agent
-clj -M:your-agent
-
-# Open browser
-open http://localhost:8090
-```
-
-**Features:**
-- Real-time step highlighting
-- Interactive workflow diagrams
-- Past runs tracking
-- Cross-process metrics
-
 ## Agent Framework
 
-Build autonomous, multi-step workflows using declarative EDN configuration with powerful loop support:
+Create autonomous workflows that chain LLM calls and route based on results - all in simple EDN.
+
+### Chaining LLM Calls
+
+Build research workflows by chaining multiple LLM prompts:
+
+```clojure
+{:research-agent
+ {:start :initial-research
+  :steps
+  {:initial-research
+   {:prompt "Research: {{ctx.topic}}. Provide a brief overview."
+    :next :deep-dive}
+
+   :deep-dive
+   {:prompt "Based on: {{last-obs}}
+   
+Provide detailed analysis with examples."
+    :next :summarize}
+
+   :summarize
+   {:prompt "Synthesize into a blog post:
+Overview: {{trace.0.obs}}
+Analysis: {{trace.1.obs}}"
+    :next :done}}}}
+```
+
+**Run it:**
+```bash
+clj -M -m pyjama.cli.agent run research-agent '{"topic": "Clojure agents"}'
+```
+
+### Routing Based on Results
+
+Route workflow based on LLM analysis:
+
+```clojure
+{:sentiment-router
+ {:start :analyze-sentiment
+  :steps
+  {:analyze-sentiment
+   {:prompt "Analyze sentiment. Reply with: POSITIVE, NEGATIVE, or NEUTRAL
+   
+Text: {{ctx.text}}"
+    :next :route-by-sentiment}
+
+   :route-by-sentiment
+   {:routes
+    [{:when [:= [:obs] "POSITIVE"]
+      :next :handle-positive}
+     {:when [:= [:obs] "NEGATIVE"]
+      :next :handle-negative}
+     {:when [:= [:obs] "NEUTRAL"]
+      :next :handle-neutral}]}
+
+   :handle-positive
+   {:prompt "Generate an enthusiastic response!"
+    :next :done}
+   
+   :handle-negative
+   {:prompt "Generate an empathetic, solution-focused response."
+    :next :done}
+   
+   :handle-neutral
+   {:prompt "Generate a balanced, informative response."
+    :next :done}}}}
+```
+
+### Batch Processing with Loops
+
+Process collections declaratively:
 
 ```clojure
 {:batch-processor
@@ -78,18 +103,54 @@ Build autonomous, multi-step workflows using declarative EDN configuration with 
     :next :done}}}}                  ; Return to loop
 ```
 
-**Loop Context Variables:**
+**Loop Variables:**
 - `{{loop-item}}` - Current item
 - `{{loop-index}}` - Zero-based index
 - `{{loop-count}}` - Total items
 - `{{loop-remaining}}` - Items remaining
 
+### Live Dashboard 📊
+
+Monitor agents in real-time with interactive Mermaid diagrams:
+
+```bash
+clj -M -m pyjama.agent.hooks.dashboard
+open http://localhost:8090
+```
+
+See [docs/DASHBOARD.md](docs/DASHBOARD.md) for full documentation.
+
+## Ollama & ChatGPT APIs
+
+### Ollama
+
+```clojure
+(require '[pyjama.core])
+(pyjama.core/ollama "http://localhost:11434" :generate 
+  {:prompt "Explain Clojure in one sentence"})
+```
+
+### ChatGPT / OpenAI
+
+```clojure
+(require '[pyjama.openai :as openai])
+
+; Using :chatgpt
+(openai/chatgpt 
+  {:messages [{:role "user" 
+               :content "Explain Clojure in one sentence"}]})
+```
+
 ## Documentation
 
-- **[Examples](docs/EXAMPLES.md)** - Comprehensive Ollama API examples
-- **[Agent Framework](docs/LOOP_SUPPORT.md)** - Loop support and agent patterns
-- **[Dashboard](docs/CHANGELOG.md#030---2026-02-08)** - Live visualization features
-- **[Image Generation](docs/OLLAMA_IMAGE_GENERATION.md)** - AI image generation guide
+- **[Dashboard](docs/DASHBOARD.md)** - Real-time agent monitoring and visualization
+- **[Agent Examples](examples/)** - EDN files showing chaining, routing, loops
+  - [chaining-llms.edn](examples/chaining-llms.edn) - Chain multiple LLM calls
+  - [routing-agents.edn](examples/routing-agents.edn) - Route based on LLM results
+  - [simple-loop-demo.edn](examples/simple-loop-demo.edn) - Batch processing
+- **[API Examples](docs/EXAMPLES.md)** - Comprehensive Ollama/ChatGPT examples
+- **[Loop Support](docs/LOOP_SUPPORT.md)** - Detailed loop documentation
+- **[Image Generation](docs/OLLAMA_IMAGE_GENERATION.md)** - AI image generation
 - **[Changelog](docs/CHANGELOG.md)** - Release history
 
 ## Installation

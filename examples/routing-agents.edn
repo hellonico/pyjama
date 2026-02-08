@@ -1,0 +1,134 @@
+;; Example: Routing based on LLM analysis results
+{:sentiment-router
+ {:description "Route workflow based on sentiment analysis results"
+  :start :analyze-sentiment
+  :max-steps 15
+
+  :steps
+  {:analyze-sentiment
+   {:prompt "Analyze the sentiment of this text and respond with ONLY one word: POSITIVE, NEGATIVE, or NEUTRAL
+
+Text: {{ctx.text}}"
+    :next :route-by-sentiment}
+
+   :route-by-sentiment
+   {:routes
+    [{:when [:= [:obs] "POSITIVE"]
+      :next :handle-positive}
+
+     {:when [:= [:obs] "NEGATIVE"]
+      :next :handle-negative}
+
+     {:when [:= [:obs] "NEUTRAL"]
+      :next :handle-neutral}]
+    :next :unknown-sentiment}  ; fallback
+
+   ;; Positive sentiment path
+   :handle-positive
+   {:prompt "The sentiment is positive! Generate an enthusiastic response that:
+1. Acknowledges the positive tone
+2. Amplifies the good points
+3. Adds encouraging suggestions"
+    :next :done}
+
+   ;; Negative sentiment path
+   :handle-negative
+   {:prompt "The sentiment is negative. Generate an empathetic response that:
+1. Validates the concerns
+2. Offers constructive solutions
+3. Maintains a supportive tone"
+    :next :done}
+
+   ;; Neutral sentiment path
+   :handle-neutral
+   {:prompt "The sentiment is neutral. Generate a balanced response that:
+1. Provides factual information
+2. Presents multiple perspectives  
+3. Invites further discussion"
+    :next :done}
+
+   :unknown-sentiment
+   {:prompt "Unable to determine clear sentiment. Generate a general, friendly response to: {{ctx.text}}"
+    :next :done}}}}
+
+
+;; Example: Multi-criteria routing
+{:content-classifier
+ {:description "Route content to different handlers based on type and priority"
+  :start :classify-content
+  :max-steps 20
+
+  :steps
+  {:classify-content
+   {:prompt "Classify this content. Respond with JSON:
+{\"type\": \"question|bug|feature|other\", \"priority\": \"high|medium|low\"}
+
+Content: {{ctx.content}}"
+    :format "json"
+    :next :route-by-type}
+
+   :route-by-type
+   {:routes
+    ;; High priority bugs - immediate escalation
+    [{:when [:and
+             [:= [:obs :type] "bug"]
+             [:= [:obs :priority] "high"]]
+      :next :escalate-urgent-bug}
+
+     ;; Regular bugs
+     {:when [:= [:obs :type] "bug"]
+      :next :process-bug}
+
+     ;; Feature requests
+     {:when [:= [:obs :type] "feature"]
+      :next :evaluate-feature}
+
+     ;; Questions
+     {:when [:= [:obs :type] "question"]
+      :next :answer-question}]
+
+    ;; Default fallback
+    :next :general-response}
+
+   :escalate-urgent-bug
+   {:prompt "URGENT BUG DETECTED: {{ctx.content}}
+
+Create an escalation summary with:
+1. Impact analysis
+2. Immediate mitigation steps
+3. Recommended owner"
+    :next :done}
+
+   :process-bug
+   {:prompt "Bug report: {{ctx.content}}
+
+Generate:
+1. Steps to reproduce
+2. Expected vs actual behavior
+3. Suggested fix approach"
+    :next :done}
+
+   :evaluate-feature
+   {:prompt "Feature request: {{ctx.content}}
+
+Provide evaluation:
+1. User benefit
+2. Implementation complexity (1-5)
+3. Similar existing features
+4. Recommendation (accept/defer/reject)"
+    :next :done}
+
+   :answer-question
+   {:prompt "Question: {{ctx.content}}
+
+Provide:
+1. Direct answer
+2. Supporting explanation
+3. Relevant documentation links"
+    :next :done}
+
+   :general-response
+   {:prompt "Content received: {{ctx.content}}
+
+Provide a helpful general response."
+    :next :done}}}}
