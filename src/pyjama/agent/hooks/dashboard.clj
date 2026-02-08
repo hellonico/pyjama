@@ -823,12 +823,17 @@
                 agent-data (get agents (keyword (name agent-id)))  ; Ensure keyword lookup
                 agent-spec (:spec agent-data)]
             (if agent-spec
-              {:status 200
-               :content-type "text/plain"
-               :headers {"Cache-Control" "no-cache, no-store, must-revalidate"
-                         "Pragma" "no-cache"
-                         "Expires" "0"}
-               :body (visualize/visualize-mermaid agent-id agent-spec)}
+              (let [mermaid-code (visualize/visualize-mermaid agent-id agent-spec)
+                    ;; Strip markdown code fence for JavaScript rendering
+                    clean-code (-> mermaid-code
+                                   (str/replace #"^```mermaid\n" "")
+                                   (str/replace #"\n```$" ""))]
+                {:status 200
+                 :content-type "text/plain"
+                 :headers {"Cache-Control" "no-cache, no-store, must-revalidate"
+                           "Pragma" "no-cache"
+                           "Expires" "0"}
+                 :body clean-code})
               {:status 404
                :content-type "text/plain"
                :body (str "Agent not found or spec not available: " agent-id)}))
