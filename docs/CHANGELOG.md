@@ -2,6 +2,35 @@
 All notable changes to this project will be documented in this file. This change log follows the conventions of [keepachangelog.com](http://keepachangelog.com/).
 
 ## [Unreleased]
+
+## [0.3.0] - 2026-02-08
+### Added
+- **Live Dashboard Visualization**: Real-time agent monitoring with interactive Mermaid diagrams
+  - Beautiful flowchart visualization of agent workflows
+  - Real-time step highlighting with blue glow animation
+  - Modal tabs for Steps and Diagram views
+  - Past Runs tab separating active and completed agents
+  - Currently Running metric in dashboard
+  - Agent spec storage in shared metrics (`~/.pyjama/metrics.json`)
+  - API endpoint: `/api/agent/{id}/diagram`
+  - Mermaid.js client-side rendering with syntax escaping for complex conditions
+  - ES5-compatible JavaScript for broad browser support
+- **Shutdown Hook**: Proper agent completion tracking on Ctrl-C
+- **Enhanced Logging**: Agent registration messages showing workflow definition status
+- **Demo Agent**: Simple loop demo using only prompts (`:loop-demo` alias)
+- **Cross-Process Metrics**: File-based persistence for multi-process agent tracking
+
+### Changed
+- Dashboard now reads from shared metrics file instead of in-memory state
+- Agent specs now stored in metrics for visualization
+- JSON key handling improved (keyword vs string consistency)
+
+### Fixed
+- Mermaid diagram edge label escaping for special characters
+- Agent completion tracking when stopping with Ctrl-C
+- Dashboard API now properly retrieves agent data from shared metrics
+
+## [Unreleased - Previous]
 ### Added
 - **Loop Support**: Declarative `:loop` construct for batch processing agents
   - `:loop-over` - Specify collection path to iterate over
