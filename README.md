@@ -76,7 +76,7 @@ open http://localhost:8090
 
 ## Secrets Management
 
-Secure API credentials with **file-based** or **Vault** storage:
+Secure API credentials with the **[Secrets Library](https://github.com/hellonico/secrets)** (**100% open source**):
 
 ```clojure
 (require '[secrets.core :as secrets])
@@ -92,15 +92,16 @@ Secure API credentials with **file-based** or **Vault** storage:
  :gitlab {:token "glpat-..." :url "https://gitlab.com"}}
 ```
 
-**Vault integration** (enterprise):
+**Vault integration** (open source):
 ```clojure
 (vault/read-secret config "secret" "pyjama/openai")
 ;; => {:api-key "sk-..."}
 ```
 
-**Environment-aware**: Automatic staging/production separation.
+**Environment-aware** staging/production separation.
 
-**Full guide:** [docs/SECRETS.md](docs/SECRETS.md)
+👉 **[Full Documentation](https://github.com/hellonico/secrets)** | **[Quick Start](docs/SECRETS.md)**
+
 
 ## Documentation
 
