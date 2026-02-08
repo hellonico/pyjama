@@ -74,10 +74,38 @@ open http://localhost:8090
 
 **Full guide:** [docs/DASHBOARD.md](docs/DASHBOARD.md)
 
+## Secrets Management
+
+Secure API credentials with **file-based** or **Vault** storage:
+
+```clojure
+(require '[secrets.core :as secrets])
+
+;; Get secrets in your agents
+(secrets/get-secret [:openai :api-key])     ; => "sk-..."
+(secrets/get-secret [:gitlab :token])        ; => "glpat-..."
+```
+
+**File-based** (`secrets.edn`):
+```clojure
+{:openai {:api-key "sk-..."}
+ :gitlab {:token "glpat-..." :url "https://gitlab.com"}}
+```
+
+**Vault integration** (enterprise):
+```clojure
+(vault/read-secret config "secret" "pyjama/openai")
+;; => {:api-key "sk-..."}
+```
+
+**Environment-aware**: Automatic staging/production separation.
+
+**Full guide:** [docs/SECRETS.md](docs/SECRETS.md)
 
 ## Documentation
 
 - **[Dashboard](docs/DASHBOARD.md)** - Real-time agent monitoring and visualization
+- **[Secrets Management](docs/SECRETS.md)** - File-based and Vault secret storage
 - **[Agent Examples](examples/)** - EDN files showing chaining, routing, loops
   - [chaining-llms.edn](examples/chaining-llms.edn) - Chain multiple LLM calls
   - [routing-agents.edn](examples/routing-agents.edn) - Route based on LLM results
