@@ -95,7 +95,7 @@
       ;; Default init is optional, log and continue
       (binding [*out* *err*]
         (println "⚠️  Pyjama default initialization failed:" (.getMessage e)))))
-  
+
   ;; 2. Run project-specific initialization (if available)
   (try
     (when-let [init-ns (or (System/getProperty "pyjama.init.ns")
@@ -424,7 +424,7 @@ For more information, visit: https://github.com/hellonico/pyjama
                  (->> (partition 2 args)
                       (map (fn [[k v]] [(keyword k) v]))
                       (into {})))
-        
+
         ;; Look up the agent in the registry to get its :name
         agent-key (keyword agent-id)
         agent-spec (get @pyjama.core/agents-registry agent-key)
@@ -435,9 +435,17 @@ For more information, visit: https://github.com/hellonico/pyjama
       (println (str "   Name: " actual-agent-name)))
     (println "📥 Inputs:" inputs)
     (println "\n⏳ Executing...\n")
-    
+
     ;; Set system property for shared metrics tracking
     (System/setProperty "pyjama.agent.id" actual-agent-name)
+
+    ;; Register shutdown hook to mark agent as complete on Ctrl-C
+    (.addShutdownHook (Runtime/getRuntime)
+                      (Thread. (fn []
+                                 (try
+                                   (when-let [complete-fn (resolve 'pyjama.agent.hooks.shared-metrics/record-agent-complete!)]
+                                     (complete-fn actual-agent-name))
+                                   (catch Exception _ nil)))))
 
     (let [params (assoc inputs :id agent-key)
           result (exec-agent params)]
