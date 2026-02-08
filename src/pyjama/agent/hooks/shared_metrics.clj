@@ -82,7 +82,10 @@
                   :end-time nil
                   :steps []}
                  (when agent-spec
-                   {:spec agent-spec})))))))
+                   {:spec agent-spec})))))
+   ;; Log that agent was registered
+   (println (str "✓ Agent '" agent-id "' registered"
+                 (when agent-spec " with workflow definition for dashboard")))))
 
 (defn record-agent-activity!
   "Record agent activity (tool execution)."
