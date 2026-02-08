@@ -1,132 +1,19 @@
 # Pyjama
 
-**Autonomous Agent Framework** + **Ollama/ChatGPT Client** for Clojure
+**Multi-Provider LLM Client** + **Agent Framework** for Clojure
 
-Build multi-step AI workflows with declarative EDN configuration. Chain LLM calls, route based on results, monitor in real-time.
+Switch transparently between **Ollama**, **ChatGPT**, **Claude**, **DeepSeek**, and **OpenRouter**. Chain LLM calls with declarative workflows.
 
 Related blog [posts](http://blog.hellonico.info/tags/pyjama/)
 
-## Agent Framework
+## LLM Client - Any Provider
 
-Create autonomous workflows that chain LLM calls and route based on results - all in simple EDN.
-
-### Chaining LLM Calls
-
-Build research workflows by chaining multiple LLM prompts:
+### Ollama (Local)
 
 ```clojure
-{:research-agent
- {:start :initial-research
-  :steps
-  {:initial-research
-   {:prompt "Research: {{ctx.topic}}. Provide a brief overview."
-    :next :deep-dive}
+(require '[pyjama.core :as p])
 
-   :deep-dive
-   {:prompt "Based on: {{last-obs}}
-   
-Provide detailed analysis with examples."
-    :next :summarize}
-
-   :summarize
-   {:prompt "Synthesize into a blog post:
-Overview: {{trace.0.obs}}
-Analysis: {{trace.1.obs}}"
-    :next :done}}}}
-```
-
-**Run it:**
-```bash
-clj -M -m pyjama.cli.agent run research-agent '{"topic": "Clojure agents"}'
-```
-
-### Routing Based on Results
-
-Route workflow based on LLM analysis:
-
-```clojure
-{:sentiment-router
- {:start :analyze-sentiment
-  :steps
-  {:analyze-sentiment
-   {:prompt "Analyze sentiment. Reply with: POSITIVE, NEGATIVE, or NEUTRAL
-   
-Text: {{ctx.text}}"
-    :next :route-by-sentiment}
-
-   :route-by-sentiment
-   {:routes
-    [{:when [:= [:obs] "POSITIVE"]
-      :next :handle-positive}
-     {:when [:= [:obs] "NEGATIVE"]
-      :next :handle-negative}
-     {:when [:= [:obs] "NEUTRAL"]
-      :next :handle-neutral}]}
-
-   :handle-positive
-   {:prompt "Generate an enthusiastic response!"
-    :next :done}
-   
-   :handle-negative
-   {:prompt "Generate an empathetic, solution-focused response."
-    :next :done}
-   
-   :handle-neutral
-   {:prompt "Generate a balanced, informative response."
-    :next :done}}}}
-```
-
-### Batch Processing with Loops
-
-Process collections declaratively:
-
-```clojure
-{:batch-processor
- {:start :fetch-items
-  :tools {:fetch-items {:fn my.ns/fetch-items-tool}
-          :process-item {:fn my.ns/process-item-tool}}
-  :steps
-  {:fetch-items
-   {:tool :fetch-items
-    :next :process-all}
-   
-   :process-all
-   {:loop-over [:obs :items]        ; Iterate over collection
-    :loop-body :process-one          ; Process each item
-    :next :done}
-   
-   :process-one
-   {:tool :process-item
-    :args {:id "{{loop-item.id}}"   ; Access current item
-           :name "{{loop-item.name}}"
-           :index "{{loop-index}}"}  ; Current index
-    :next :done}}}}                  ; Return to loop
-```
-
-**Loop Variables:**
-- `{{loop-item}}` - Current item
-- `{{loop-index}}` - Zero-based index
-- `{{loop-count}}` - Total items
-- `{{loop-remaining}}` - Items remaining
-
-### Live Dashboard 📊
-
-Monitor agents in real-time with interactive Mermaid diagrams:
-
-```bash
-clj -M -m pyjama.agent.hooks.dashboard
-open http://localhost:8090
-```
-
-See [docs/DASHBOARD.md](docs/DASHBOARD.md) for full documentation.
-
-## Ollama & ChatGPT APIs
-
-### Ollama
-
-```clojure
-(require '[pyjama.core])
-(pyjama.core/ollama "http://localhost:11434" :generate 
+(p/ollama "http://localhost:11434" :generate 
   {:prompt "Explain Clojure in one sentence"})
 ```
 
@@ -135,11 +22,58 @@ See [docs/DASHBOARD.md](docs/DASHBOARD.md) for full documentation.
 ```clojure
 (require '[pyjama.openai :as openai])
 
-; Using :chatgpt
 (openai/chatgpt 
-  {:messages [{:role "user" 
-               :content "Explain Clojure in one sentence"}]})
+  {:messages [{:role "user" :content "Explain Clojure"}]})
 ```
+
+### Claude / OpenRouter / DeepSeek
+
+Same simple interface - just swap the provider. See [docs/EXAMPLES.md](docs/EXAMPLES.md) for all providers.
+
+## Agent Framework - Chain LLM Calls
+
+**Want to chain multiple LLM calls?** The Agent Framework lets you dynamically route between providers and steps.
+
+### Quick Example
+
+```clojure
+{:my-agent
+ {:start :analyze
+  :steps
+  {:analyze
+   {:prompt "Analyze: {{ctx.input}}. Return: positive/negative/neutral"
+    :next :route}
+   
+   :route
+   {:routes [{:when [:= [:obs] "positive"] :next :celebrate}
+             {:when [:= [:obs] "negative"] :next :sympathize}]
+    :next :neutral-response}}}}
+```
+
+**Run it:**
+```bash
+clj -M -m pyjama.cli.agent run my-agent '{"input": "I love Clojure!"}'
+```
+
+### Real-World Examples
+
+- **Chaining** - Research workflow with 5 LLM calls → [examples/chaining-llms.edn](examples/chaining-llms.edn)
+- **Routing** - Sentiment-based responses → [examples/routing-agents.edn](examples/routing-agents.edn)
+- **Loops** - Batch processing → [examples/simple-loop-demo.edn](examples/simple-loop-demo.edn)
+
+**Full documentation:** [docs/LOOP_SUPPORT.md](docs/LOOP_SUPPORT.md)
+
+### Live Dashboard 📊
+
+Monitor running agents with interactive Mermaid diagrams:
+
+```bash
+clj -M -m pyjama.agent.hooks.dashboard
+open http://localhost:8090
+```
+
+**Full guide:** [docs/DASHBOARD.md](docs/DASHBOARD.md)
+
 
 ## Documentation
 
