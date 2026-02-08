@@ -30,7 +30,7 @@ All notable changes to this project will be documented in this file. This change
 - Agent completion tracking when stopping with Ctrl-C
 - Dashboard API now properly retrieves agent data from shared metrics
 
-## [Unreleased - Previous]
+## [0.2.0] - 2026-01-XX
 ### Added
 - **Loop Support**: Declarative `:loop` construct for batch processing agents
   - `:loop-over` - Specify collection path to iterate over
