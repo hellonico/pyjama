@@ -818,9 +818,9 @@
         (try
           ;; Get agent spec from shared metrics (where we now store it)
           (let [dashboard-data (get-dashboard-data)
-                agents (:agents dashboard-data)
+                agents (get dashboard-data "agents")  ; JSON has string keys
                 agent-data (get agents (name agent-id))  ; Convert keyword to string
-                agent-spec (:spec agent-data)]
+                agent-spec (get agent-data "spec")]  ; JSON has string keys
             (if agent-spec
               {:status 200
                :content-type "text/plain"
