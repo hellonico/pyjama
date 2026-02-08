@@ -1,0 +1,18 @@
+{:simple-loop-demo
+ {:description "Simple loop demo using only prompts - no custom tools"
+  :start :setup
+  :max-steps 20
+
+  :steps
+  {:setup
+   {:prompt "Say: I will count from 1 to 3"
+    :next :loop-numbers}
+
+   :loop-numbers
+   {:loop-over [1 2 3]
+    :loop-body :say-number
+    :next :done}
+
+   :say-number
+   {:prompt "Say the number: {{loop-item}}"
+    :next :done}}}}
