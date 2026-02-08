@@ -27,6 +27,10 @@
            :agents
            {:exec-fn pyjama.cli.agent/run-agents}
 
+           ;; Demo agent for testing dashboard visualization
+           :loop-demo
+           {:main-opts ["-m" "pyjama.cli.agent" "run" "loop-demo-agent"]
+            :jvm-opts ["-Dagents.edn=examples/loop-demo-agents.edn"]}
 
            :native-cli-doc
            {:main-opts ["-m" "clj.native-image" "pyjama.doc.core"
