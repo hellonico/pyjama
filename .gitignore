@@ -31,3 +31,4 @@ alan.md
 doc
 /pyjamamazing
 /.lsp/
+demos/dashboard/output/*.log

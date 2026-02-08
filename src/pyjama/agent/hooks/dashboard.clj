@@ -584,10 +584,20 @@
                 .then(function(mermaidCode) {
                     // Create a unique ID for this diagram
                     var diagramId = 'mermaid-' + Date.now();
-                    container.innerHTML = '<div id=\"' + diagramId + '\">' + mermaidCode + '</div>';
+                    // Modern mermaid API - create pre element
+                    var preElement = document.createElement('pre');
+                    preElement.className = 'mermaid';
+                    preElement.id = diagramId;
+                    preElement.textContent = mermaidCode;
+                    container.innerHTML = '';
+                    container.appendChild(preElement);
                     
-                    // Render the mermaid diagram
-                    mermaid.init(undefined, '#' + diagramId);
+                    // Use mermaid.run() with requestAnimationFrame to avoid getBBox errors
+                    requestAnimationFrame(function() {
+                        mermaid.run({ nodes: [preElement] }).catch(function(err) {
+                            console.error('Mermaid error:', err);
+                        });
+                    });
                     
                     // Highlight the current step after rendering
                     setTimeout(function() {
@@ -723,7 +733,46 @@
                         document.getElementById('active-agents').innerHTML = agentsHTML;
                     }
                     
-                    
+                    // Render Past Runs (completed agents only)
+                    if (completedAgents.length === 0) {
+                        document.getElementById('past-runs').innerHTML = '\u003cdiv class=\"empty-state\"\u003eNo past runs\u003c/div\u003e';
+                    } else {
+                        var pastRunsHTML = '';
+                        for (var p = 0; p \u003c completedAgents.length; p++) {
+                            var agentId = completedAgents[p].id;
+                            var agent = completedAgents[p].data;
+                            var steps = agent.steps || [];
+                            var completedCount = 0;
+                            for (var q = 0; q \u003c steps.length; q++) {
+                                if (steps[q].status === 'ok' || steps[q].status === 'completed') {
+                                    completedCount++;
+                                }
+                            }
+                            
+                            var duration = 0;
+                            if (agent['end-time'] \u0026\u0026 agent['start-time']) {
+                                duration = agent['end-time'] - agent['start-time'];
+                            } else if (agent['start-time']) {
+                                duration = Date.now() - agent['start-time'];
+                            }
+                            
+                            pastRunsHTML += '\u003cdiv class=\"agent-card completed\" data-agent-data=\"' + encodeURIComponent(JSON.stringify(agent)) + '\" data-agent-id=\"' + agentId + '\"\u003e'+
+                                '\u003cdiv class=\"agent-header\"\u003e' +
+                                '\u003cdiv class=\"agent-name\"\u003e' + agentId + '\u003c/div\u003e' +
+                                '\u003cdiv class=\"agent-status completed\"\u003eCOMPLETED\u003c/div\u003e' +
+                                '\u003c/div\u003e' +
+                                '\u003cdiv class=\"agent-meta\"\u003eDuration: ' + formatDuration(duration) + '\u003c/div\u003e' +
+                                '\u003cdiv class=\"current-step-preview\"\u003e' +
+                                '\u003cdiv class=\"step-indicator completed\"\u003e✓\u003c/div\u003e' +
+                                '\u003cdiv class=\"step-info\"\u003e' +
+                                '\u003cdiv class=\"step-name\"\u003eAll steps completed\u003c/div\u003e' +
+                                '\u003cdiv class=\"step-count\"\u003e' + completedCount + ' of ' + steps.length + ' steps\u003c/div\u003e' +
+                                '\u003c/div\u003e' +
+                                '\u003cdiv class=\"expand-hint\"\u003eClick to view →\u003c/div\u003e' +
+                                '\u003c/div\u003e\u003c/div\u003e';
+                        }
+                        document.getElementById('past-runs').innerHTML = pastRunsHTML;
+                    }
                     
                     var logs = data['recent-logs'] || [];
                     if (logs.length === 0) {
@@ -816,12 +865,11 @@
                            (= (nth parts 4) "diagram"))]
       (if (and agent-id is-diagram?)
         (try
-          ;; Get agent spec from shared metrics (where we now store it)
+          ;; Get agent spec from separate specs storage (isolated from agent data updates)
           ;; Note: shared-metrics reads JSON with :key-fn keyword, so keys are keywords
           (let [dashboard-data (get-dashboard-data)
-                agents (:agents dashboard-data)
-                agent-data (get agents (keyword (name agent-id)))  ; Ensure keyword lookup
-                agent-spec (:spec agent-data)]
+                specs (:specs dashboard-data)
+                agent-spec (get specs (keyword (name agent-id)))]  ; Ensure keyword lookup
             (if agent-spec
               (let [mermaid-code (visualize/visualize-mermaid agent-id agent-spec)
                     ;; Strip markdown code fence for JavaScript rendering

@@ -74,15 +74,20 @@
   ([agent-id agent-spec]
    (update-metrics!
     (fn [metrics]
-      (assoc-in metrics [:agents agent-id]
-                (merge
-                 {:status "running"
-                  :start-time (System/currentTimeMillis)
-                  :last-seen (System/currentTimeMillis)
-                  :end-time nil
-                  :steps []}
-                 (when agent-spec
-                   {:spec agent-spec})))))
+      (-> metrics
+          ;; Store agent data
+          (assoc-in [:agents agent-id]
+                    (merge
+                     {:status "running"
+                      :start-time (System/currentTimeMillis)
+                      :last-seen (System/currentTimeMillis)
+                      :end-time nil
+                      :steps []}
+                     (when agent-spec
+                       {:spec agent-spec})))
+          ;; ALSO store spec separately so it's never lost
+          (cond-> agent-spec
+            (assoc-in [:specs agent-id] agent-spec)))))
    ;; Log that agent was registered
    (println (str "✓ Agent '" agent-id "' registered"
                  (when agent-spec " with workflow definition for dashboard")))))
@@ -119,8 +124,12 @@
            duration (when start-time
                       (- current-time start-time))]
        (-> metrics
-           (assoc-in [:agents agent-id :status] "completed")
-           (assoc-in [:agents agent-id :end-time] current-time)
+           ;; Update agent status and end-time while preserving all other data (spec, steps, etc.)
+           (update-in [:agents agent-id]
+                      (fn [agent-data]
+                        (merge agent-data
+                               {:status "completed"
+                                :end-time current-time})))
 
            ;; Update global metrics
            (update-in [:global :count] (fnil inc 0))
@@ -212,8 +221,10 @@
   (let [metrics (or (read-metrics) {})
         global (:global metrics)
         tools (:tools metrics)
-        agents (:agents metrics)]
+        agents (:agents metrics)
+        specs (:specs metrics)]
     {:agents (or agents {})
+     :specs (or specs {})
      :metrics {:global (merge {:count 0 :success 0 :error 0 :total-duration 0}
                               global
                               {:success-rate (if (and global (pos? (:count global)))
@@ -241,14 +252,16 @@
   "Hook that records tool execution to shared metrics."
   [{:keys [tool-name ctx result]}]
   (when-let [agent-id (:id ctx)]
-    ;; Ensure agent is registered (idempotent - only sets start-time if not already set)
+    ;; Ensure agent is registered (idempotent - preserves existing data like spec)
     (update-metrics!
      (fn [metrics]
        (if-not (get-in metrics [:agents agent-id :start-time])
-         (assoc-in metrics [:agents agent-id]
-                   {:status "running"
-                    :start-time (System/currentTimeMillis)
-                    :last-seen (System/currentTimeMillis)})
+         (update-in metrics [:agents agent-id]
+                    (fn [existing]
+                      (merge existing
+                             {:status "running"
+                              :start-time (System/currentTimeMillis)
+                              :last-seen (System/currentTimeMillis)})))
          metrics)))
 
     ;; Record the activity

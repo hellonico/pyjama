@@ -182,15 +182,7 @@
          sid start-id
          n 0]
     (if (or (= sid :done) (>= n (or (:max-steps spec) 20)))
-      (do
-        ;; Mark agent as complete in shared metrics when done
-        (try
-          (when-let [agent-id (:id ctx)]
-            (when-let [complete-fn (try (requiring-resolve 'pyjama.agent.hooks.shared-metrics/record-agent-complete!)
-                                        (catch Exception _ nil))]
-              (complete-fn agent-id)))
-          (catch Exception _ nil))
-        {:obs (:last-obs c) :trace (:trace c)})
+      {:obs (:last-obs c) :trace (:trace c)}
       (let [c' (run-step spec sid c params)
             c'' (update c' :trace (fnil conj []) {:step sid :obs (:last-obs c')})
             nid (decide-next spec sid c'')]
@@ -585,14 +577,11 @@
         (validate-all-tools merged-tools)
 
         ;; Mark agent as started in shared metrics
-        ;; Use the agent's :name field if available, otherwise fall back to id
+        ;; Use the agent's id directly to ensure consistency with execution tracking
         (try
           (when-let [start-fn (resolve 'pyjama.agent.hooks.shared-metrics/record-agent-start!)]
-            (let [agent-name (or (:name agent)
-                                 (when id (if (keyword? id) (name id) (str id)))
-                                 "unknown-agent")]
-              ;; Pass both agent name and spec for dashboard diagram generation
-              (start-fn agent-name agent)))
+            ;; Pass id and spec for dashboard diagram generation
+            (start-fn id agent))
           (catch Exception _ nil))
 
         (loop [ctx (merge {:id id :trace [] :prompt (:prompt params) :original-prompt (:prompt params)} params)
