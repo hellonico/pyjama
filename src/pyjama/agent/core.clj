@@ -591,7 +591,8 @@
             (let [agent-name (or (:name agent)
                                  (when id (if (keyword? id) (name id) (str id)))
                                  "unknown-agent")]
-              (start-fn agent-name)))
+              ;; Pass both agent name and spec for dashboard diagram generation
+              (start-fn agent-name agent)))
           (catch Exception _ nil))
 
         (loop [ctx (merge {:id id :trace [] :prompt (:prompt params) :original-prompt (:prompt params)} params)

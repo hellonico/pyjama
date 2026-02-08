@@ -13,7 +13,6 @@
             [pyjama.agent.hooks.logging :as logging]
             [pyjama.agent.hooks.shared-metrics :as shared]
             [pyjama.agent.visualize :as visualize]
-            [pyjama.core :as pyjama]
             [clojure.data.json :as json]
             [clojure.string :as str])
   (:import [java.net ServerSocket]
@@ -817,9 +816,11 @@
                            (= (nth parts 4) "diagram"))]
       (if (and agent-id is-diagram?)
         (try
-          ;; Get agent spec from registry
-          (let [registry @pyjama/agents-registry
-                agent-spec (get registry agent-id)]
+          ;; Get agent spec from shared metrics (where we now store it)
+          (let [dashboard-data (get-dashboard-data)
+                agents (:agents dashboard-data)
+                agent-data (get agents (name agent-id))  ; Convert keyword to string
+                agent-spec (:spec agent-data)]
             (if agent-spec
               {:status 200
                :content-type "text/plain"
@@ -829,7 +830,7 @@
                :body (visualize/visualize-mermaid agent-id agent-spec)}
               {:status 404
                :content-type "text/plain"
-               :body (str "Agent not found: " agent-id)}))
+               :body (str "Agent not found or spec not available: " agent-id)}))
           (catch Exception e
             {:status 500
              :content-type "text/plain"

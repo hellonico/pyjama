@@ -69,15 +69,20 @@
 
 (defn record-agent-start!
   "Record that an agent has started."
-  [agent-id]
-  (update-metrics!
-   (fn [metrics]
-     (assoc-in metrics [:agents agent-id]
-               {:status "running"
-                :start-time (System/currentTimeMillis)
-                :last-seen (System/currentTimeMillis)
-                :end-time nil
-                :steps []}))))
+  ([agent-id]
+   (record-agent-start! agent-id nil))
+  ([agent-id agent-spec]
+   (update-metrics!
+    (fn [metrics]
+      (assoc-in metrics [:agents agent-id]
+                (merge
+                 {:status "running"
+                  :start-time (System/currentTimeMillis)
+                  :last-seen (System/currentTimeMillis)
+                  :end-time nil
+                  :steps []}
+                 (when agent-spec
+                   {:spec agent-spec})))))))
 
 (defn record-agent-activity!
   "Record agent activity (tool execution)."
