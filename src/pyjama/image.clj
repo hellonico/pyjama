@@ -58,8 +58,9 @@
   [path]
   (try
     (let [bytes (read-file-bytes path)
-          encoded (.encode (base64-encoder) bytes)]
-      (String. encoded "UTF-8"))
+          encoder (base64-encoder)
+          encoded (.encode ^java.util.Base64$Encoder encoder ^bytes bytes)]
+      (String. ^bytes encoded "UTF-8"))
     (catch Exception e
       (println e "Failed to convert image to Base64: %s" path)
       nil)))
@@ -86,7 +87,7 @@
     The decoded byte array, or `nil` if decoding failed."
   ^bytes [base64-str]
   (try
-    (.decode (Base64/getDecoder) base64-str)
+    (.decode ^java.util.Base64$Decoder (Base64/getDecoder) ^String base64-str)
     (catch IllegalArgumentException e
       (println e "Invalid Base64 input")
       nil)))

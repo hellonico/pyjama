@@ -176,18 +176,30 @@
 (defn handle-text-generation
   "Handle single text generation (non-chat)"
   [url model prompt stream images output format]
-  (let [result (pyjama.core/ollama
-                url
-                :generate
-                {:images images
-                 :model model
-                 :stream false  ; Disable streaming for file output
-                 :prompt prompt})]
-
-    (when result
-      (if (or output (= format "markdown"))
-        (save-to-markdown result output prompt)
-        (println result)))))
+  (if stream
+    ;; Streaming mode - print tokens as they arrive
+    (do
+      (pyjama.core/ollama
+       url
+       :generate
+       {:images images
+        :model model
+        :stream true
+        :prompt prompt}
+       pyjama.core/print-generate-tokens)
+      (println)) ; Add newline at end
+    ;; Non-streaming mode - get full result
+    (let [result (pyjama.core/ollama
+                  url
+                  :generate
+                  {:images images
+                   :model model
+                   :stream false
+                   :prompt prompt})]
+      (when result
+        (if (or output (= format "markdown"))
+          (save-to-markdown result output prompt)
+          (println result))))))
 
 (defn -main [& args]
   (let [options (parse-cli-options args)
