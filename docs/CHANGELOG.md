@@ -29,6 +29,13 @@ All notable changes to this project will be documented in this file. This change
   - Use `-o file.md` for specific filename
   - Formatted with prompt and response sections
   - Example: `clj -M -m pyjama.cli.ollama -m llama3.2 -o response.md -p "Explain Clojure"`
+- **Native Binary Compilation**: Compile Ollama CLI to standalone native executable
+  - Build with `clj -M:native-cli` (~2 minutes compilation time)
+  - Instant startup (no JVM warmup)
+  - Standalone ~75MB executable with no dependencies
+  - Production-ready for deployment
+  - Full feature parity with JVM version
+  - GraalVM native-image with type hints for reflection-free compilation
 
 ### Fixed
 - **Double Printing Bug**: Fixed duplicate character output in Ollama chat streaming

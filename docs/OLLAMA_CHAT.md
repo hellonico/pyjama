@@ -12,6 +12,25 @@ Start an interactive chat session with the default model (llama3.2):
 clj -M:ollama
 ```
 
+### Native Binary
+
+For faster startup and standalone execution, compile to a native binary:
+
+```bash
+# Build the native binary (takes ~2 minutes)
+clj -M:native-cli
+
+# Use the binary directly
+./pyjama --help
+./pyjama -o sunset.png -w 512 -g 512 -p "Beautiful sunset"
+./pyjama -m llama3.2 -o response.md -p "Explain Clojure"
+```
+
+**Benefits:**
+- ⚡ **Instant startup** (no JVM warmup)
+- 📦 **Standalone executable** (~75MB, no dependencies)
+- 🚀 **Production-ready** for deployment
+
 ### Specify a Model
 
 Chat with a specific model:

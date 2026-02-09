@@ -41,7 +41,17 @@ clj -M -m pyjama.cli.ollama -o art.png -w 1920 -g 1080 -p "Cyberpunk city"
 clj -M -m pyjama.cli.ollama -m llama3.2 -o response.md -p "Explain Clojure"
 ```
 
-📖 **[Full Ollama Documentation](docs/OLLAMA_CHAT.md)** - Chat, image generation, vision models, and more
+**Native Binary (instant startup, standalone):**
+```bash
+# Build once (~2 minutes)
+clj -M:native-cli
+
+# Use anywhere
+./pyjama -o image.png -w 512 -g 512 -p "A robot"
+./pyjama -m llama3.2 -o doc.md -p "Explain macros"
+```
+
+📖 **[Full Ollama Documentation](docs/OLLAMA_CHAT.md)** - Chat, image generation, vision models, native binary, and more
 
 
 ### ChatGPT / OpenAI

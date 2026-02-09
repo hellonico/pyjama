@@ -78,7 +78,7 @@
               :sha     "7708e7fd4572459c81f6a6b8e44c96f41cdd92d4"}}}
 
            :native-cli
-           {:main-opts ["-m" "clj.native-image" "pyjama.cli.call"
+           {:main-opts ["-m" "clj.native-image" "pyjama.cli.ollama"
                         "--initialize-at-build-time"
                         "--initialize-at-run-time=org.apache.http.impl.auth.NTLMEngineImpl"
                         "--initialize-at-run-time=sun.java2d.Disposer"
