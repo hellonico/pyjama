@@ -230,7 +230,7 @@
 (defn handle-text-generation
   "Handle single text generation (non-chat)"
   [url model prompt stream images output format]
-  (if stream
+  (if (and stream (not output))
     ;; Streaming mode - print tokens as they arrive
     (do
       (pyjama.core/ollama
