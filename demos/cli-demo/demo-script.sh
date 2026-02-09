@@ -2,10 +2,10 @@
 # Pyjama v0.4.0 Demo Script
 # Showcases all major features of the Ollama CLI
 
-set -e
 
 # Path to pyjama binary (relative to this script)
-PYJAMA="../.$PYJAMA"
+SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+PYJAMA="$SCRIPT_DIR/../../pyjama"
 
 echo "🎬 Pyjama v0.4.0 Demo - Native Binary Showcase"
 echo "=============================================="
