@@ -6,6 +6,12 @@ Switch transparently between **Ollama**, **ChatGPT**, **Claude**, **DeepSeek**, 
 
 Related blog [posts](http://blog.hellonico.info/tags/pyjama/)
 
+## 🎬 Video Demo
+
+[![Pyjama CLI Demo](https://img.youtube.com/vi/aGu9Wv8LA7M/maxresdefault.jpg)](https://youtu.be/aGu9Wv8LA7M)
+
+**Watch the demo:** Native binary CLI with streaming, vision analysis, image generation, and auto-pull features.
+
 ## LLM Client - Any Provider
 
 ### Ollama (Local)
