@@ -1,6 +1,7 @@
 (ns pyjama.cli.ollama
   (:require [clojure.tools.cli :as cli]
             [clojure.java.io :as io]
+            [clojure.string]
             [pyjama.core]
             [pyjama.image])
   (:gen-class)
@@ -85,7 +86,7 @@
   (let [models (list-models url)
         model-names (map (comp str :name) models)
         ;; Check for exact match or with :latest suffix
-        model-with-latest (if (.contains model-name ":")
+        model-with-latest (if (clojure.string/includes? model-name ":")
                             model-name
                             (str model-name ":latest"))]
     (or (some #(= % model-name) model-names)
