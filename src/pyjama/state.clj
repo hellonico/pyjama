@@ -80,7 +80,6 @@
   (swap! state assoc
          :error nil
          :processing true)
-  (clojure.pprint/pprint @state)
   ; make sure messages key is an array.
   ; has to be done beforehand
   ;(swap! state #(assoc % :messages (get % :messages [])))
@@ -127,7 +126,6 @@
       (if-let [val (async/<! ch)]
         (if (:processing @state)
           (do
-            (swap! state update :response str val)
             (response-handler val)
             (recur)))))))
 

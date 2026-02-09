@@ -15,7 +15,23 @@
 clj -M:native-image
 ```
 
+# Interactive Ollama Chat
+
+```bash
+# Start chat with default model (llama3.2)
+clj -M:ollama
+
+# Specify a different model
+clj -M:ollama -m llama3.1
+
+# Use a remote Ollama server
+clj -M:ollama -m qwen2.5 -u http://192.168.1.100:11434
+```
+
+# Native Binary Usage
+
 Then
+
 
 ```bash
 ./pyjama --images resources/cute_cat.jpg -m "llava" -p "What is in the picture?"

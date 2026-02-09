@@ -2,6 +2,20 @@
 All notable changes to this project will be documented in this file. This change log follows the conventions of [keepachangelog.com](http://keepachangelog.com/).
 
 ## [Unreleased]
+### Added
+- **Ollama Interactive Chat CLI**: New `:ollama` alias for convenient chat access
+  - Quick start: `clj -M:ollama`
+  - Easy model switching: `clj -M:ollama -m qwen3-coder`
+  - Remote server support: `clj -M:ollama -u http://192.168.1.100:11434`
+  - Comprehensive documentation in [docs/OLLAMA_CHAT.md](docs/OLLAMA_CHAT.md)
+  - Interactive chat examples in main README
+
+### Fixed
+- **Double Printing Bug**: Fixed duplicate character output in Ollama chat streaming
+  - Removed duplicate state update in `pyjama.state/ollama-chat`
+  - Each token now appears only once in chat output
+- **Debug Output**: Removed `pprint` debug statement that was cluttering chat console
+
 
 ## [0.3.0] - 2026-02-08
 ### Added

@@ -17,6 +17,19 @@ Related blog [posts](http://blog.hellonico.info/tags/pyjama/)
   {:prompt "Explain Clojure in one sentence"})
 ```
 
+**Interactive Chat:**
+```bash
+# Start chat with default model (llama3.2)
+clj -M:ollama
+
+# Specify a different model
+clj -M:ollama -m llama3.1
+
+# Use a remote Ollama server
+clj -M:ollama -m qwen2.5 -u http://192.168.1.100:11434
+```
+
+
 ### ChatGPT / OpenAI
 
 ```clojure
@@ -131,6 +144,7 @@ Email automation with **pure EDN** (no Clojure code!). Watcher and sender agents
 
 ## Documentation
 
+- **[Ollama Interactive Chat](docs/OLLAMA_CHAT.md)** - Interactive CLI chat with local Ollama models
 - **[Dashboard](docs/DASHBOARD.md)** - Real-time agent monitoring and visualization
 - **[Secrets Management](docs/SECRETS.md)** - File-based and Vault secret storage
 - **[Shell and Cron Tools](docs/SHELL_AND_CRON_TOOLS.md)** - Execute commands and schedule tasks
@@ -142,6 +156,7 @@ Email automation with **pure EDN** (no Clojure code!). Watcher and sender agents
 - **[API Examples](docs/EXAMPLES.md)** - Comprehensive Ollama/ChatGPT examples
 - **[Loop Support](docs/LOOP_SUPPORT.md)** - Detailed loop documentation
 - **[Changelog](docs/CHANGELOG.md)** - Release history
+
 
 ## Installation
 
