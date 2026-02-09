@@ -1,0 +1,47 @@
+{:name "system-monitor-example"
+ :description "Example agent demonstrating shell and cron tools"
+
+ :tools {:execute-command pyjama.tools.shell/execute-command
+         :run-script pyjama.tools.shell/run-script
+         :schedule-task pyjama.tools.cron/schedule-task
+         :cancel-task pyjama.tools.cron/cancel-task
+         :list-tasks pyjama.tools.cron/list-tasks
+         :run-once-after pyjama.tools.cron/run-once-after}
+
+ :loop {:type :template
+        :template :system-monitor}
+
+ :templates
+ {:system-monitor
+  {:steps
+   [{:action "Setup monitoring tasks"
+     :observe [:schedule-task {:id "disk-check"
+                               :schedule "*/10 * * * *"
+                               :task (fn []
+                                       (let [result ((:execute-command tools)
+                                                     {:command "df -h /"})]
+                                         (println "Disk usage:" (:out result))))
+                               :description "Check disk usage every 10 minutes"}]
+     :next :setup-git-monitor}
+
+    {:name :setup-git-monitor
+     :action "Monitor git repository"
+     :observe [:schedule-task {:id "git-status"
+                               :schedule "@hourly"
+                               :task (fn []
+                                       (let [result ((:execute-command tools)
+                                                     {:command "git status --short"
+                                                      :dir (System/getProperty "user.dir")})]
+                                         (when (seq (:out result))
+                                           (println "Git changes detected:" (:out result)))))
+                               :description "Check git status hourly"}]
+     :next :list-all-tasks}
+
+    {:name :list-all-tasks
+     :action "Display all scheduled tasks"
+     :observe [:list-tasks]
+     :next :done}
+
+    {:name :done
+     :action "Monitoring setup complete"
+     :observe [:log "System monitoring agent initialized with scheduled tasks"]}]}}}

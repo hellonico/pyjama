@@ -133,10 +133,12 @@ Email automation with **pure EDN** (no Clojure code!). Watcher and sender agents
 
 - **[Dashboard](docs/DASHBOARD.md)** - Real-time agent monitoring and visualization
 - **[Secrets Management](docs/SECRETS.md)** - File-based and Vault secret storage
+- **[Shell and Cron Tools](docs/SHELL_AND_CRON_TOOLS.md)** - Execute commands and schedule tasks
 - **[Agent Examples](examples/)** - EDN files showing chaining, routing, loops
   - [chaining-llms.edn](examples/chaining-llms.edn) - Chain multiple LLM calls
   - [routing-agents.edn](examples/routing-agents.edn) - Route based on LLM results
   - [simple-loop-demo.edn](examples/simple-loop-demo.edn) - Batch processing
+  - [system-monitor-example.edn](examples/system-monitor-example.edn) - Shell and cron tools demo
 - **[API Examples](docs/EXAMPLES.md)** - Comprehensive Ollama/ChatGPT examples
 - **[Loop Support](docs/LOOP_SUPPORT.md)** - Detailed loop documentation
 - **[Changelog](docs/CHANGELOG.md)** - Release history

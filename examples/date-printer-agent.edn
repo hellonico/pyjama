@@ -1,0 +1,37 @@
+{:date-printer-agent
+ {:name "Date Printer Agent"
+  :description "Loops 5 times, printing date every 5 seconds using shell tool"
+
+  :start :create-iterations
+  :max-steps 20
+
+  :tools {:create-iterations {:fn examples.date-printer-tools/create-iterations}
+          :shell {:fn pyjama.tools.shell/execute-command}
+          :print-results {:fn examples.date-printer-tools/print-results}}
+
+  :steps
+  {:create-iterations
+   {:action "Create list of 5 iterations"
+    :tool :create-iterations
+    :next :loop-iterations}
+
+   :loop-iterations
+   {:loop-over [:obs :items]
+    :loop-body :print-date-and-wait
+    :next :print-results}
+
+   :print-date-and-wait
+   {:action "Print date (iteration {{loop-item}} of {{loop-count}}) and wait 5 seconds"
+    :tool :shell
+    :args {:command ["sh" "-c" "echo '[Iteration {{loop-item}} of {{loop-count}}]' && date && sleep 1"]}
+    :next :done}
+
+   :print-results
+   {:action "Print loop results"
+    :tool :print-results
+    :next :complete}
+
+   :complete
+   {:action "Agent complete"
+    :observe [:log "Date Printer Agent finished - printed date {{last-obs.loop-count}} times at 5-second intervals"]
+    :next :done}}}}
