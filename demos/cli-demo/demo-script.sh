@@ -54,10 +54,10 @@ clear
 echo "🎨 5. Image Generation with Progress Spinner"
 echo "   Command: $PYJAMA_DISPLAY -o demo_art.png -w 256 -g 256 -p \"A futuristic robot\""
 echo ""
-$PYJAMA -o demo_art.png -w 256 -g 256 -p "A futuristic robot"
+$PYJAMA -o $SCRIPT_DIR/../../demo_art.png -w 256 -g 256 -p "A futuristic robot"
 echo ""
 echo "   Opening generated image..."
-open demo_art.png
+open $SCRIPT_DIR/../../demo_art.png
 echo ""
 read -p "Press Enter to continue..."
 clear
@@ -66,10 +66,10 @@ clear
 echo "📝 6. Save Response to Markdown File"
 echo "   Command: $PYJAMA_DISPLAY -m llama3.2 -o demo_response.md -p \"Explain functional programming\""
 echo ""
-$PYJAMA -m llama3.2 -o demo_response.md -p "Explain functional programming in one paragraph"
+$PYJAMA -m llama3.2 -o $SCRIPT_DIR/../../demo_response.md -p "Explain functional programming in one paragraph"
 echo ""
 echo "   Opening markdown file..."
-open demo_response.md
+open $SCRIPT_DIR/../../demo_response.md
 echo ""
 read -p "Press Enter to continue..."
 clear
