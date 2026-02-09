@@ -10,7 +10,8 @@
   (:import [org.apache.commons.codec.binary Base64]))
 
 (def cli-options
-  [["-u" "--url URL" "Base URL for API (e.g. http://localhost:11434)" :default "http://localhost:11434"]
+  [["-u" "--url URL" "Base URL for API (default: $OLLAMA_HOST or http://localhost:11434)"
+    :default (or (System/getenv "OLLAMA_HOST") "http://localhost:11434")]
    ["-m" "--model MODEL" "Model to use (e.g. llama3.2 for chat, x/z-image-turbo for images)" :default nil]
    ["-s" "--stream STREAM" "Streaming or not" :default true :parse-fn read-string]
    ["-c" "--chat MODE" "Chat mode or not" :default false :parse-fn read-string]
