@@ -22,7 +22,7 @@
    ["-g" "--height HEIGHT" "Image height (for image generation models)" :default 768 :parse-fn #(Integer/parseInt %)]
    ["-o" "--output OUTPUT" "Output file (image.png for images, response.md for text)" :default nil]
    ["-f" "--format FORMAT" "Output format: 'markdown' or 'text' (for non-chat mode)" :default "text"]
-   ["--pull" "Automatically pull model if not available" :id :pull :default false]
+   [nil "--pull" "Automatically pull model if not available"]
    ["-h" "--help"]])
 
 (defn parse-cli-options [args]
