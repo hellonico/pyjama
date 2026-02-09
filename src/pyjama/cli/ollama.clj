@@ -1,12 +1,9 @@
 (ns pyjama.cli.ollama
+  (:require [clojure.tools.cli :as cli]
+            [clojure.java.io :as io]
+            [pyjama.core]
+            [pyjama.image])
   (:gen-class)
-  (:require
-   [pyjama.core]
-   [pyjama.image]
-   [pyjama.state]
-   [clojure.tools.cli :as cli]
-   [clojure.string :as str]
-   [clojure.java.io :as io])
   (:import [org.apache.commons.codec.binary Base64]))
 
 (def cli-options
@@ -25,6 +22,7 @@
    ["-g" "--height HEIGHT" "Image height (for image generation models)" :default 768 :parse-fn #(Integer/parseInt %)]
    ["-o" "--output OUTPUT" "Output file (image.png for images, response.md for text)" :default nil]
    ["-f" "--format FORMAT" "Output format: 'markdown' or 'text' (for non-chat mode)" :default "text"]
+   ["--pull" "Automatically pull model if not available" :id :pull :default false]
    ["-h" "--help"]])
 
 (defn parse-cli-options [args]
@@ -33,47 +31,57 @@
       (do (println summary) (System/exit 0))
       options)))
 
-(defn- extra-characters [res1 res2]
-  (let [common-length (count (take-while identity (map #(= %1 %2) res1 res2)))]
-    (subs res1 common-length)))
-
-(defn image-generation-model?
-  "Check if the model is an image generation model"
-  [model]
-  (or (str/includes? (str/lower-case model) "image")
-      (str/includes? (str/lower-case model) "flux")
-      (str/includes? (str/lower-case model) "stable")
-      (str/includes? (str/lower-case model) "sdxl")
-      (str/includes? (str/lower-case model) "z-image")))
-
-(defn image-output-file?
-  "Check if the output file is an image file"
-  [output]
-  (and output
-       (or (str/ends-with? (str/lower-case output) ".png")
-           (str/ends-with? (str/lower-case output) ".jpg")
-           (str/ends-with? (str/lower-case output) ".jpeg")
-           (str/ends-with? (str/lower-case output) ".webp"))))
-
 (defn determine-mode
-  "Determine the operation mode based on options"
-  [model output chat]
+  "Determine the mode based on model name and output file"
+  [model output chat?]
   (cond
-    chat :chat
-    (image-output-file? output) :image-generation
-    (and model (image-generation-model? model)) :image-generation
+    chat? :chat
+    (and output (re-matches #".*\.(png|jpg|jpeg|webp)$" output)) :image-generation
+    (and model (re-matches #".*(image|flux|stable|diffusion).*" model)) :image-generation
     :else :text-generation))
 
 (defn get-default-model
   "Get default model based on mode"
-  [mode model]
-  (if model
-    model
-    (case mode
-      :image-generation "x/z-image-turbo"
-      :chat "llama3.2"
-      :text-generation "llama3.2"
-      "llama3.2")))
+  [mode explicit-model]
+  (or explicit-model
+      (case mode
+        :image-generation "x/z-image-turbo"
+        :chat "llama3.2"
+        :text-generation "llama3.2"
+        "llama3.2")))
+
+(defn extra-characters
+  "Returns the extra characters between two strings"
+  [current previous]
+  (subs current (count previous)))
+
+(defn print-tokens
+  "Print tokens from streaming response"
+  [parsed keys]
+  (let [last-response (atom "")]
+    (fn [current]
+      (doseq [k keys]
+        (when-let [current (get current k)]
+          (print (extra-characters current @last-response))
+          (flush)
+          (reset! last-response current))))))
+
+(defn pull-model
+  "Pull a model from Ollama registry with progress indication"
+  [url model]
+  (println (str "📥 Pulling model: " model "..."))
+  (try
+    (pyjama.core/ollama
+     url
+     :pull
+     {:model model
+      :stream true}
+     pyjama.core/print-pull-tokens)
+    (println (str "\n✅ Model " model " pulled successfully!"))
+    true
+    (catch Exception e
+      (println (str "\n❌ Failed to pull model: " (.getMessage e)))
+      false)))
 
 (defn animate-spinner
   "Show animated spinner while processing"
@@ -146,20 +154,30 @@
 (defn handle-chat-mode
   "Handle interactive chat mode"
   [url model stream]
-  (let [state (atom {:url url :model model :messages [] :stream stream})
-        last-response (atom "")]
-    (while true
-      (print "\n> ") (flush)
-      (reset! last-response "")
-      (swap! state update :messages conj {:role :user :content (read-line)})
-
-      (pyjama.state/handle-chat state)
-
-      (while (:processing @state)
-        (let [current (:response @state)]
-          (print (extra-characters current @last-response))
-          (flush)
-          (reset! last-response current))))))
+  (let [state (atom {:url url :model model :messages [] :stream stream})]
+    (println (str "Starting chat with " model " (type 'exit' to quit)"))
+    (loop []
+      (print "> ")
+      (flush)
+      (let [input (read-line)]
+        (when (and input (not= input "exit"))
+          (let [messages (conj (:messages @state) {:role "user" :content input})
+                _ (swap! state assoc :messages messages)
+                response (atom "")]
+            (pyjama.core/ollama
+             url
+             :chat
+             {:model model
+              :messages messages
+              :stream stream}
+             (fn [parsed]
+               (when-let [msg (get-in parsed [:message :content])]
+                 (print msg)
+                 (flush)
+                 (swap! response str msg))))
+            (println)
+            (swap! state update :messages conj {:role "assistant" :content @response})
+            (recur)))))))
 
 (defn save-to-markdown
   "Save response to markdown file"
@@ -203,11 +221,15 @@
 
 (defn -main [& args]
   (let [options (parse-cli-options args)
-        {:keys [url images model prompt stream chat width height output format]} options
+        {:keys [url images model prompt stream chat width height output format pull]} options
         ;; Resolve URL at runtime: CLI flag > OLLAMA_HOST env var > default
         final-url (or url (System/getenv "OLLAMA_HOST") "http://localhost:11434")
         mode (determine-mode model output chat)
         final-model (get-default-model mode model)]
+
+    ;; Auto-pull model if requested
+    (when (and pull final-model)
+      (pull-model final-url final-model))
 
     (case mode
       :image-generation
