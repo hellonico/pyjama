@@ -23,6 +23,7 @@
    ["-o" "--output OUTPUT" "Output file (image.png for images, response.md for text)" :default nil]
    ["-f" "--format FORMAT" "Output format: 'markdown' or 'text' (for non-chat mode)" :default "text"]
    [nil "--pull" "Automatically pull model if not available"]
+   [nil "--list" "List all available models on the server"]
    ["-h" "--help"]])
 
 (defn parse-cli-options [args]
@@ -66,22 +67,56 @@
           (flush)
           (reset! last-response current))))))
 
+(defn list-models
+  "List all available models on the Ollama server"
+  [url]
+  (try
+    (let [response (pyjama.core/ollama url :tags {})]
+      (if-let [models (:models response)]
+        models
+        []))
+    (catch Exception e
+      (println (str "❌ Failed to list models: " (.getMessage e)))
+      [])))
+
+(defn model-exists?
+  "Check if a model exists on the server"
+  [url model-name]
+  (let [models (list-models url)
+        model-names (map (comp str :name) models)
+        ;; Check for exact match or with :latest suffix
+        model-with-latest (if (.contains model-name ":")
+                            model-name
+                            (str model-name ":latest"))]
+    (or (some #(= % model-name) model-names)
+        (some #(= % model-with-latest) model-names))))
+
 (defn pull-model
   "Pull a model from Ollama registry with progress indication"
   [url model]
   (println (str "📥 Pulling model: " model "..."))
+  (flush)
   (try
     (pyjama.core/ollama
      url
      :pull
      {:model model
-      :stream true}
-     pyjama.core/print-pull-tokens)
-    (println (str "\n✅ Model " model " pulled successfully!"))
+      :stream false}  ; Use non-streaming to avoid messy output
+     identity)
+    (println (str "✅ Model " model " pulled successfully!"))
     true
     (catch Exception e
-      (println (str "\n❌ Failed to pull model: " (.getMessage e)))
+      (println (str "❌ Failed to pull model: " (.getMessage e)))
       false)))
+
+(defn ensure-model
+  "Ensure a model is available, pulling if necessary"
+  [url model]
+  (if (model-exists? url model)
+    (do
+      (println (str "✓ Model " model " already available"))
+      true)
+    (pull-model url model)))
 
 (defn animate-spinner
   "Show animated spinner while processing"
@@ -221,22 +256,37 @@
 
 (defn -main [& args]
   (let [options (parse-cli-options args)
-        {:keys [url images model prompt stream chat width height output format pull]} options
+        {:keys [url images model prompt stream chat width height output format pull list]} options
         ;; Resolve URL at runtime: CLI flag > OLLAMA_HOST env var > default
-        final-url (or url (System/getenv "OLLAMA_HOST") "http://localhost:11434")
-        mode (determine-mode model output chat)
-        final-model (get-default-model mode model)]
+        final-url (or url (System/getenv "OLLAMA_HOST") "http://localhost:11434")]
 
-    ;; Auto-pull model if requested
-    (when (and pull final-model)
-      (pull-model final-url final-model))
+    ;; Handle --list flag
+    (when list
+      (println "📋 Available models on" final-url)
+      (println (apply str (repeat 52 "=")))
+      (let [models (list-models final-url)]
+        (if (empty? models)
+          (println "No models found")
+          (doseq [m models]
+            (let [name-str (str (:name m))  ; Convert to string
+                  size-str (when-let [size (:size m)]
+                             (clojure.core/format " (%.1f GB)" (double (/ size 1e9))))]
+              (println (str "  • " name-str size-str)))))
+        (System/exit 0)))
 
-    (case mode
-      :image-generation
-      (handle-image-generation final-url final-model prompt width height output)
+    (let [mode (determine-mode model output chat)
+          final-model (get-default-model mode model)]
 
-      :chat
-      (handle-chat-mode final-url final-model stream)
+      ;; Auto-pull model if requested
+      (when (and pull final-model)
+        (ensure-model final-url final-model))
 
-      :text-generation
-      (handle-text-generation final-url final-model prompt stream images output format))))
+      (case mode
+        :image-generation
+        (handle-image-generation final-url final-model prompt width height output)
+
+        :chat
+        (handle-chat-mode final-url final-model stream)
+
+        :text-generation
+        (handle-text-generation final-url final-model prompt stream images output format)))))
