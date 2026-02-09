@@ -32,3 +32,5 @@ doc
 /pyjamamazing
 /.lsp/
 demos/dashboard/output/*.log
+image.jpg
+*.png
