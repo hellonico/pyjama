@@ -38,11 +38,15 @@ The Ollama CLI supports the following options:
 | Option | Short | Description | Default |
 |--------|-------|-------------|---------|
 | `--url URL` | `-u` | Ollama server URL | `http://localhost:11434` |
-| `--model MODEL` | `-m` | Model to use | `llama3.2` |
+| `--model MODEL` | `-m` | Model to use | Auto-detected based on mode |
 | `--chat MODE` | `-c` | Enable chat mode | `false` (auto-enabled with `:ollama` alias) |
 | `--stream STREAM` | `-s` | Enable streaming responses | `true` |
 | `--images IMAGES` | `-i` | Image file(s) for vision models | `[]` |
 | `--prompt PROMPT` | `-p` | Single prompt (non-chat mode) | - |
+| `--width WIDTH` | `-w` | Image width (for image generation) | `1024` |
+| `--height HEIGHT` | `-g` | Image height (for image generation) | `768` |
+| `--output OUTPUT` | `-o` | Output file (auto-detects mode by extension) | `nil` |
+| `--format FORMAT` | `-f` | Output format: `markdown` or `text` | `text` |
 | `--help` | `-h` | Show help message | - |
 
 ## Usage Examples
@@ -87,6 +91,53 @@ clj -M -m pyjama.cli.ollama -c true -m llava -i path/to/image.jpg
 ```bash
 clj -M -m pyjama.cli.ollama -c true -m llava \
   -i image1.jpg -i image2.jpg -i image3.jpg
+```
+
+### Image Generation
+
+Generate images using image generation models (requires `x/z-image-turbo` or similar models):
+
+```bash
+# Basic image generation (auto-detects by .png extension)
+clj -M -m pyjama.cli.ollama -o sunset.png -p "A beautiful sunset over the ocean"
+
+# Custom dimensions
+clj -M -m pyjama.cli.ollama -o landscape.png -w 1920 -g 1080 \
+  -p "Mountain landscape with snow"
+
+# Smaller/faster generation
+clj -M -m pyjama.cli.ollama -o quick_art.png -w 512 -g 512 \
+  -p "Abstract geometric art"
+
+# Explicit model selection
+clj -M -m pyjama.cli.ollama -m x/z-image-turbo -o art.png \
+  -p "Cyberpunk city at night"
+```
+
+**Output:**
+```
+🎨 Generating image with x/z-image-turbo...
+📐 Size: 1920x1080
+💬 Prompt: Mountain landscape with snow
+
+⠹ Generating... 45.2s
+✅ Image generated successfully!
+💾 Saved to: landscape.png
+⏱️  Generation time: 45.2s
+```
+
+### Markdown Output for Text
+
+Save text responses to markdown files:
+
+```bash
+# Auto-generated filename
+clj -M -m pyjama.cli.ollama -m llama3.2 -f markdown \
+  -p "Explain functional programming"
+
+# Specific filename
+clj -M -m pyjama.cli.ollama -m llama3.2 -o explanation.md \
+  -p "What are Clojure macros?"
 ```
 
 ## Environment Variables
@@ -204,6 +255,13 @@ For better performance:
 - **[Main README](../README.md)** - Project overview
 
 ## Changelog
+
+### v0.3.3+ (February 2026)
+- **Image Generation Support**: Auto-detect image generation mode with animated progress spinner
+- **Markdown Output**: Save text responses to markdown files with `-f markdown` or `-o file.md`
+- **Smart Mode Detection**: Automatically selects model based on output file extension
+- **Generation Time Display**: Shows total time taken for image generation
+- **Improved Error Handling**: Better error messages with helpful tips
 
 ### v0.3.0+
 - Added `:ollama` alias for convenient chat access

@@ -29,6 +29,20 @@ clj -M:ollama -m llama3.1
 clj -M:ollama -m qwen2.5 -u http://192.168.1.100:11434
 ```
 
+**Image Generation:**
+```bash
+# Generate image (auto-detects by .png extension)
+clj -M -m pyjama.cli.ollama -o sunset.png -p "Beautiful sunset over ocean"
+
+# Custom size
+clj -M -m pyjama.cli.ollama -o art.png -w 1920 -g 1080 -p "Cyberpunk city"
+
+# Save text to markdown
+clj -M -m pyjama.cli.ollama -m llama3.2 -o response.md -p "Explain Clojure"
+```
+
+📖 **[Full Ollama Documentation](docs/OLLAMA_CHAT.md)** - Chat, image generation, vision models, and more
+
 
 ### ChatGPT / OpenAI
 
@@ -39,7 +53,28 @@ clj -M:ollama -m qwen2.5 -u http://192.168.1.100:11434
   {:messages [{:role "user" :content "Explain Clojure"}]})
 ```
 
+**Interactive Chat (Any Provider):**
+```bash
+# ChatGPT (default)
+clj -M:llm
+
+# Claude
+clj -M:llm -l claude
+
+# DeepSeek
+clj -M:llm -l deepseek
+
+# Gemini
+clj -M:llm -l gemini
+
+# OpenRouter
+clj -M:llm -l openrouter -m anthropic/claude-3.5-sonnet
+```
+
+**Secrets loaded automatically** from `~/.secrets/secrets.edn` or Vault.
+
 ### Claude / OpenRouter / DeepSeek
+
 
 Same simple interface - just swap the provider. See [docs/EXAMPLES.md](docs/EXAMPLES.md) for all providers.
 
@@ -144,6 +179,7 @@ Email automation with **pure EDN** (no Clojure code!). Watcher and sender agents
 
 ## Documentation
 
+- **[Unified LLM Chat](docs/LLM_CHAT.md)** - Interactive CLI for any LLM provider (ChatGPT, Claude, DeepSeek, Gemini, OpenRouter)
 - **[Ollama Interactive Chat](docs/OLLAMA_CHAT.md)** - Interactive CLI chat with local Ollama models
 - **[Dashboard](docs/DASHBOARD.md)** - Real-time agent monitoring and visualization
 - **[Secrets Management](docs/SECRETS.md)** - File-based and Vault secret storage

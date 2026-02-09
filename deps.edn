@@ -31,6 +31,10 @@
            :ollama
            {:main-opts ["-m" "pyjama.cli.ollama" "-c" "true"]}
 
+           ;; Interactive LLM chat (any provider: chatgpt, claude, deepseek, gemini, openrouter, ollama)
+           :llm
+           {:main-opts ["-m" "pyjama.cli.llm"]}
+
            ;; Demo agent for testing dashboard visualization
            :loop-demo
            {:extra-paths ["examples"]
