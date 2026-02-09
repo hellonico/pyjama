@@ -6,6 +6,7 @@
 # Path to pyjama binary (relative to this script)
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 PYJAMA="$SCRIPT_DIR/../../pyjama"
+PYJAMA_DISPLAY="pyjama"  # For clean display in echo statements
 
 echo "🎬 Pyjama v0.4.0 Demo - Native Binary Showcase"
 echo "=============================================="
@@ -13,7 +14,7 @@ echo ""
 
 # 1. Show help
 echo "📖 1. Show help and available options"
-echo "   Command: $PYJAMA --help"
+echo "   Command: $PYJAMA_DISPLAY --help"
 echo ""
 $PYJAMA --help
 echo ""
@@ -22,7 +23,7 @@ clear
 
 # 2. Streaming text generation (default)
 echo "🌊 2. Streaming Text Generation (real-time tokens)"
-echo "   Command: $PYJAMA -m llama3.2 -p \"Write a haiku about coding\""
+echo "   Command: $PYJAMA_DISPLAY -m llama3.2 -p \"Write a haiku about coding\""
 echo ""
 $PYJAMA -m llama3.2 -p "Write a haiku about coding"
 echo ""
@@ -32,7 +33,7 @@ clear
 
 # 3. Non-streaming text generation
 echo "⏸️  3. Non-Streaming Text Generation (wait for complete response)"
-echo "   Command: $PYJAMA -m llama3.2 -s false -p \"What is 2+2?\""
+echo "   Command: $PYJAMA_DISPLAY -m llama3.2 -s false -p \"What is 2+2?\""
 echo ""
 $PYJAMA -m llama3.2 -s false -p "What is 2+2?"
 echo ""
@@ -41,7 +42,7 @@ clear
 
 # 4. Vision analysis with streaming
 echo "👁️  4. Vision Analysis with LLaVA (image understanding)"
-echo "   Command: $PYJAMA -m llava -i image.jpg -p \"Describe this image in detail\""
+echo "   Command: $PYJAMA_DISPLAY -m llava -i image.jpg -p \"Describe this image in detail\""
 echo ""
 $PYJAMA -m llava -i image.jpg -p "Describe this image in detail"
 echo ""
@@ -51,7 +52,7 @@ clear
 
 # 5. Image generation (small for demo)
 echo "🎨 5. Image Generation with Progress Spinner"
-echo "   Command: $PYJAMA -o demo_art.png -w 256 -g 256 -p \"A futuristic robot\""
+echo "   Command: $PYJAMA_DISPLAY -o demo_art.png -w 256 -g 256 -p \"A futuristic robot\""
 echo ""
 $PYJAMA -o demo_art.png -w 256 -g 256 -p "A futuristic robot"
 echo ""
@@ -63,7 +64,7 @@ clear
 
 # 6. Save to markdown
 echo "📝 6. Save Response to Markdown File"
-echo "   Command: $PYJAMA -m llama3.2 -o demo_response.md -p \"Explain functional programming\""
+echo "   Command: $PYJAMA_DISPLAY -m llama3.2 -o demo_response.md -p \"Explain functional programming\""
 echo ""
 $PYJAMA -m llama3.2 -o demo_response.md -p "Explain functional programming in one paragraph"
 echo ""
