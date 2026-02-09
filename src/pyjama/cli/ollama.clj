@@ -10,8 +10,7 @@
   (:import [org.apache.commons.codec.binary Base64]))
 
 (def cli-options
-  [["-u" "--url URL" "Base URL for API (default: $OLLAMA_HOST or http://localhost:11434)"
-    :default (or (System/getenv "OLLAMA_HOST") "http://localhost:11434")]
+  [["-u" "--url URL" "Base URL for API (default: $OLLAMA_HOST or http://localhost:11434)"]
    ["-m" "--model MODEL" "Model to use (e.g. llama3.2 for chat, x/z-image-turbo for images)" :default nil]
    ["-s" "--stream STREAM" "Streaming or not" :default true :parse-fn read-string]
    ["-c" "--chat MODE" "Chat mode or not" :default false :parse-fn read-string]
@@ -205,15 +204,17 @@
 (defn -main [& args]
   (let [options (parse-cli-options args)
         {:keys [url images model prompt stream chat width height output format]} options
+        ;; Resolve URL at runtime: CLI flag > OLLAMA_HOST env var > default
+        final-url (or url (System/getenv "OLLAMA_HOST") "http://localhost:11434")
         mode (determine-mode model output chat)
         final-model (get-default-model mode model)]
 
     (case mode
       :image-generation
-      (handle-image-generation url final-model prompt width height output)
+      (handle-image-generation final-url final-model prompt width height output)
 
       :chat
-      (handle-chat-mode url final-model stream)
+      (handle-chat-mode final-url final-model stream)
 
       :text-generation
-      (handle-text-generation url final-model prompt stream images output format))))
+      (handle-text-generation final-url final-model prompt stream images output format))))
