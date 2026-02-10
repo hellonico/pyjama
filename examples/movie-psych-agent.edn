@@ -1,0 +1,53 @@
+{:movie-psych
+ {:description "Movie psychological analysis using external basic-tools"
+  :start :rewrite
+  :max-steps 5
+
+  :inputs
+  {:movie-query {:type "string" :required true}}
+
+  :tools
+  {:wiki-movie {:fn pyjama.tools.external/execute-clojure-tool
+                :args {:git-url "https://github.com/hellonico/pyjama-tools.git"
+                       :subdir "basic-tools"
+                       :namespace "basic-tools.core"}}}
+
+  :steps
+  {:rewrite {:prompt "Looking for a movie title. Return a search query for: {{movie-query}}. Produce ONLY 3–5 words (title + year if known)."
+             :next :search}
+
+   :search {:tool :wiki-movie
+            :args {:function "wiki-movie"
+                   :params {:message "{{last-obs.text}}"
+                            :lang "en"
+                            :limit 5}}
+            :next :analyze}
+
+   :analyze {:prompt "You are a film psychologist. Using the following movie info, write a psychological analysis covering:
+- Protagonist/antagonist motivations
+- Core conflicts and defense mechanisms
+- Attachment patterns
+- Turning points
+- Resolution
+
+Keep it 6-10 bullet points, no spoilers beyond premise level.
+
+MOVIE INFO:
+{{last-obs.text}}"
+             :stream true
+             :next :report}
+
+   :report {:prompt "📽️ **MOVIE PSYCHOLOGICAL ANALYSIS**
+
+🎬 Film: {{trace.search.obs.best.title}} ({{trace.search.obs.best.year}})
+🔗 Info: {{trace.search.obs.best.url}}
+
+🎭 Original Query: {{movie-query}}
+
+🧠 **PSYCHOLOGICAL ANALYSIS:**
+{{last-obs.text}}
+
+---
+✅ Analysis complete! The film explores deep psychological themes through its characters and narrative structure."
+            :stream true
+            :terminal? true}}}}
