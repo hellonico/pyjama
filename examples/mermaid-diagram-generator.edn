@@ -1,0 +1,47 @@
+{:description "Simple example showing how to generate Mermaid diagrams using LLM"
+ :start :get-project-info
+ :max-steps 10
+
+ :tools
+ {:shell {:fn pyjama.tools.shell/execute-command}
+  :write-file {:fn pyjama.tools.file/write-file}}
+
+ :steps
+ {:get-project-info
+  {:tool :shell
+   :args {:command "ls -la {{project-dir}} && find {{project-dir}} -name '*.gradle' -o -name 'package.json' -o -name 'pom.xml' | head -10"}
+   :next :generate-component-diagram}
+
+  :generate-component-diagram
+  {:prompt "Generate a valid Mermaid component architecture diagram using 'graph TB' syntax.\n\nIMPORTANT: Return ONLY the raw Mermaid code. Do NOT wrap it in markdown code fences.\n\nExample format:\ngraph TB\n    Frontend[Frontend]\n    Backend[Backend Services]\n    DB[(Database)]\n    API[External APIs]\n    \n    Frontend --> Backend\n    Backend --> DB\n    Backend --> API\n    \n    classDef blue fill:#2374ab,stroke:#333,color:#fff\n    class Backend blue\n\nNow generate a similar diagram showing:\n- Frontend components\n- Backend services\n- Database\n- External APIs\n\nUse subgraphs and classDef for styling. Return only the Mermaid code, no explanations."
+   :next :save-component-diagram}
+
+  :save-component-diagram
+  {:tool :write-file
+   :args {:path "{{output-dir}}/component-diagram.md"
+          :message "# Component Architecture\n\n```mermaid\n{{last-obs.text}}\n```"}
+   :next :generate-sequence-diagram}
+
+  :generate-sequence-diagram
+  {:prompt "Generate a valid Mermaid sequence diagram showing user authentication flow.\n\nIMPORTANT: Return ONLY the raw Mermaid code. Do NOT wrap it in markdown code fences.\n\nExample format:\nsequenceDiagram\n    participant User\n    participant Frontend\n    participant Backend\n    participant Database\n    \n    User->>Frontend: Submit credentials\n    Frontend->>Frontend: Validate input\n    Frontend->>Backend: POST /auth\n    Backend->>Database: Check credentials\n    Database-->>Backend: User found\n    Backend-->>Frontend: JWT token\n    Frontend-->>User: Login success\n\nGenerate a similar diagram. Return only the Mermaid code, no explanations."
+   :next :save-sequence-diagram}
+
+  :save-sequence-diagram
+  {:tool :write-file
+   :args {:path "{{output-dir}}/sequence-diagram.md"
+          :message "# User Authentication Flow\n\n```mermaid\n{{last-obs.text}}\n```"}
+   :next :generate-flowchart}
+
+  :generate-flowchart
+  {:prompt "Generate a valid Mermaid flowchart showing a deployment pipeline.\n\nIMPORTANT: Return ONLY the raw Mermaid code. Do NOT wrap it in markdown code fences.\n\nExample format:\nflowchart LR\n    A[Code Commit] --> B{Build}\n    B -->|Success| C[Run Tests]\n    B -->|Failure| D[Notify Team]\n    C -->|Pass| E[Deploy to Staging]\n    C -->|Fail| D\n    E --> F{Staging OK?}\n    F -->|Yes| G[Deploy to Production]\n    F -->|No| D\n    G --> H[Complete]\n\nGenerate a similar deployment pipeline flowchart. Return only the Mermaid code, no explanations."
+   :next :save-flowchart}
+
+  :save-flowchart
+  {:tool :write-file
+   :args {:path "{{output-dir}}/deployment-flow.md"
+          :message "# Deployment Pipeline\n\n```mermaid\n{{last-obs.text}}\n```"}
+   :next :complete}
+
+  :complete
+  {:prompt "✅ Mermaid diagrams generated!\n\nOutput directory: {{output-dir}}\n\nGenerated files:\n- component-diagram.md\n- sequence-diagram.md\n- deployment-flow.md\n\nView these diagrams in:\n- GitHub (native Mermaid support)\n- VS Code (with Mermaid extension)\n- https://mermaid.live/"
+   :terminal? true}}}

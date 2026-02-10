@@ -34,3 +34,4 @@ doc
 demos/dashboard/output/*.log
 image.jpg
 *.png
+diagrams
