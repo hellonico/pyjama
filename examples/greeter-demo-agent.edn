@@ -1,0 +1,61 @@
+{:greeter-demo-agent
+ {:description "Demo agent that uses an external Clojure tool to greet users"
+  :start :get-user-name
+  :max-steps 10
+
+  :inputs
+  {:user-name {:type "string"
+               :required true
+               :description "Name of the user to greet"}}
+
+  :tools
+  {:greeter {:fn pyjama.tools.external/execute-clojure-tool
+             :args {:project-path "~/cool/origami-nightweave/pyjama-tools/greeter-tool"
+                    :namespace "greeter-tool.core"}}}
+
+  :steps
+  {:get-user-name
+   {:prompt "User name is: {{user-name}}"
+    :next :greet-enthusiastically}
+
+   :greet-enthusiastically
+   {:tool :greeter
+    :args {:function "greet"
+           :params {:name "{{user-name}}"
+                    :language "english"
+                    :style "enthusiastic"}}
+    :next :analyze-the-name}
+
+   :analyze-the-name
+   {:tool :greeter
+    :args {:function "analyze-name"
+           :params {:name "{{user-name}}"}}
+    :next :greet-in-other-languages}
+
+   :greet-in-other-languages
+   {:tool :greeter
+    :args {:function "greet"
+           :params {:name "{{user-name}}"
+                    :language "french"
+                    :style "formal"}}
+    :next :greet-japanese}
+
+   :greet-japanese
+   {:tool :greeter
+    :args {:function "greet"
+           :params {:name "{{user-name}}"
+                    :language "japanese"
+                    :style "casual"}}
+    :next :summarize-greetings}
+
+   :summarize-greetings
+   {:prompt "Based on the greetings and name analysis we've done:
+
+English greeting: {{trace.greet-enthusiastically.obs.greeting}}
+Name analysis: {{trace.analyze-the-name.obs.analysis}}
+French greeting: {{trace.greet-in-other-languages.obs.greeting}}
+Japanese greeting: {{trace.greet-japanese.obs.greeting}}
+
+Create a fun, personalized summary that incorporates all these greetings and the name analysis. Make it warm and welcoming!"
+    :stream true
+    :terminal? true}}}}

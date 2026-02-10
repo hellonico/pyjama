@@ -281,7 +281,7 @@
                                            (when (string? (:last-obs ctx)) (:last-obs ctx))
                                            (pr-str (:last-obs ctx))))
 
-                           targs (merge {:message msg} rendered {:ctx ctx :params params})
+                           targs (merge {:message msg :ctx ctx :params params} rendered)
 
                            raw ((resolve-fn* fn) targs)
 

@@ -1,0 +1,40 @@
+{:greeter-test-agent
+ {:description "Test agent to debug external tool data flow"
+  :start :greet-user
+  :max-steps 5
+
+  :inputs
+  {:user-name {:type "string" :required true}}
+
+  :tools
+  {:greeter {:fn pyjama.tools.external/execute-clojure-tool
+             :args {:project-path "~/cool/origami-nightweave/pyjama-tools/greeter-tool"
+                    :namespace "greeter-tool.core"}}}
+
+  :steps
+  {:greet-user
+   {:tool :greeter
+    :args {:function "greet"
+           :params {:name "{{user-name}}"
+                    :language "english"
+                    :style "enthusiastic"}}
+    :next :show-result}
+
+   :show-result
+   {:prompt "Great! The external tool worked!
+
+Here's what we got back:
+
+**Greeting:** {{last-obs.greeting}}
+
+**Metadata:**
+- Name: {{last-obs.metadata.name}}
+- Language: {{last-obs.metadata.language}}
+- Style: {{last-obs.metadata.style}}
+- Timestamp: {{last-obs.metadata.timestamp}}
+
+**User Input:** {{user-name}}
+
+Perfect! The template interpolation ({{user-name}} → {{last-obs.metadata.name}}), external tool execution, and data extraction are all working correctly!"
+    :stream true
+    :terminal? true}}}}
