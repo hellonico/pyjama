@@ -193,6 +193,21 @@
             (println "❌ Usage: remove <agent-id>")
             (System/exit 1)))
 
+        ;; Aliases for remove
+        "unregister"
+        (if-let [agent-id (first params)]
+          (remove-agent! agent-id)
+          (do
+            (println "❌ Usage: unregister <agent-id>")
+            (System/exit 1)))
+
+        "delete"
+        (if-let [agent-id (first params)]
+          (remove-agent! agent-id)
+          (do
+            (println "❌ Usage: delete <agent-id>")
+            (System/exit 1)))
+
         (do
           (println "\n📚 Pyjama Agent Registry")
           (println "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
@@ -203,11 +218,14 @@
           (println "  list              List all registered agents")
           (println "  lookup <id>       Look up an agent by ID")
           (println "  remove <id>       Remove an agent from the registry")
+          (println "  unregister <id>   (alias for remove)")
+          (println "  delete <id>       (alias for remove)")
           (println "\nEXAMPLES:")
           (println "  clj -M:pyjama registry register examples/mermaid-diagram-generator.edn")
           (println "  clj -M:pyjama registry list")
           (println "  clj -M:pyjama registry lookup mermaid-diagram-generator")
           (println "  clj -M:pyjama registry remove mermaid-diagram-generator")
+          (println "  clj -M:pyjama registry unregister mermaid-diagram-generator")
           (println "\nREGISTRY LOCATION:")
           (println (str "  " registry-dir))
           (println "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"))))

@@ -198,7 +198,7 @@ COMMANDS:
                         Execute any agent programmatically
     
     registry <command>  Manage local agent registry
-                        Commands: register, list, lookup, remove
+                        Commands: register, list, lookup, remove/unregister/delete
                         See: clj -M:pyjama registry (for details)
     
     lookup-run <agent-id> <json-inputs>
@@ -473,28 +473,28 @@ For more information, visit: https://github.com/hellonico/pyjama
       result)))
 
 (defn run-lookup-execution
-  \"Look up an agent from the registry and execute it with provided inputs\"
-  [agent-id \u0026 args]
+  "Look up an agent from the registry and execute it with provided inputs"
+  [agent-id & args]
   (let [inputs (if (= 1 (count args))
                  (try
                    (json/parse-string (first args) true)
                    (catch Exception _
-                     (throw (ex-info \"Input must be a JSON string\" {:input (first args)}))))
+                     (throw (ex-info "Input must be a JSON string" {:input (first args)}))))
                  ;; transform proper key value pairs
-                 (-\u003e\u003e (partition 2 args)
+                 (->> (partition 2 args)
                       (map (fn [[k v]] [(keyword k) v]))
                       (into {})))]
-    
+
     ;; Look up the agent from the registry
     (let [{:keys [id spec]} (registry/lookup-agent agent-id)
           actual-agent-name (or (:name spec) (name id))]
-      
-      (println \"📥 Inputs:\" inputs)
-      (println \"\\n⏳ Executing...\\n\")
-      
+
+      (println "📥 Inputs:" inputs)
+      (println "\n⏳ Executing...\n")
+
       ;; Set system property for shared metrics tracking
-      (System/setProperty \"pyjama.agent.id\" actual-agent-name)
-      
+      (System/setProperty "pyjama.agent.id" actual-agent-name)
+
       ;; Register shutdown hook to mark agent as complete on Ctrl-C
       (.addShutdownHook (Runtime/getRuntime)
                         (Thread. (fn []
@@ -502,14 +502,14 @@ For more information, visit: https://github.com/hellonico/pyjama
                                      (when-let [complete-fn (resolve 'pyjama.agent.hooks.shared-metrics/record-agent-complete!)]
                                        (complete-fn actual-agent-name))
                                      (catch Exception _ nil)))))
-      
+
       ;; Temporarily register the agent in the runtime registry
       (swap! pyjama.core/agents-registry assoc id spec)
-      
+
       ;; Execute the agent
       (let [params (assoc inputs :id id)
             result (exec-agent params)]
-        (println \"\\n✅ Agent execution complete!\")
+        (println "\n✅ Agent execution complete!")
         result))))
 ;; =============================================================================
 
@@ -649,6 +649,10 @@ For more information, visit: https://github.com/hellonico/pyjama
           "visualize" (apply run-visualize-agent params)
           "visualize-mermaid" (apply run-visualize-mermaid params)
           "run" (apply run-generic-execution params)
+
+          ;; Registry commands
+          "registry" (apply registry/-main params)
+          "lookup-run" (apply run-lookup-execution params)
 
           ;; Interactive smart analyzer
           "smart" (apply runner/run-smart-analyzer

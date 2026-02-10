@@ -324,8 +324,8 @@
                        prop-configs))]    (apply deep-merge configs)))
 
 (def agents-registry
-  "Lazy-loaded agents registry"
-  (delay (or (load-agents) {})))
+  "Dynamic agents registry - initialized with loaded agents, can be updated at runtime"
+  (atom (or (load-agents) {})))
 
 ;; =============================================================================
 ;; Implementation Dispatch

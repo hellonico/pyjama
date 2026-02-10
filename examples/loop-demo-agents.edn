@@ -5,10 +5,10 @@
 
   :tools
   {:create-sample-items
-   {:fn 'examples.loop_demo_tools/create-sample-items}
+   {:fn examples.loop_demo_tools/create-sample-items}
 
    :process-item
-   {:fn 'examples.loop_demo_tools/process-item}}
+   {:fn examples.loop_demo_tools/process-item}}
 
   :steps
   {:create-items
