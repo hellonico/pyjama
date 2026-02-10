@@ -179,13 +179,13 @@
         legacy-templates-dir (io/file project-dir "resources" "analysis-templates")
 
         list-from-dir (fn [dir source-label]
-                        (when (.exists dir)
-                          (->> (.listFiles dir)
-                               (filter #(and (.isFile %)
-                                             (str/ends-with? (.getName %) ".md")
-                                             (not (str/starts-with? (.getName %) "."))))
+                        (when (.exists ^java.io.File dir)
+                          (->> (.listFiles ^java.io.File dir)
+                               (filter #(and (.isFile ^java.io.File %)
+                                             (str/ends-with? (.getName ^java.io.File %) ".md")
+                                             (not (str/starts-with? (.getName ^java.io.File %) "."))))
                                (map (fn [f]
-                                      (let [filename (.getName f)
+                                      (let [filename (.getName ^java.io.File f)
                                             name (subs filename 0 (- (count filename) 3))
                                             display-name (-> name
                                                              (str/replace "_" " ")

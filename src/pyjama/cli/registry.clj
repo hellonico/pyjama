@@ -50,7 +50,7 @@
     ;; Load and validate the agent definition
     (let [agent-data (edn/read-string (slurp file))
           ;; Extract agent name from filename
-          agent-name (str/replace (.getName file) #"\.edn$" "")
+          agent-name (str/replace (.getName ^java.io.File file) #"\.edn$" "")
           ;; Normalize to handle both single and multi-agent formats
           normalized (pyjama/normalize-agent-data agent-data agent-name)
 
@@ -86,9 +86,9 @@
 
   (let [dir (io/file registry-dir)
         edn-files (->> (.listFiles dir)
-                       (filter #(and (.isFile %)
-                                     (str/ends-with? (.getName %) ".edn")))
-                       (sort-by #(.getName %)))]
+                       (filter #(and (.isFile ^java.io.File %)
+                                     (str/ends-with? (.getName ^java.io.File %) ".edn")))
+                       (sort-by #(.getName ^java.io.File %)))]
 
     (if (empty? edn-files)
       (do
@@ -112,9 +112,10 @@
                     {:id agent-id
                      :description (:description agent-spec)
                      :type (if (:steps agent-spec) :graph :simple)
-                     :file (.getAbsolutePath file)})
+                     :spec agent-spec
+                     :file (.getAbsolutePath ^java.io.File file)})
                   (catch Exception e
-                    (println (str "  ✗ Error loading " (.getName file) ": " (.getMessage e)))
+                    (println (str "  ✗ Error loading " (.getName ^java.io.File file) ": " (.getMessage e)))
                     nil)))
               edn-files)))))
 

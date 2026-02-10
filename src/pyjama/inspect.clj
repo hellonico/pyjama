@@ -334,11 +334,24 @@
           (doseq [agent all-agents]
             (print-agent-details agent)))
 
-        ;; Load and display tools
-        (let [tools-config (load-tools-config tools-file)
-              tool-names (extract-tool-names tools-config)
-              tool-count (count tool-names)
-              categorized-tools (categorize-tools tool-names)]
+        ;; Extract tools from all agents
+        (let [;; Get all unique tools from agents
+              agent-tools (->> all-agents
+                               (mapcat (fn [agent]
+                                         (let [spec (:spec agent)]
+                                           (keys (:tools spec)))))
+                               distinct
+                               (map name)
+                               sort)
+
+              ;; Also load tools from common-tools.edn if it exists
+              tools-config (load-tools-config tools-file)
+              common-tools (extract-tool-names tools-config)
+
+              ;; Combine all tools
+              all-tools (distinct (concat agent-tools common-tools))
+              tool-count (count all-tools)
+              categorized-tools (categorize-tools all-tools)]
 
           (when (pos? tool-count)
             (print-tools-section categorized-tools tool-count))

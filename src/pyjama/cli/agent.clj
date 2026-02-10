@@ -18,11 +18,11 @@
   "Load all .edn files from a directory and merge them"
   [dir-path]
   (let [dir (io/file dir-path)]
-    (when (.isDirectory dir)
-      (let [edn-files (->> (.listFiles dir)
-                           (filter #(and (.isFile %)
-                                         (str/ends-with? (.getName %) ".edn")))
-                           (sort-by #(.getName %)))]
+    (when (.isDirectory ^java.io.File dir)
+      (let [edn-files (->> (.listFiles ^java.io.File dir)
+                           (filter #(and (.isFile ^java.io.File %)
+                                         (str/ends-with? (.getName ^java.io.File %) ".edn")))
+                           (sort-by #(.getName ^java.io.File %)))]
         (when (seq edn-files)
           (println (str "📂 Loading " (count edn-files) " agent file(s) from: " dir-path))
           (reduce
@@ -30,7 +30,7 @@
              (try
                (let [content (slurp file)
                      data (read-string content)
-                     agent-name (str/replace (.getName file) #"\.edn$" "")
+                     agent-name (str/replace (.getName ^java.io.File file) #"\.edn$" "")
 
                      ;; Use shared normalization logic from pyjama.core
                      result (pyjama/normalize-agent-data data agent-name)
@@ -39,12 +39,12 @@
                      single-agent? (contains? data :steps)]
 
                  (if single-agent?
-                   (println (str "  ✓ Loaded: " (.getName file) " as single agent '" agent-name "'"))
-                   (println (str "  ✓ Loaded: " (.getName file) " with " (count data) " agent(s)")))
+                   (println (str "  ✓ Loaded: " (.getName ^java.io.File file) " as single agent '" agent-name "'"))
+                   (println (str "  ✓ Loaded: " (.getName ^java.io.File file) " with " (count data) " agent(s)")))
 
                  (merge acc result))
                (catch Exception e
-                 (println (str "  ✗ Error loading " (.getName file) ": " (.getMessage e)))
+                 (println (str "  ✗ Error loading " (.getName ^java.io.File file) ": " (.getMessage e)))
                  acc)))
            {}
            edn-files))))))
@@ -60,13 +60,13 @@
                                    file (io/file trimmed)]
                                (cond
                                  ;; Directory: load all .edn files
-                                 (.isDirectory file)
+                                 (.isDirectory ^java.io.File file)
                                  (merge acc (load-agents-from-directory trimmed))
 
                                  ;; File: load single file
-                                 (.exists file)
+                                 (.exists ^java.io.File file)
                                  (let [data (read-string (slurp file))
-                                       agent-name (str/replace (.getName file) #"\.edn$" "")
+                                       agent-name (str/replace (.getName ^java.io.File file) #"\.edn$" "")
                                        single-agent? (contains? data :steps)]
                                    (println (str "📄 Loading agents from: " trimmed))
                                    (when single-agent?

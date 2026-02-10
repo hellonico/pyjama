@@ -256,16 +256,16 @@
 (defn- load-edn-files-from-dir
   "Load all .edn files from a directory and merge them"
   [dir]
-  (when (.exists dir)
-    (let [edn-files (->> (.listFiles dir)
-                         (filter #(and (.isFile %)
-                                       (.endsWith (.getName %) ".edn")))
-                         (sort-by #(.getName %)))]
+  (when (.exists ^java.io.File dir)
+    (let [edn-files (->> (.listFiles ^java.io.File dir)
+                         (filter #(and (.isFile ^java.io.File %)
+                                       (.endsWith (.getName ^java.io.File %) ".edn")))
+                         (sort-by #(.getName ^java.io.File %)))]
       (when (seq edn-files)
         ;; Load each file and normalize it (handles both single and multi-agent formats)
         (let [normalized-configs (map (fn [file]
                                         (let [data (edn/read-string (slurp file))
-                                              agent-name (str/replace (.getName file) #"\.edn$" "")]
+                                              agent-name (str/replace (.getName ^java.io.File file) #"\.edn$" "")]
                                           (normalize-agent-data data agent-name)))
                                       edn-files)]
           (apply deep-merge normalized-configs))))))
@@ -289,14 +289,14 @@
                                        file (io/file trimmed)]
                                    (cond
                                      ;; Directory: load all .edn files
-                                     (.isDirectory file)
+                                     (.isDirectory ^java.io.File file)
                                      (load-edn-files-from-dir file)
 
                                      ;; File: load single file
-                                     (.exists file)
+                                     (.exists ^java.io.File file)
                                      (let [data (edn/read-string (slurp file))
                                            ;; Extract agent name from filename
-                                           agent-name (str/replace (.getName file) #"\.edn$" "")]
+                                           agent-name (str/replace (.getName ^java.io.File file) #"\.edn$" "")]
                                        (normalize-agent-data data agent-name))
 
                                      ;; Not found - skip
