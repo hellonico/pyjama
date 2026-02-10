@@ -10,7 +10,8 @@
    [pyjama.core :as pyjama]
    [pyjama.runner :as runner]
    [pyjama.cli.inspect :as inspect]
-   [pyjama.cli.search :as search])
+   [pyjama.cli.search :as search]
+   [pyjama.cli.registry :as registry])
   (:gen-class))
 
 (defn load-agents-from-directory
@@ -29,12 +30,19 @@
              (try
                (let [content (slurp file)
                      data (read-string content)
-                     ;; Use :name field if available, otherwise use filename without .edn
-                     agent-name (or (:name data)
-                                    (str/replace (.getName file) #"\.edn$" ""))
-                     agent-key (keyword agent-name)]
-                 (println (str "  ✓ Loaded: " (.getName file) " as " agent-name))
-                 (assoc acc agent-key data))
+                     agent-name (str/replace (.getName file) #"\.edn$" "")
+
+                     ;; Use shared normalization logic from pyjama.core
+                     result (pyjama/normalize-agent-data data agent-name)
+
+                     ;; Log what we loaded
+                     single-agent? (contains? data :steps)]
+
+                 (if single-agent?
+                   (println (str "  ✓ Loaded: " (.getName file) " as single agent '" agent-name "'"))
+                   (println (str "  ✓ Loaded: " (.getName file) " with " (count data) " agent(s)")))
+
+                 (merge acc result))
                (catch Exception e
                  (println (str "  ✗ Error loading " (.getName file) ": " (.getMessage e)))
                  acc)))
@@ -57,9 +65,14 @@
 
                                  ;; File: load single file
                                  (.exists file)
-                                 (do
+                                 (let [data (read-string (slurp file))
+                                       agent-name (str/replace (.getName file) #"\.edn$" "")
+                                       single-agent? (contains? data :steps)]
                                    (println (str "📄 Loading agents from: " trimmed))
-                                   (merge acc (read-string (slurp file))))
+                                   (when single-agent?
+                                     (println (str "  ✓ Detected single agent format, registered as '" agent-name "'")))
+                                   ;; Use shared normalization logic
+                                   (merge acc (pyjama/normalize-agent-data data agent-name)))
 
                                  ;; Not found
                                  :else
@@ -183,6 +196,13 @@ COMMANDS:
   Advanced:
     run <agent-id> <json-inputs>
                         Execute any agent programmatically
+    
+    registry <command>  Manage local agent registry
+                        Commands: register, list, lookup, remove
+                        See: clj -M:pyjama registry (for details)
+    
+    lookup-run <agent-id> <json-inputs>
+                        Look up agent from registry and execute it
     help                Show this help
 
 EXAMPLES:
@@ -451,6 +471,46 @@ For more information, visit: https://github.com/hellonico/pyjama
           result (exec-agent params)]
       (println "\n✅ Agent execution complete!")
       result)))
+
+(defn run-lookup-execution
+  \"Look up an agent from the registry and execute it with provided inputs\"
+  [agent-id \u0026 args]
+  (let [inputs (if (= 1 (count args))
+                 (try
+                   (json/parse-string (first args) true)
+                   (catch Exception _
+                     (throw (ex-info \"Input must be a JSON string\" {:input (first args)}))))
+                 ;; transform proper key value pairs
+                 (-\u003e\u003e (partition 2 args)
+                      (map (fn [[k v]] [(keyword k) v]))
+                      (into {})))]
+    
+    ;; Look up the agent from the registry
+    (let [{:keys [id spec]} (registry/lookup-agent agent-id)
+          actual-agent-name (or (:name spec) (name id))]
+      
+      (println \"📥 Inputs:\" inputs)
+      (println \"\\n⏳ Executing...\\n\")
+      
+      ;; Set system property for shared metrics tracking
+      (System/setProperty \"pyjama.agent.id\" actual-agent-name)
+      
+      ;; Register shutdown hook to mark agent as complete on Ctrl-C
+      (.addShutdownHook (Runtime/getRuntime)
+                        (Thread. (fn []
+                                   (try
+                                     (when-let [complete-fn (resolve 'pyjama.agent.hooks.shared-metrics/record-agent-complete!)]
+                                       (complete-fn actual-agent-name))
+                                     (catch Exception _ nil)))))
+      
+      ;; Temporarily register the agent in the runtime registry
+      (swap! pyjama.core/agents-registry assoc id spec)
+      
+      ;; Execute the agent
+      (let [params (assoc inputs :id id)
+            result (exec-agent params)]
+        (println \"\\n✅ Agent execution complete!\")
+        result))))
 ;; =============================================================================
 
 (def ^:private colors
