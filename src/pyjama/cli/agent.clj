@@ -195,14 +195,12 @@ COMMANDS:
     
   Advanced:
     run <agent-id> <json-inputs>
-                        Execute any agent programmatically
+                        Execute any agent (checks local + registry)
     
     registry <command>  Manage local agent registry
                         Commands: register, list, lookup, remove/unregister/delete
                         See: clj -M:pyjama registry (for details)
     
-    lookup-run <agent-id> <json-inputs>
-                        Look up agent from registry and execute it
     help                Show this help
 
 EXAMPLES:
@@ -400,17 +398,26 @@ For more information, visit: https://github.com/hellonico/pyjama
 (defn run-visualize-agent
   "Generate a simple ASCII flow diagram for an agent"
   [id]
-  (if-let [meta (pyjama/describe-agent (keyword id))]
-    (let [spec (:spec meta)
-          ;; Merge common steps before visualization to show full flow
-          registry @pyjama/agents-registry
-          common-steps (:common-steps registry)
-          merged-steps (merge common-steps (:steps spec))
-          full-spec (assoc spec :steps merged-steps)]
-      (agent/visualize id full-spec))
-    (do
-      (println (str "❌ Agent not found: " id))
-      (System/exit 1))))
+  (let [agent-key (keyword id)
+        ;; Try to get from local registry first
+        meta (pyjama/describe-agent agent-key)
+        ;; If not found, try file registry
+        meta (or meta
+                 (try
+                   (let [{:keys [id spec]} (registry/lookup-agent id)]
+                     {:id id :spec spec})
+                   (catch Exception _ nil)))]
+    (if meta
+      (let [spec (:spec meta)
+            ;; Merge common steps before visualization to show full flow
+            registry @pyjama/agents-registry
+            common-steps (:common-steps registry)
+            merged-steps (merge common-steps (:steps spec))
+            full-spec (assoc spec :steps merged-steps)]
+        (agent/visualize id full-spec))
+      (do
+        (println (str "❌ Agent not found: " id))
+        (System/exit 1)))))
 
 (defn run-visualize-mermaid
   "Generate a Mermaid flowchart diagram for an agent"
@@ -432,7 +439,7 @@ For more information, visit: https://github.com/hellonico/pyjama
       (println (str "❌ Agent not found: " id))
       (System/exit 1))))
 
-(defn run-generic-execution
+(defn run-agent
   "Run any agent with a map of inputs passed as JSON-encoded string or key=value pairs"
   [agent-id & args]
   (let [inputs (if (= 1 (count args))
@@ -445,10 +452,27 @@ For more information, visit: https://github.com/hellonico/pyjama
                       (map (fn [[k v]] [(keyword k) v]))
                       (into {})))
 
-        ;; Look up the agent in the registry to get its :name
+        ;; Look up the agent - try local registry first, then file registry
         agent-key (keyword agent-id)
         agent-spec (get @pyjama.core/agents-registry agent-key)
+
+        ;; If not found locally, try file registry
+        agent-spec (or agent-spec
+                       (try
+                         (let [{:keys [id spec]} (registry/lookup-agent agent-id)]
+                           ;; Load into runtime registry
+                           (swap! pyjama.core/agents-registry assoc id spec)
+                           (println (str "📦 Loaded from registry: " agent-id))
+                           spec)
+                         (catch Exception _ nil)))
+
         actual-agent-name (or (:name agent-spec) agent-id)]
+
+    (when-not agent-spec
+      (throw (ex-info (str "Agent not found: " agent-id)
+                      {:agent-id agent-id
+                       :searched-local true
+                       :searched-registry true})))
 
     (println (str "\n🤖 Running Agent: " agent-id))
     (when (and agent-spec (not= agent-id actual-agent-name))
@@ -648,11 +672,11 @@ For more information, visit: https://github.com/hellonico/pyjama
           "describe" (apply run-describe-agent params)
           "visualize" (apply run-visualize-agent params)
           "visualize-mermaid" (apply run-visualize-mermaid params)
-          "run" (apply run-generic-execution params)
+          "run" (apply run-agent params)
 
           ;; Registry commands
           "registry" (apply registry/-main params)
-          "lookup-run" (apply run-lookup-execution params)
+
 
           ;; Interactive smart analyzer
           "smart" (apply runner/run-smart-analyzer

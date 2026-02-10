@@ -119,27 +119,35 @@
               edn-files)))))
 
 (defn lookup-agent
-  "Look up an agent from the registry and return its specification"
-  [agent-id]
-  (let [agent-key (keyword agent-id)
-        registry-file (agent-file-path agent-key)]
+  "Look up an agent from the registry and return its specification.
+   If json-output? is true, prints JSON instead of human-readable format."
+  ([agent-id] (lookup-agent agent-id false))
+  ([agent-id json-output?]
+   (let [agent-key (keyword agent-id)
+         registry-file (agent-file-path agent-key)]
 
-    (when-not (.exists (io/file registry-file))
-      (throw (ex-info (str "Agent not found in registry: " agent-id)
-                      {:agent-id agent-id
-                       :registry-dir registry-dir
-                       :searched-file registry-file})))
+     (when-not (.exists (io/file registry-file))
+       (throw (ex-info (str "Agent not found in registry: " agent-id)
+                       {:agent-id agent-id
+                        :registry-dir registry-dir
+                        :searched-file registry-file})))
 
-    (let [data (edn/read-string (slurp registry-file))
-          [_ agent-spec] (first data)]
+     (let [data (edn/read-string (slurp registry-file))
+           [_ agent-spec] (first data)
+           result {:id agent-key
+                   :spec agent-spec}]
 
-      (println (str "🔍 Found agent: " agent-id))
-      (println (str "   Description: " (or (:description agent-spec) "N/A")))
-      (println (str "   Type: " (if (:steps agent-spec) "graph" "simple")))
-      (println)
+       (if json-output?
+         ;; JSON output for programmatic use
+         (println (cheshire.core/generate-string result))
+         ;; Human-readable output
+         (do
+           (println (str "🔍 Found agent: " agent-id))
+           (println (str "   Description: " (or (:description agent-spec) "N/A")))
+           (println (str "   Type: " (if (:steps agent-spec) "graph" "simple")))
+           (println)))
 
-      {:id agent-key
-       :spec agent-spec})))
+       result))))
 
 (defn remove-agent!
   "Remove an agent from the registry"

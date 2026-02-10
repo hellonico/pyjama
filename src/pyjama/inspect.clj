@@ -4,7 +4,8 @@
   (:require
    [clojure.edn :as edn]
    [clojure.java.io :as io]
-   [pyjama.core :as pyjama]))
+   [pyjama.core :as pyjama]
+   [pyjama.cli.registry :as registry]))
 
 ;; =============================================================================
 ;; ANSI Color Utilities
@@ -297,8 +298,21 @@
 
   ;; Load and display agents
   (println (colorize :cyan (str (emoji :agent) " Loading agents...")))
-  (let [agents (pyjama/list-agents)
-        agent-count (count agents)]
+  (let [;; Get local agents
+        local-agents (pyjama/list-agents)
+
+        ;; Get registry agents
+        registry-agents (try
+                          (registry/list-registered-agents)
+                          (catch Exception _ []))
+
+        ;; Tag registry agents
+        registry-agents-tagged (map #(assoc % :description (str (:description %) " [registry]"))
+                                    registry-agents)
+
+        ;; Combine all agents
+        all-agents (concat local-agents registry-agents-tagged)
+        agent-count (count all-agents)]
 
     (if (zero? agent-count)
       (do
@@ -307,15 +321,17 @@
 
       (do
         (println (colorize :green (str (emoji :check) " Found " agent-count " agents")))
+        (println (str "  " (colorize :cyan "Local:") " " (count local-agents)
+                      "  " (colorize :purple "Registry:") " " (count registry-agents-tagged)))
         (println)
 
         ;; Print agents overview
-        (print-agents-overview agents)
+        (print-agents-overview all-agents)
 
         ;; Print detailed info if verbose
         (when verbose?
           (print-section-header (str (emoji :agent) " DETAILED AGENT INFORMATION"))
-          (doseq [agent agents]
+          (doseq [agent all-agents]
             (print-agent-details agent)))
 
         ;; Load and display tools
@@ -339,7 +355,7 @@
           (println)
 
           ;; Return data for programmatic use
-          {:agents agents
+          {:agents all-agents
            :tools (map (fn [[category tools]] {:category category :tools tools})
                        categorized-tools)
            :counts {:agents agent-count
@@ -360,8 +376,14 @@
   "Get statistics about the agent registry.
    Returns a map with counts by type and other metrics."
   []
-  (let [agents (pyjama/list-agents)
-        by-type (group-by :type agents)]
-    {:total (count agents)
+  (let [local-agents (pyjama/list-agents)
+        registry-agents (try
+                          (registry/list-registered-agents)
+                          (catch Exception _ []))
+        all-agents (concat local-agents registry-agents)
+        by-type (group-by :type all-agents)]
+    {:total (count all-agents)
+     :local-count (count local-agents)
+     :registry-count (count registry-agents)
      :by-type (into {} (map (fn [[type agents]] [type (count agents)]) by-type))
-     :agents (map #(select-keys % [:id :type :description]) agents)}))
+     :agents (map #(select-keys % [:id :type :description]) all-agents)}))
