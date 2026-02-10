@@ -1,0 +1,33 @@
+{:git-pinned-demo
+ {:description "Demo agent using Git-based tool with SHA pinning"
+  :start :greet
+  :max-steps 3
+
+  :inputs
+  {:user-name {:type "string" :required true}}
+
+  :tools
+  {:greeter {:fn pyjama.tools.external/execute-clojure-tool
+             ;; Git-based tool pinned to specific commit
+             :args {:git-url "https://github.com/hellonico/pyjama-tools.git"
+                    :git-sha "441b92b"  ; Pin to specific commit
+                    :subdir "greeter-tool"
+                    :namespace "greeter-tool.core"}}}
+
+  :steps
+  {:greet
+   {:tool :greeter
+    :args {:function "greet"
+           :params {:name "{{user-name}}"
+                    :language "english"
+                    :style "enthusiastic"}}
+    :next :show-greeting}
+
+   :show-greeting
+   {:prompt "The Git-based tool with SHA pinning worked!
+
+Greeting: {{last-obs.greeting}}
+
+This tool was pinned to commit 441b92b for reproducibility!"
+    :stream true
+    :terminal? true}}}}
