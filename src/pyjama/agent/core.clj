@@ -253,7 +253,20 @@
                      (run-loop spec step ctx params)
 
                      tool
-                     (let [{:keys [fn args] :as tool-spec} (get tools tool)
+                     (let [tool-spec (get tools tool)
+
+                           ;; Better error message if tool not found
+                           _ (when-not tool-spec
+                               (throw (ex-info
+                                       (str "Tool '" tool "' not found in :tools section.\n"
+                                            "Available tools: " (vec (keys tools)) "\n"
+                                            "Did you forget to define it in the :tools section?\n"
+                                            "Example: :tools {" tool " {:fn pyjama.tools.shell/shell}}")
+                                       {:tool tool
+                                        :step step-id
+                                        :available-tools (vec (keys tools))})))
+
+                           {:keys [fn args]} tool-spec
 
                            base-args (merge args (:args step))
                            ;; render ALL args deeply (single-token → raw value, multi-token → string)
@@ -268,7 +281,7 @@
                                            (when (string? (:last-obs ctx)) (:last-obs ctx))
                                            (pr-str (:last-obs ctx))))
 
-                           targs (merge {:message msg} rendered {:ctx ctx :params params})
+                           targs (merge {:message msg :ctx ctx :params params} rendered)
 
                            raw ((resolve-fn* fn) targs)
 

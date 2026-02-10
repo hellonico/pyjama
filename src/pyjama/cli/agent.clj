@@ -10,18 +10,19 @@
    [pyjama.core :as pyjama]
    [pyjama.runner :as runner]
    [pyjama.cli.inspect :as inspect]
-   [pyjama.cli.search :as search])
+   [pyjama.cli.search :as search]
+   [pyjama.cli.registry :as registry])
   (:gen-class))
 
 (defn load-agents-from-directory
   "Load all .edn files from a directory and merge them"
   [dir-path]
   (let [dir (io/file dir-path)]
-    (when (.isDirectory dir)
-      (let [edn-files (->> (.listFiles dir)
-                           (filter #(and (.isFile %)
-                                         (str/ends-with? (.getName %) ".edn")))
-                           (sort-by #(.getName %)))]
+    (when (.isDirectory ^java.io.File dir)
+      (let [edn-files (->> (.listFiles ^java.io.File dir)
+                           (filter #(and (.isFile ^java.io.File %)
+                                         (str/ends-with? (.getName ^java.io.File %) ".edn")))
+                           (sort-by #(.getName ^java.io.File %)))]
         (when (seq edn-files)
           (println (str "📂 Loading " (count edn-files) " agent file(s) from: " dir-path))
           (reduce
@@ -29,14 +30,21 @@
              (try
                (let [content (slurp file)
                      data (read-string content)
-                     ;; Use :name field if available, otherwise use filename without .edn
-                     agent-name (or (:name data)
-                                    (str/replace (.getName file) #"\.edn$" ""))
-                     agent-key (keyword agent-name)]
-                 (println (str "  ✓ Loaded: " (.getName file) " as " agent-name))
-                 (assoc acc agent-key data))
+                     agent-name (str/replace (.getName ^java.io.File file) #"\.edn$" "")
+
+                     ;; Use shared normalization logic from pyjama.core
+                     result (pyjama/normalize-agent-data data agent-name)
+
+                     ;; Log what we loaded
+                     single-agent? (contains? data :steps)]
+
+                 (if single-agent?
+                   (println (str "  ✓ Loaded: " (.getName ^java.io.File file) " as single agent '" agent-name "'"))
+                   (println (str "  ✓ Loaded: " (.getName ^java.io.File file) " with " (count data) " agent(s)")))
+
+                 (merge acc result))
                (catch Exception e
-                 (println (str "  ✗ Error loading " (.getName file) ": " (.getMessage e)))
+                 (println (str "  ✗ Error loading " (.getName ^java.io.File file) ": " (.getMessage e)))
                  acc)))
            {}
            edn-files))))))
@@ -52,14 +60,19 @@
                                    file (io/file trimmed)]
                                (cond
                                  ;; Directory: load all .edn files
-                                 (.isDirectory file)
+                                 (.isDirectory ^java.io.File file)
                                  (merge acc (load-agents-from-directory trimmed))
 
                                  ;; File: load single file
-                                 (.exists file)
-                                 (do
+                                 (.exists ^java.io.File file)
+                                 (let [data (read-string (slurp file))
+                                       agent-name (str/replace (.getName ^java.io.File file) #"\.edn$" "")
+                                       single-agent? (contains? data :steps)]
                                    (println (str "📄 Loading agents from: " trimmed))
-                                   (merge acc (read-string (slurp file))))
+                                   (when single-agent?
+                                     (println (str "  ✓ Detected single agent format, registered as '" agent-name "'")))
+                                   ;; Use shared normalization logic
+                                   (merge acc (pyjama/normalize-agent-data data agent-name)))
 
                                  ;; Not found
                                  :else
@@ -182,7 +195,12 @@ COMMANDS:
     
   Advanced:
     run <agent-id> <json-inputs>
-                        Execute any agent programmatically
+                        Execute any agent (checks local + registry)
+    
+    registry <command>  Manage local agent registry
+                        Commands: register, list, lookup, remove/unregister/delete
+                        See: clj -M:pyjama registry (for details)
+    
     help                Show this help
 
 EXAMPLES:
@@ -380,17 +398,26 @@ For more information, visit: https://github.com/hellonico/pyjama
 (defn run-visualize-agent
   "Generate a simple ASCII flow diagram for an agent"
   [id]
-  (if-let [meta (pyjama/describe-agent (keyword id))]
-    (let [spec (:spec meta)
-          ;; Merge common steps before visualization to show full flow
-          registry @pyjama/agents-registry
-          common-steps (:common-steps registry)
-          merged-steps (merge common-steps (:steps spec))
-          full-spec (assoc spec :steps merged-steps)]
-      (agent/visualize id full-spec))
-    (do
-      (println (str "❌ Agent not found: " id))
-      (System/exit 1))))
+  (let [agent-key (keyword id)
+        ;; Try to get from local registry first
+        meta (pyjama/describe-agent agent-key)
+        ;; If not found, try file registry
+        meta (or meta
+                 (try
+                   (let [{:keys [id spec]} (registry/lookup-agent id)]
+                     {:id id :spec spec})
+                   (catch Exception _ nil)))]
+    (if meta
+      (let [spec (:spec meta)
+            ;; Merge common steps before visualization to show full flow
+            registry @pyjama/agents-registry
+            common-steps (:common-steps registry)
+            merged-steps (merge common-steps (:steps spec))
+            full-spec (assoc spec :steps merged-steps)]
+        (agent/visualize id full-spec))
+      (do
+        (println (str "❌ Agent not found: " id))
+        (System/exit 1)))))
 
 (defn run-visualize-mermaid
   "Generate a Mermaid flowchart diagram for an agent"
@@ -412,7 +439,7 @@ For more information, visit: https://github.com/hellonico/pyjama
       (println (str "❌ Agent not found: " id))
       (System/exit 1))))
 
-(defn run-generic-execution
+(defn run-agent
   "Run any agent with a map of inputs passed as JSON-encoded string or key=value pairs"
   [agent-id & args]
   (let [inputs (if (= 1 (count args))
@@ -425,10 +452,27 @@ For more information, visit: https://github.com/hellonico/pyjama
                       (map (fn [[k v]] [(keyword k) v]))
                       (into {})))
 
-        ;; Look up the agent in the registry to get its :name
+        ;; Look up the agent - try local registry first, then file registry
         agent-key (keyword agent-id)
         agent-spec (get @pyjama.core/agents-registry agent-key)
+
+        ;; If not found locally, try file registry
+        agent-spec (or agent-spec
+                       (try
+                         (let [{:keys [id spec]} (registry/lookup-agent agent-id)]
+                           ;; Load into runtime registry
+                           (swap! pyjama.core/agents-registry assoc id spec)
+                           (println (str "📦 Loaded from registry: " agent-id))
+                           spec)
+                         (catch Exception _ nil)))
+
         actual-agent-name (or (:name agent-spec) agent-id)]
+
+    (when-not agent-spec
+      (throw (ex-info (str "Agent not found: " agent-id)
+                      {:agent-id agent-id
+                       :searched-local true
+                       :searched-registry true})))
 
     (println (str "\n🤖 Running Agent: " agent-id))
     (when (and agent-spec (not= agent-id actual-agent-name))
@@ -451,6 +495,46 @@ For more information, visit: https://github.com/hellonico/pyjama
           result (exec-agent params)]
       (println "\n✅ Agent execution complete!")
       result)))
+
+(defn run-lookup-execution
+  "Look up an agent from the registry and execute it with provided inputs"
+  [agent-id & args]
+  (let [inputs (if (= 1 (count args))
+                 (try
+                   (json/parse-string (first args) true)
+                   (catch Exception _
+                     (throw (ex-info "Input must be a JSON string" {:input (first args)}))))
+                 ;; transform proper key value pairs
+                 (->> (partition 2 args)
+                      (map (fn [[k v]] [(keyword k) v]))
+                      (into {})))]
+
+    ;; Look up the agent from the registry
+    (let [{:keys [id spec]} (registry/lookup-agent agent-id)
+          actual-agent-name (or (:name spec) (name id))]
+
+      (println "📥 Inputs:" inputs)
+      (println "\n⏳ Executing...\n")
+
+      ;; Set system property for shared metrics tracking
+      (System/setProperty "pyjama.agent.id" actual-agent-name)
+
+      ;; Register shutdown hook to mark agent as complete on Ctrl-C
+      (.addShutdownHook (Runtime/getRuntime)
+                        (Thread. (fn []
+                                   (try
+                                     (when-let [complete-fn (resolve 'pyjama.agent.hooks.shared-metrics/record-agent-complete!)]
+                                       (complete-fn actual-agent-name))
+                                     (catch Exception _ nil)))))
+
+      ;; Temporarily register the agent in the runtime registry
+      (swap! pyjama.core/agents-registry assoc id spec)
+
+      ;; Execute the agent
+      (let [params (assoc inputs :id id)
+            result (exec-agent params)]
+        (println "\n✅ Agent execution complete!")
+        result))))
 ;; =============================================================================
 
 (def ^:private colors
@@ -588,7 +672,11 @@ For more information, visit: https://github.com/hellonico/pyjama
           "describe" (apply run-describe-agent params)
           "visualize" (apply run-visualize-agent params)
           "visualize-mermaid" (apply run-visualize-mermaid params)
-          "run" (apply run-generic-execution params)
+          "run" (apply run-agent params)
+
+          ;; Registry commands
+          "registry" (apply registry/-main params)
+
 
           ;; Interactive smart analyzer
           "smart" (apply runner/run-smart-analyzer

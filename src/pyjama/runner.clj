@@ -7,7 +7,8 @@
    [clojure.string :as str]
    [cheshire.core :as json]
    [pyjama.core :as pyjama]
-   [pyjama.agent.core :as agent]))
+   [pyjama.agent.core :as agent]
+   [pyjama.cli.registry :as registry]))
 
 ;; =============================================================================
 ;; ANSI Color Utilities
@@ -65,6 +66,30 @@
 ;; Agent Discovery
 ;; =============================================================================
 
+(defn- get-all-agents
+  "Get all available agents from both local registry and file registry"
+  []
+  (let [;; Get local agents
+        local-agents (pyjama/list-agents)
+
+        ;; Get registry agents
+        registry-agents (try
+                          (registry/list-registered-agents)
+                          (catch Exception _ []))
+
+        ;; Convert registry agents to the same format as local agents
+        registry-agents-formatted (map (fn [agent]
+                                         {:id (:id agent)
+                                          :description (str (:description agent) " [registry]")
+                                          :source :registry})
+                                       registry-agents)
+
+        ;; Mark local agents with source
+        local-agents-marked (map #(assoc % :source :local) local-agents)]
+
+    ;; Combine both lists
+    (concat local-agents-marked registry-agents-formatted)))
+
 (defn- format-agents-for-fzf
   "Format agents for FZF selection"
   [agents]
@@ -75,14 +100,18 @@
 
 (defn- run-fzf-agent-select
   "Run FZF to select an agent"
-  [agents-text]
+  [agents-text preview-dir]
   (try
-    (let [result (shell/sh "fzf"
+    (let [;; Use pre-generated preview files for instant display
+          preview-script (str "agent_id=$(echo {} | cut -d'|' -f1 | sed 's/^[[:space:]]*//;s/[[:space:]]*$//');"
+                              "cat \"" preview-dir "/${agent_id}.txt\" 2>/dev/null || "
+                              "echo 'Loading preview...'")
+          result (shell/sh "fzf"
                            "--header" "Select an agent to run"
                            "--layout" "reverse"
                            "--border"
                            "--prompt" "🤖 Agent > "
-                           "--preview" (str "clj -M:pyjama describe $(echo {} | cut -d'|' -f1 | sed 's/^[[:space:]]*//;s/[[:space:]]*$//') | jq .")
+                           "--preview" preview-script
                            "--preview-window" "right:50%"
                            :in agents-text)]
       (when (zero? (:exit result))
@@ -99,6 +128,44 @@
       {:id (str/trim (first parts))
        :description (str/trim (or (second parts) ""))})))
 
+(defn- generate-agent-preview
+  "Generate preview text for an agent by calling visualize directly"
+  [agent-id agents]
+  (try
+    (let [agent-key (keyword agent-id)
+          ;; Find the agent in our list
+          selected-agent (first (filter #(= (:id %) agent-key) agents))
+
+          ;; Get the spec - either from local or registry
+          spec (if (= (:source selected-agent) :registry)
+                 (try
+                   (let [{:keys [spec]} (registry/lookup-agent agent-id)]
+                     spec)
+                   (catch Exception _ nil))
+                 (try
+                   (let [meta (pyjama/describe-agent agent-key)]
+                     (:spec meta))
+                   (catch Exception _ nil)))]
+
+      (if spec
+        (with-out-str
+          (agent/visualize agent-id spec))
+        (str "Agent: " agent-id "\n(Preview not available)")))
+    (catch Exception e
+      (str "Error generating preview: " (.getMessage e)))))
+
+(defn- write-preview-files
+  "Write preview files for all agents to temp directory"
+  [agents]
+  (let [temp-dir (io/file (System/getProperty "java.io.tmpdir") "pyjama-previews")]
+    (.mkdirs temp-dir)
+    (doseq [agent agents]
+      (let [agent-id (name (:id agent))
+            preview-file (io/file temp-dir (str agent-id ".txt"))
+            preview-text (generate-agent-preview agent-id agents)]
+        (spit preview-file preview-text)))
+    (.getAbsolutePath temp-dir)))
+
 ;; =============================================================================
 ;; Template Handling
 ;; =============================================================================
@@ -112,13 +179,13 @@
         legacy-templates-dir (io/file project-dir "resources" "analysis-templates")
 
         list-from-dir (fn [dir source-label]
-                        (when (.exists dir)
-                          (->> (.listFiles dir)
-                               (filter #(and (.isFile %)
-                                             (str/ends-with? (.getName %) ".md")
-                                             (not (str/starts-with? (.getName %) "."))))
+                        (when (.exists ^java.io.File dir)
+                          (->> (.listFiles ^java.io.File dir)
+                               (filter #(and (.isFile ^java.io.File %)
+                                             (str/ends-with? (.getName ^java.io.File %) ".md")
+                                             (not (str/starts-with? (.getName ^java.io.File %) "."))))
                                (map (fn [f]
-                                      (let [filename (.getName f)
+                                      (let [filename (.getName ^java.io.File f)
                                             name (subs filename 0 (- (count filename) 3))
                                             display-name (-> name
                                                              (str/replace "_" " ")
@@ -335,16 +402,27 @@
     (loop []
       (println "🔍 Search for an agent (Type to search, ENTER to select, ESC to exit)")
 
-      ;; Load agents and format for FZF
-      (let [agents (pyjama/list-agents)
+      ;; Load agents from both local and registry sources
+      (let [agents (get-all-agents)
+            _  (println "📝 Generating previews...")
+            preview-dir (write-preview-files agents)
             agents-text (format-agents-for-fzf agents)
-            selection (run-fzf-agent-select agents-text)]
+            selection (run-fzf-agent-select agents-text preview-dir)]
 
         (if selection
           (do
             (let [parsed (parse-agent-selection selection)
                   agent-id (keyword (:id parsed))
-                  agent-desc (:description parsed)]
+                  agent-desc (:description parsed)
+                  ;; Find the agent to check its source
+                  selected-agent (first (filter #(= (:id %) agent-id) agents))
+                  is-registry-agent? (= (:source selected-agent) :registry)]
+
+              ;; If it's a registry agent, load it into the runtime registry
+              (when is-registry-agent?
+                (let [{:keys [id spec]} (registry/lookup-agent (name agent-id))]
+                  (swap! pyjama/agents-registry assoc id spec)
+                  (println (colorize :cyan (str "📦 Loaded from registry: " (name id))))))
 
               (println)
               (println "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")

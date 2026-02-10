@@ -1,0 +1,36 @@
+{:git-greeter-demo
+ {:description "Demo agent using Git-based external tool"
+  :start :greet
+  :max-steps 3
+
+  :inputs
+  {:user-name {:type "string" :required true}}
+
+  :tools
+  {:greeter {:fn pyjama.tools.external/execute-clojure-tool
+             ;; Git-based tool with subdirectory
+             :args {:git-url "https://github.com/hellonico/pyjama-tools.git"
+                    :subdir "greeter-tool"
+                    :namespace "greeter-tool.core"}}}
+
+  :steps
+  {:greet
+   {:tool :greeter
+    :args {:function "greet"
+           :params {:name "{{user-name}}"
+                    :language "english"
+                    :style "enthusiastic"}}
+    :next :show-greeting}
+
+   :show-greeting
+   {:prompt "The Git-based external tool worked!
+
+Greeting: {{last-obs.greeting}}
+
+From: {{last-obs.metadata.name}}
+Language: {{last-obs.metadata.language}}
+Style: {{last-obs.metadata.style}}
+
+This tool was loaded from a Git repository and cached locally!"
+    :stream true
+    :terminal? true}}}}

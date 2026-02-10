@@ -234,29 +234,41 @@
     (apply merge-with deep-merge maps)
     (last maps)))
 
+(defn normalize-agent-data
+  "Normalize agent data to handle both single-agent and multi-agent formats.
+  
+  Single-agent format (has :steps at top level):
+    {:description ... :steps {...}}
+  
+  Multi-agent format (map of agent-id -> spec):
+    {:agent-1 {:description ... :steps {...}}
+     :agent-2 {:description ... :steps {...}}}
+  
+  For single-agent format, wraps the spec with agent-name as key.
+  Returns a map of agent-id -> agent-spec in both cases."
+  [data agent-name]
+  (if (contains? data :steps)
+    ;; Single agent: wrap with agent name
+    {(keyword agent-name) data}
+    ;; Multi-agent: use as-is
+    data))
+
 (defn- load-edn-files-from-dir
   "Load all .edn files from a directory and merge them"
   [dir]
-  (when (.exists dir)
-    (let [edn-files (->> (.listFiles dir)
-                         (filter #(and (.isFile %)
-                                       (.endsWith (.getName %) ".edn")))
-                         (sort-by #(.getName %)))]
+  (when (.exists ^java.io.File dir)
+    (let [edn-files (->> (.listFiles ^java.io.File dir)
+                         (filter #(and (.isFile ^java.io.File %)
+                                       (.endsWith (.getName ^java.io.File %) ".edn")))
+                         (sort-by #(.getName ^java.io.File %)))]
       (when (seq edn-files)
-        ;; Check if files contain agent specs (with :name field) or raw config
-        (let [loaded-files (map #(edn/read-string (slurp %)) edn-files)
-              first-file (first loaded-files)]
-          (if (:name first-file)
-            ;; Agent specs with :name field - register by name
-            (reduce (fn [acc file-data]
-                      (let [agent-name (or (:name file-data)
-                                           "unknown-agent")
-                            agent-key (keyword agent-name)]
-                        (assoc acc agent-key file-data)))
-                    {}
-                    loaded-files)
-            ;; Raw config maps - merge them
-            (apply deep-merge loaded-files)))))))
+        ;; Load each file and normalize it (handles both single and multi-agent formats)
+        (let [normalized-configs (map (fn [file]
+                                        (let [data (edn/read-string (slurp file))
+                                              agent-name (str/replace (.getName ^java.io.File file) #"\.edn$" "")]
+                                          (normalize-agent-data data agent-name)))
+                                      edn-files)]
+          (apply deep-merge normalized-configs))))))
 
 (defn load-agents
   "Load and merge agent configuration from (in order of precedence):
@@ -277,12 +289,15 @@
                                        file (io/file trimmed)]
                                    (cond
                                      ;; Directory: load all .edn files
-                                     (.isDirectory file)
+                                     (.isDirectory ^java.io.File file)
                                      (load-edn-files-from-dir file)
 
                                      ;; File: load single file
-                                     (.exists file)
-                                     (edn/read-string (slurp file))
+                                     (.exists ^java.io.File file)
+                                     (let [data (edn/read-string (slurp file))
+                                           ;; Extract agent name from filename
+                                           agent-name (str/replace (.getName ^java.io.File file) #"\.edn$" "")]
+                                       (normalize-agent-data data agent-name))
 
                                      ;; Not found - skip
                                      :else
@@ -309,8 +324,8 @@
                        prop-configs))]    (apply deep-merge configs)))
 
 (def agents-registry
-  "Lazy-loaded agents registry"
-  (delay (or (load-agents) {})))
+  "Dynamic agents registry - initialized with loaded agents, can be updated at runtime"
+  (atom (or (load-agents) {})))
 
 ;; =============================================================================
 ;; Implementation Dispatch

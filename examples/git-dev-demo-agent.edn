@@ -1,0 +1,34 @@
+{:git-dev-demo
+ {:description "Demo agent using Git branch with auto-pull for development"
+  :start :greet
+  :max-steps 3
+
+  :inputs
+  {:user-name {:type "string" :required true}}
+
+  :tools
+  {:greeter {:fn pyjama.tools.external/execute-clojure-tool
+             ;; Development mode: use branch with auto-pull
+             :args {:git-url "https://github.com/hellonico/pyjama-tools.git"
+                    :git-sha "main"      ; Use main branch
+                    :git-pull true       ; Auto-pull latest changes!
+                    :subdir "greeter-tool"
+                    :namespace "greeter-tool.core"}}}
+
+  :steps
+  {:greet
+   {:tool :greeter
+    :args {:function "greet"
+           :params {:name "{{user-name}}"
+                    :language "english"
+                    :style "enthusiastic"}}
+    :next :show-greeting}
+
+   :show-greeting
+   {:prompt "Development mode with auto-pull worked!
+
+Greeting: {{last-obs.greeting}}
+
+This tool automatically pulls the latest changes from the 'main' branch before executing!"
+    :stream true
+    :terminal? true}}}}
